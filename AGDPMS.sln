@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AGDPMS.Web", "AGDPMS.Web\AGDPMS.Web.csproj", "{6FF794A1-B7C1-4721-AE5E-44CF1F000FCF}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{6FF794A1-B7C1-4721-AE5E-44CF1F000FCF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6FF794A1-B7C1-4721-AE5E-44CF1F000FCF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6FF794A1-B7C1-4721-AE5E-44CF1F000FCF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6FF794A1-B7C1-4721-AE5E-44CF1F000FCF}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {146E20A1-852D-45E0-9607-47221B5E8F11}
+	EndGlobalSection
+EndGlobal

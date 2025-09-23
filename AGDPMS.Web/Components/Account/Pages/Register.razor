@@ -1,0 +1,88 @@
+﻿@page "/register"
+
+@using Microsoft.AspNetCore.Identity
+@using System.ComponentModel.DataAnnotations
+@using AGDPMS.Web.Data
+
+@inject UserManager<AppUser> UserManager
+@inject NavigationManager Nav
+
+<PageTitle>Register</PageTitle>
+
+<h3>Create an Account</h3>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div>@Message</div>
+}
+
+<EditForm Model="Input" method="post" OnValidSubmit="RegisterUser" FormName="register">
+    <DataAnnotationsValidator />
+    <hr />
+    <ValidationSummary />
+    <div>
+        <label>Email</label>
+        <InputText @bind-Value="Input.Email" />
+    </div>
+    <div>
+        <label>Username</label>
+        <InputText @bind-Value="Input.UserName" />
+    </div>
+    <div>
+        <label>Password</label>
+        <InputText @bind-Value="Input.Password" Type="password" />
+    </div>
+    <div>
+        <label>Confirm Password</label>
+        <InputText @bind-Value="Input.ConfirmPassword" Type="password" />
+    </div>
+
+    <button type="submit">Register</button>
+</EditForm>
+
+@code {
+    [SupplyParameterFromForm]
+    private RegisterModel Input { get; set; } = new();
+
+    private string? Message = string.Empty;
+
+    public async Task RegisterUser(EditContext context)
+    {
+        var user = new AppUser
+        {
+            Email = Input.Email,
+            UserName = Input.UserName
+        };
+        var result = await UserManager.CreateAsync(user, Input.Password);
+
+        if (!result.Succeeded)
+        {
+            Message = string.Join(", ", result.Errors.Select(e => e.Description));
+            return;
+        }
+
+        Message = "Register Successful";
+        Nav.NavigateTo("/login");
+    }
+
+    public class RegisterModel
+    {
+        [Required, EmailAddress]
+        [Display(Name = "Email")]
+        public string Email { get; set; } = string.Empty;
+
+        [Required]
+        [Display(Name = "UserName")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required, MinLength(8)]
+        [DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = string.Empty;
+
+        [DataType(DataType.Password)]
+        [Display(Name = "Confirm password")]
+        [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
+        public string ConfirmPassword { get; set; } = string.Empty;
+    }
+}

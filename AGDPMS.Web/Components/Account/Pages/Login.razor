@@ -1,0 +1,76 @@
+﻿@page "/login"
+
+@using Microsoft.AspNetCore.Identity
+@using System.ComponentModel.DataAnnotations
+@using AGDPMS.Web.Data
+
+@inject SignInManager<AppUser> SignInManager
+@inject NavigationManager Nav
+
+<PageTitle>Login</PageTitle>
+
+<h3>Login</h3>
+
+@if (!string.IsNullOrEmpty(Message))
+{
+    <div>@Message</div>
+}
+
+<EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+    <DataAnnotationsValidator />
+    <hr />
+    <ValidationSummary />
+
+    <div>
+        <label>Username</label>
+        <InputText @bind-Value="Input.UserName" />
+    </div>
+    <div>
+        <label>Password</label>
+        <InputText @bind-Value="Input.Password" Type="password" />
+    </div>
+    <div>
+        <InputCheckbox @bind-Value="Input.RememberMe" />
+        <label>Remember me</label>
+    </div>
+
+    <button type="submit">Login</button>
+</EditForm>
+
+<p>
+    Don't have an account? <a href="/register">Register here</a>
+</p>
+
+@code {
+    [SupplyParameterFromForm]
+    private LoginModel Input { get; set; } = new();
+
+    private string? Message = string.Empty;
+
+    public async Task LoginUser(EditContext context)
+    {
+        var result = await SignInManager.PasswordSignInAsync(Input.UserName, Input.Password, Input.RememberMe, lockoutOnFailure: false);
+        if (!result.Succeeded)
+        {
+            Message = "Login Failed";
+            return;
+        }
+
+        Message = "Login Successful";
+        Nav.NavigateTo("/");
+    }
+
+    public class LoginModel
+    {
+        [Required]
+        [Display(Name = "Username")]
+        public string UserName { get; set; } = string.Empty;
+
+        [Required, DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = string.Empty;
+
+        [Display(Name = "Remember me?")]
+        public bool RememberMe { get; set; }
+    }
+}
