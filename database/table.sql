@@ -31,10 +31,10 @@ create table if not exists users (
 );
 
 CREATE TABLE IF NOT EXISTS profiles (
-	"profile_id" varchar(250),
-	"profile_name" varchar(250),
-	"linear_density" numeric(10,3),
-	PRIMARY KEY ("profile_id")
+    "profile_id" varchar(250),
+    "profile_name" varchar(250),
+    "linear_density" numeric(10,3),
+    PRIMARY KEY ("profile_id")
 )
 /*
 CREATE TABLE IF NOT EXISTS projects (
