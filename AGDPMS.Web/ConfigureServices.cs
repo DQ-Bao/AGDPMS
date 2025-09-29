@@ -1,4 +1,4 @@
-﻿using AGDPMS.Web.Data;
+using AGDPMS.Web.Data;
 using Microsoft.AspNetCore.Identity;
 using Npgsql;
 using System.Data;
@@ -10,7 +10,8 @@ public static class ConfigureServices
     public static IServiceCollection AddDataAccesses(this IServiceCollection services, string connectionString)
     {
         services.AddScoped<IDbConnection>(_ => new NpgsqlConnection(connectionString));
-        services.AddScoped<IUserStore<AppUser>, DapperUserStore>();
+        //services.AddScoped<IUserStore<AppUser>, DapperUserStore>();
+        services.AddScoped<UserDataAccess>();
         return services;
     }
 }
