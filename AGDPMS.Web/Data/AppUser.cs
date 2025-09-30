@@ -20,9 +20,3 @@ public class AppUser
             new("NeedPasswordChange", NeedChangePassword.ToString()),
         ];
 }
-
-public class AppRole
-{
-    public int Id { get; set; }
-    public required string Name { get; set; }
-}
