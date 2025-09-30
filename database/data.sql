@@ -44,8 +44,8 @@ VALUES
 ('C3312', N'Cánh cửa sổ mở ngoài (có gân & bo cạnh)', 1.159),
 
 ('C22922', N'Cánh cửa sổ mở ngoài (không gân & bo cạnh', 1.118),
-('C3303', N'Đố động cửa sổ', 0.825),
-('C22903', N'Đố động cửa đi và cửa sổ', 0.891),
+('C3033', N'Đố động cửa sổ', 0.825),
+--('C22903', N'Đố động cửa đi và cửa sổ', 0.891), --duplicate
 ('C3313', N'Đố cố định trên khung', 1.126),
 ('C3209', N'Khung vách kính', 0.876),
 
@@ -81,9 +81,9 @@ VALUES
 ('C48980', 'Nối khung 90 độ bản 100', 2.090),
 
 ('C48945', 'Nẹp phụ bản 100', 0.346),
-('F347', 'Ke góc', 4.957),
-('C1687', 'Ke góc', 3.134),
-('C4137', 'Ke góc', 1.879),
+--('F347', 'Ke góc', 4.957), --duplicate
+--('C1687', 'Ke góc', 3.134), --duplicate
+--('C4137', 'Ke góc', 1.879), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA ĐI MỞ QUAY
 ('CX283', 'Khung cửa đi', 1.533),
@@ -92,13 +92,13 @@ VALUES
 ('CX568', 'Đố động cửa đi', 1.195),
 ('CX309', 'Nối khung', 0.427),
 
-('C22900', 'Ốp đáy cánh cửa đi', 0.476),
-('C3329', 'Ốp đáy cánh cửa đi', 0.428),
-('C3319', 'Ngưỡng cửa đi', 0.689),
-('C459', 'Thanh truyền khóa', 0.139),
-('B507', 'Nan dán trang trí', 0.150),
+--('C22900', 'Ốp đáy cánh cửa đi', 0.476), --duplicate
+--('C3329', 'Ốp đáy cánh cửa đi', 0.428), --duplicate
+--('C3319', 'Ngưỡng cửa đi', 0.689), --duplicate
+--('C459', 'Thanh truyền khóa', 0.139), --duplicate
+--('B507', 'Nan dán trang trí', 0.150), --duplicate
 
-('F347', 'Ke góc', 4.957),
+--('F347', 'Ke góc', 4.957), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ QUAY
 ('CX267', 'Khung cửa sổ, vách kính', 1.057),
@@ -111,15 +111,15 @@ VALUES
 ('CX311', 'Nối khung vách kính', 1.461),
 ('CX310', 'Thanh nối góc 90 độ', 1.614),
 
-('C3246', 'Nẹp kính', 0.216),
-('C3286', 'Nẹp kính', 0.223),
-('C3236', 'Nẹp kính', 0.227),
-('C3206', 'Nẹp kính', 0.257),
-('C3295', 'Nẹp kính', 0.271),
+--('C3246', 'Nẹp kính', 0.216), --duplicate
+--('C3286', 'Nẹp kính', 0.223), --duplicate
+--('C3236', 'Nẹp kính', 0.227), --duplicate
+--('C3206', 'Nẹp kính', 0.257), --duplicate
+--('C3295', 'Nẹp kính', 0.271), --duplicate
 
-('C1687', 'Ke góc', 3.134),
-('C4137', 'Ke góc', 1.879),
-('C1697', 'Ke góc', 2.436),
+--('C1687', 'Ke góc', 3.134), --duplicate
+--('C4137', 'Ke góc', 1.879), --duplicate
+--('C1697', 'Ke góc', 2.436), --duplicate
 ('C1757', 'Ke góc', 2.167),
 
 --MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
@@ -148,7 +148,7 @@ VALUES
 ('F607', 'Khung ngang dưới (ray nổi)', 1.053),
 ('F2435', 'Khung ngang dưới (ray âm)', 1.351),
 
-('F520', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1.254),
+('F523', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1.254),
 ('F4117', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1.269),
 ('F5017', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1.307),
 ('F522', 'Cánh cửa có lỗ vít (khoá đơn điểm)', 1.336),
@@ -162,7 +162,7 @@ VALUES
 ('F608', 'Ke liên kết khung đứng với ngang trên', 1.440),
 ('F609', 'Ke liên kết khung đứng với ngang dưới', 1.377),
 ('F417', 'Ke góc', 5.228),
-('F347', 'Ke góc', 4.957),
+--('F347', 'Ke góc', 4.957), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ LÙA
 ('D23151', 'Khung cửa lùa', 0.949),
@@ -290,26 +290,26 @@ VALUES
 ('GK413', 'Nắp đậy thanh đố ngang', 0.217),
 
 ('GK1745', 'Pat liên kết thanh đố ngang', 1.173),
-('GK2467', 'Thanh nêm đố ngang', 0.304),
+--('GK2467', 'Thanh nêm đố ngang', 0.304), --duplicate
 ('GK228', 'Nẹp kính trái', 0.356),
 ('GK238', 'Nẹp kính phải', 0.294),
 
 ('GK218', 'Nẹp kính trên', 0.437),
 ('GK208', 'Nẹp kính dưới', 0.383),
 ('GK255', 'Thanh móc treo kính', 0.436),
-('C459', 'Thanh truyền khóa', 0.139),
+--('C459', 'Thanh truyền khóa', 0.139), --duplicate
 
 ('GK275', 'Thanh đố kính', 0.245),
 ('GK1064', 'Chống nhấc cánh', 0.257),
-('GK1255', 'Khung trên cửa sổ (dạng móc treo)', 0.918),
-('GK1325', 'Cánh trên cửa sổ (dạng móc treo)', 0.791),
+--('GK1255', 'Khung trên cửa sổ (dạng móc treo)', 0.918), --duplicate
+--('GK1325', 'Cánh trên cửa sổ (dạng móc treo)', 0.791), --duplicate
 
-('GK1295', 'Khung cửa sổ', 0.751),
-('GK1365', 'Cánh cửa sổ', 0.801),
+--('GK1295', 'Khung cửa sổ', 0.751), --duplicate
+--('GK1365', 'Cánh cửa sổ', 0.801), --duplicate
 ('GK534', 'Thanh đỡ kính cho cánh cửa sổ', 0.195),
 ('GK454', 'Máng che cánh cửa sổ', 0.288),
 
-('GK1215', 'Ke cửa sổ', 0.959),
+--('GK1215', 'Ke cửa sổ', 0.959), --duplicate
 
 --MẶT CẮT PROFILE LAN CAN KÍNH
 ('E1214', 'Khung bao ngang trên', 1.795),
