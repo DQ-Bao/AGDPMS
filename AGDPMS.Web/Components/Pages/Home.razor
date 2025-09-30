@@ -1,8 +1,11 @@
 ﻿@page "/"
 @rendermode InteractiveServer
 
+@using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using AGDPMS.Web.Data
+@using System.Security.Claims
 
 @attribute [Authorize]
 
@@ -10,8 +13,19 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
-
+<AuthorizeView>
+    <Authorized>
+        <h1>Hello, @context.User.Identity?.Name !</h1>
+        <ul>
+            @foreach (var claim in context.User.Claims)
+            {
+                <li>@claim.Type - @claim.Value</li>
+            }
+        </ul>
+    </Authorized>
+</AuthorizeView>
 Welcome to your new app.
 
+<a href="/accounts">Accounts</a>
+<br />
 <button type="button" @onclick='() => Nav.NavigateTo("/logout", forceLoad: true)'>Logout</button>

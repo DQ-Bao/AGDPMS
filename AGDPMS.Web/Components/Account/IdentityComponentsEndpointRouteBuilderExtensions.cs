@@ -1,7 +1,5 @@
-﻿using AGDPMS.Web.Data;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.AspNetCore.Mvc;
-using System.Security.Claims;
+﻿using AGDPMS.Web;
+using Microsoft.AspNetCore.Authentication;
 
 namespace Microsoft.AspNetCore.Routing;
 internal static class IdentityComponentsEndpointRouteBuilderExtensions
@@ -9,12 +7,10 @@ internal static class IdentityComponentsEndpointRouteBuilderExtensions
     public static IEndpointRouteBuilder MapAdditionalIdentityEndpoints(this IEndpointRouteBuilder endpoints)
     {
         ArgumentNullException.ThrowIfNull(endpoints);
-        endpoints.MapGet("/logout", async (
-                ClaimsPrincipal user,
-                [FromServices] SignInManager<AppUser> signInManager) =>
+        endpoints.MapGet("/logout", async (HttpContext context) =>
         {
-            await signInManager.SignOutAsync();
-            return TypedResults.LocalRedirect("/login");
+            await context.SignOutAsync(Constants.AuthScheme);
+            context.Response.Redirect("/login");
         });
         return endpoints;
     }

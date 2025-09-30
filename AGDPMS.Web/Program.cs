@@ -1,8 +1,6 @@
 using AGDPMS.Web;
 using AGDPMS.Web.Components;
-using AGDPMS.Web.Components.Account;
 using AGDPMS.Web.Data;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,25 +11,29 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddDataAccesses(builder.Configuration.GetConnectionString("Default")!);
-builder.Services.AddIdentityCore<AppUser>(opts =>
-{
-    opts.User.AllowedUserNameCharacters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._@+ ";
-    opts.User.RequireUniqueEmail = true;
-    opts.Password.RequireDigit = true;
-    opts.Password.RequiredLength = 8;
-    opts.Password.RequireUppercase = true;
-    opts.Password.RequireNonAlphanumeric = true;
-})
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
-builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider<AppUser>>();
-builder.Services.AddAuthentication(IdentityConstants.ApplicationScheme)
-    .AddCookie(IdentityConstants.ApplicationScheme, opts =>
+builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
+builder.Services.AddAuthentication(Constants.AuthScheme)
+    .AddCookie(Constants.AuthScheme, opts =>
     {
         opts.LoginPath = "/login";
+        opts.AccessDeniedPath = "/access-denied";
+        opts.LogoutPath = "/logout";
+
+        opts.Cookie.Name = Constants.AuthCookie;
+        opts.Cookie.HttpOnly = true;
+        opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+        opts.Cookie.SameSite = SameSiteMode.Strict;
+        opts.ExpireTimeSpan = TimeSpan.FromDays(1);
+        opts.SlidingExpiration = true;
     });
-builder.Services.AddAuthorizationCore();
-builder.Services.AddSingleton<IEmailSender<AppUser>, IdentityNoOpEmailSender>();
+
+builder.Services.AddSmsSender(opts =>
+{
+    opts.Username = "S1DWDC";
+    opts.Password = "4algwipfnvcd0p";
+});
+
+builder.Services.AddMemoryCache();
 
 var app = builder.Build();
 
@@ -45,6 +47,8 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.UseAntiforgery();
 

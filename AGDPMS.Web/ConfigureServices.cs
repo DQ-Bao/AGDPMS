@@ -1,5 +1,6 @@
-﻿using AGDPMS.Web.Data;
-using Microsoft.AspNetCore.Identity;
+﻿using AGDPMS.Web.Components.Account;
+using AGDPMS.Web.Data;
+using AGDPMS.Web.Services;
 using Npgsql;
 using System.Data;
 
@@ -10,7 +11,15 @@ public static class ConfigureServices
     public static IServiceCollection AddDataAccesses(this IServiceCollection services, string connectionString)
     {
         services.AddScoped<IDbConnection>(_ => new NpgsqlConnection(connectionString));
-        services.AddScoped<IUserStore<AppUser>, DapperUserStore>();
+        services.AddScoped<UserDataAccess>();
+        return services;
+    }
+
+    public static IServiceCollection AddSmsSender(this IServiceCollection services, Action<AndroidSmsGatewayOptions> configureOptions)
+    {
+        services.Configure(configureOptions);
+        services.AddHttpClient<AndroidGatewaySmsSender>();
+        services.AddScoped<ISmsSender, AndroidGatewaySmsSender>();
         return services;
     }
 }
