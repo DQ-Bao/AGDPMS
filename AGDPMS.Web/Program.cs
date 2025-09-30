@@ -1,8 +1,6 @@
 using AGDPMS.Web;
 using AGDPMS.Web.Components;
-using AGDPMS.Web.Components.Account;
 using AGDPMS.Web.Data;
-using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -14,17 +12,6 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddDataAccesses(builder.Configuration.GetConnectionString("Default")!);
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
-//builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider<AppUser>>();
-//builder.Services.AddIdentityCore<AppUser>(opts =>
-//{
-//    opts.Password.RequireNonAlphanumeric = false;
-//    opts.Password.RequireDigit = false;
-//    opts.Password.RequiredUniqueChars = 0;
-//    opts.Password.RequireUppercase = false;
-//    //opts.SignIn.RequireConfirmedPhoneNumber = true;
-//})
-//    .AddSignInManager()
-//    .AddDefaultTokenProviders();
 builder.Services.AddAuthentication(Constants.AuthScheme)
     .AddCookie(Constants.AuthScheme, opts =>
     {
@@ -39,13 +26,11 @@ builder.Services.AddAuthentication(Constants.AuthScheme)
         opts.ExpireTimeSpan = TimeSpan.FromDays(1);
         opts.SlidingExpiration = true;
     });
-//builder.Services.AddAuthorizationCore();
 
-builder.Services.AddEmailSmsSender(opts =>
+builder.Services.AddSmsSender(opts =>
 {
-    opts.From = "baodqhe180053@fpt.edu.vn";
-    opts.UserName = "baodqhe180053@fpt.edu.vn";
-    opts.Password = "cqua gnht xwzv zxsy";
+    opts.Username = "S1DWDC";
+    opts.Password = "4algwipfnvcd0p";
 });
 
 builder.Services.AddMemoryCache();

@@ -1,0 +1,75 @@
+﻿@page "/verify-otp/{UserId:int}"
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.Extensions.Caching.Memory
+@using AGDPMS.Web.Data
+
+@inject UserDataAccess UserDataAccess
+@inject IMemoryCache Cache;
+@inject NavigationManager Nav;
+
+<PageTitle>Verify OTP</PageTitle>
+
+<h2>Verify OTP</h2>
+<p>The code will expires in 5 minutes.</p>
+@if (!string.IsNullOrEmpty(Message))
+{
+    <p>@Message</p>
+}
+<hr />
+
+<h3>Enter the code sent to your phone.</h3>
+<EditForm Model="Input" OnValidSubmit="HandleVerify" method="post" FormName="verify-otp">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div>
+        <label for="Input.Code">OTP Code</label>
+        <InputText @bind-Value="Input.Code" id="Input.Code" />
+    </div>
+    <button type="submit">Verify</button>
+</EditForm>
+
+@code {
+    [Parameter]
+    public int UserId { get; set; }
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private string? Message;
+
+    private async Task HandleVerify()
+    {
+        var user = await UserDataAccess.GetByIdAsync(UserId);
+        if (user is null)
+        {
+            Message = "Invalid Request";
+            return;
+        }
+
+        var cacheKey = $"otp:{user.Id}";
+        if (!Cache.TryGetValue(cacheKey, out string? otp))
+        {
+            Message = "Code not found or expired";
+            return;
+        }
+
+        if (!string.Equals(Input.Code, otp, StringComparison.Ordinal))
+        {
+            Message = "Incorrect Code";
+            return;
+        }
+
+        var token = Guid.NewGuid().ToString("N");
+        Cache.Set($"reset:{token}", user.Id, TimeSpan.FromDays(1));
+        Cache.Remove(cacheKey);
+
+        Nav.NavigateTo($"/reset-password/{token}");
+    }
+
+    private sealed class InputModel
+    {
+        [Required, StringLength(6, MinimumLength = 6)]
+        public string Code { get; set; } = string.Empty;
+    }
+}
