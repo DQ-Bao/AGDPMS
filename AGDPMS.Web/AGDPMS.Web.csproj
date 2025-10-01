@@ -11,4 +11,9 @@
     <PackageReference Include="Npgsql" Version="9.0.3" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\AGDPMS.Shared.Core\AGDPMS.Shared.Core.csproj" />
+    <ProjectReference Include="..\AGDPMS.Shared.UI\AGDPMS.Shared.UI.csproj" />
+  </ItemGroup>
+
 </Project>
