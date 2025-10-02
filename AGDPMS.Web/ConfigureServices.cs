@@ -1,6 +1,6 @@
 ﻿using AGDPMS.Web.Components.Account;
 using AGDPMS.Web.Data;
-using AGDPMS.Web.Services;
+using AGDPMS.Shared.Services;
 using Npgsql;
 using System.Data;
 
