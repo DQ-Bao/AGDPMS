@@ -54,7 +54,8 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
+    .AddInteractiveServerRenderMode()
+    .AddAdditionalAssemblies(typeof(AGDPMS.Shared._Imports).Assembly);
 
 app.MapAdditionalIdentityEndpoints();
 

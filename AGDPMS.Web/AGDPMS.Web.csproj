@@ -12,8 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\AGDPMS.Shared.Core\AGDPMS.Shared.Core.csproj" />
-    <ProjectReference Include="..\AGDPMS.Shared.UI\AGDPMS.Shared.UI.csproj" />
+    <ProjectReference Include="..\AGDPMS.Shared\AGDPMS.Shared.csproj" />
   </ItemGroup>
 
 </Project>
