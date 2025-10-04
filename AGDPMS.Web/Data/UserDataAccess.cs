@@ -58,9 +58,6 @@ public class UserDataAccess(IDbConnection conn)
 
     public async Task<AppUser> CreateAsync(AppUser user)
     {
-        var roleId = await conn.ExecuteScalarAsync<int?>("select id from roles where name = @Name", new { user.Role.Name })
-            ?? throw new InvalidOperationException($"Role '{user.Role.Name}' doesn't exist.");
-        
         var id = await conn.ExecuteScalarAsync<int>(@"
             insert into users(fullname, phone, password_hash, role_id, need_change_password)
             values (@FullName, @PhoneNumber, @PasswordHash, @RoleId, @NeedChangePassword)
@@ -70,11 +67,10 @@ public class UserDataAccess(IDbConnection conn)
             user.FullName,
             user.PhoneNumber,
             user.PasswordHash,
-            RoleId = roleId,
+            RoleId = user.Role.Id,
             user.NeedChangePassword
         });
         user.Id = id;
-        user.Role.Id = roleId;
         return user;
     }
 
