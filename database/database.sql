@@ -1,3 +1,3 @@
-SET CLIENT_ENCODING TO 'utf8';
-DROP DATABASE IF EXISTS agdpms;
-CREATE DATABASE agdpms WITH ENCODING 'UTF8';
+set client_encoding to 'utf8';
+drop database if exists agdpms;
+create database agdpms with encoding 'utf8';

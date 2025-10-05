@@ -1,0 +1,46 @@
+﻿@page "/inventory"
+@rendermode InteractiveServer
+
+@using AGDPMS.Web.Data
+@using System.ComponentModel.DataAnnotations
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+
+@inject InventoryDataAccess InventoryDataAccess
+
+<PageTitle>Inventory</PageTitle>
+
+<h3>Aluminum</h3>
+
+<a href="/">Home</a>
+<table border="1">
+    <tr>
+        <th>Id</th>
+        <th>Name</th>
+        <th>Linear Density</th>
+        <th>Quantity</th>
+    </tr>
+    @foreach (var a in _aluminum)
+    {
+        <tr>
+            <td>@a.Id</td>
+            <td>@a.Name</td>
+            <td>@a.LinearDensity</td>
+            <td>@a.Quantity</td>
+        </tr>
+    }
+</table>
+<hr />
+
+@code {
+    private IEnumerable<Aluminum> _aluminum = [];
+
+    [SupplyParameterFromForm]
+
+    private string? ResetMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        _aluminum = await InventoryDataAccess.GetAllAluminumAsync();
+    }
+}
