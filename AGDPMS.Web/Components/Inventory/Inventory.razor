@@ -17,30 +17,30 @@
     <tr>
         <th>Id</th>
         <th>Name</th>
-        <th>Linear Density</th>
+        <th>Type</th>
+        <th>Stock</th>
+        <th>Weight</th>
         <th>Quantity</th>
     </tr>
-    @foreach (var a in _aluminum)
+    @foreach (var m in _materials)
     {
         <tr>
-            <td>@a.Id</td>
-            <td>@a.Name</td>
-            <td>@a.LinearDensity</td>
-            <td>@a.Quantity</td>
+            <td>@m.Id</td>
+            <td>@m.Name</td>
+            <td>@m.Type</td>
+            <td>@m.Stock</td>
+            <td>@m.Weight</td>
+            <td>@m.Thickness</td>
         </tr>
     }
 </table>
 <hr />
 
 @code {
-    private IEnumerable<Aluminum> _aluminum = [];
-
-    [SupplyParameterFromForm]
-
-    private string? ResetMessage { get; set; }
+    private IEnumerable<Material> _materials = [];
 
     protected override async Task OnInitializedAsync()
     {
-        _aluminum = await InventoryDataAccess.GetAllAluminumAsync();
+        _materials = await InventoryDataAccess.GetAllMaterialAsync();
     }
 }
