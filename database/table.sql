@@ -2,6 +2,7 @@ set client_encoding to 'utf8';
 
 drop table if exists stock_import;
 drop table if exists material;
+drop table if exists material_type;
 drop table if exists users;
 drop table if exists roles;
 
@@ -25,14 +26,20 @@ create table if not exists users (
 	constraint "uq_users_phone" unique ("phone")
 );
 
+create table if not exists material_type (
+	"id" serial,
+	"name" varchar(250),
+	constraint "pk_material_type" primary key ("id")
+);
 
 create table if not exists material (
     "id" varchar(250) primary key,
     "name" varchar(250) not null,
-    "type" varchar(250) not null check ("type" in ('aluminum', 'glass', 'accessory')),
+    "type" serial,
     "stock" int not null default 0,
     "weight" numeric(10,3),
-    "thickness" numeric(10,3)
+    "thickness" numeric(10,3),
+	constraint "fk_material_type" foreign key ("type") references material_type("id")
 );
 
 create table if not exists stock_import (
