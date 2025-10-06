@@ -10,10 +10,6 @@
         <Entry Text="{Binding PhoneNumber}" Keyboard="Telephone" />
         <Label Text="Password" />
         <Entry Text="{Binding Password}" IsPassword="True" />
-        <HorizontalStackLayout Spacing="8">
-            <CheckBox IsChecked="{Binding RememberMe}"/>
-            <Label Text="Remember me" VerticalTextAlignment="Center"/>
-        </HorizontalStackLayout>
         <Label Text="{Binding Message}" TextColor="Red" IsVisible="{Binding HasMessage}" />
         <Button Text="Login" Command="{Binding LoginCommand}" />
         <Button Text="Forgot password?" Command="{Binding ForgotPasswordCommand}" />

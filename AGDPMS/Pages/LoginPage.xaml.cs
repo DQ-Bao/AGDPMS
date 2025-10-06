@@ -34,12 +34,7 @@ public partial class LoginViewModel : ObservableObject
 
     public bool HasMessage => !string.IsNullOrWhiteSpace(Message);
 
-    private bool rememberMe;
-    public bool RememberMe
-    {
-        get => rememberMe;
-        set => SetProperty(ref rememberMe, value);
-    }
+    // Always remember: remove user-toggle and treat as enabled
 
     public LoginViewModel(IApiClient apiClient)
     {
@@ -78,24 +73,14 @@ public partial class LoginViewModel : ObservableObject
             }
             else
             {
-                // Persist remember-me preference
+                // Always remember on successful login
                 try
                 {
-                    Preferences.Default.Set("remembered", RememberMe);
-                    if (RememberMe)
-                    {
-                        Preferences.Default.Set("rememberedUserId", result.UserId ?? 0);
-                        Preferences.Default.Set("rememberedPhone", result.PhoneNumber ?? string.Empty);
-                        Preferences.Default.Set("rememberedFullName", result.FullName ?? string.Empty);
-                        Preferences.Default.Set("rememberedRole", result.RoleName ?? string.Empty);
-                    }
-                    else
-                    {
-                        Preferences.Default.Remove("rememberedUserId");
-                        Preferences.Default.Remove("rememberedPhone");
-                        Preferences.Default.Remove("rememberedFullName");
-                        Preferences.Default.Remove("rememberedRole");
-                    }
+                    Preferences.Default.Set("remembered", true);
+                    Preferences.Default.Set("rememberedUserId", result.UserId ?? 0);
+                    Preferences.Default.Set("rememberedPhone", result.PhoneNumber ?? string.Empty);
+                    Preferences.Default.Set("rememberedFullName", result.FullName ?? string.Empty);
+                    Preferences.Default.Set("rememberedRole", result.RoleName ?? string.Empty);
                 }
                 catch (Exception)
                 {
