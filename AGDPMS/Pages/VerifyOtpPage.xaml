@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AGDPMS.Pages.VerifyOtpPage"
+             x:DataType="local:VerifyOtpViewModel"
+             xmlns:local="clr-namespace:AGDPMS.Pages"
+             Title="Verify OTP">
+    <VerticalStackLayout Padding="24" Spacing="12">
+        <Label Text="Verify OTP" FontSize="24" FontAttributes="Bold" />
+        <Label Text="The code will expire in 5 minutes." />
+        <Label Text="Enter the code sent to your phone." />
+        
+        <Label Text="OTP Code" />
+        <Entry Text="{Binding OtpCode}" Keyboard="Numeric" MaxLength="6" />
+        
+        <Label Text="{Binding Message}" TextColor="Red" IsVisible="{Binding HasMessage}" />
+        
+        <Button Text="Verify" Command="{Binding VerifyCommand}" />
+        <Button Text="Back" Command="{Binding BackCommand}" />
+    </VerticalStackLayout>
+</ContentPage>
