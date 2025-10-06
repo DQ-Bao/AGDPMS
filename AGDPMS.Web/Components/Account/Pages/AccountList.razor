@@ -9,14 +9,14 @@
 @attribute [Authorize(Roles = "Admin")]
 
 @inject UserDataAccess UserDataAccess
-@inject IPasswordHasher<AppUser> PasswordHasher
+@inject RoleDataAccess RoleDataAccess
 
 <PageTitle>Account List</PageTitle>
 
 <h3>AccountList</h3>
 
 <a href="/">Home</a>
-<a href="/add-account">Add Account</a>
+<button type="button" @onclick="() => _showAddForm = true">Add account</button>
 <table border="1">
     <tr>
         <th>Id</th>
@@ -34,66 +34,31 @@
             <td>@user.PhoneNumber</td>
             <td>@user.Role.Name</td>
             <td>@user.NeedChangePassword</td>
-            <td><button type="button" @onclick="() => ShowResetPasswordDialog(user.Id)">Reset password</button></td>
+            <td></td>
         </tr>
     }
 </table>
-<hr />
-@if (_showResetPasswordDialog)
+
+@if (_showAddForm)
 {
-    <h4>Reset password for user: @_selectedUser?.FullName</h4>
-    @if (!string.IsNullOrEmpty(ResetMessage))
-    {
-        <p>@ResetMessage</p>
-    }
-    <EditForm Model="Input" OnValidSubmit="HandleResetPassword" method="post" FormName="reset-password">
-        <DataAnnotationsValidator />
-        <ValidationSummary />
-        <div>
-            <label for="Input.Password">New Password</label>
-            <InputText @bind-Value="Input.Password" id="Input.Password" />
-        </div>
-        <button type="button" @onclick="() => _showResetPasswordDialog = false">Cancel</button>
-        <button type="submit">Submit</button>
-    </EditForm>
+    <hr />
+    <h4>Add an account</h4>
+    <AddAccountForm Roles="_roles" OnAccountAdded="HandleAccountAdded" OnCancel="() => _showAddForm = false" />
 }
 
 @code {
     private IEnumerable<AppUser> _users = [];
-    private bool _showResetPasswordDialog = false;
-    private AppUser? _selectedUser;
-
-    [SupplyParameterFromForm]
-    private InputModel Input { get; set; } = new();
-
-    private string? ResetMessage { get; set; }
+    private IEnumerable<AppRole> _roles = [];
+    private bool _showAddForm = false;
 
     protected override async Task OnInitializedAsync()
     {
         _users = await UserDataAccess.GetAllAsync();
+        _roles = await RoleDataAccess.GetAllAsync();
     }
 
-    private void ShowResetPasswordDialog(int userId)
+    private async Task HandleAccountAdded(AppUser user)
     {
-        _selectedUser = _users.FirstOrDefault(u => u.Id == userId);
-        _showResetPasswordDialog = true;
-        ResetMessage = null;
-        Input = new();
-    }
-
-    private async Task HandleResetPassword()
-    {
-        if (_selectedUser is null) return;
-        var hash = PasswordHasher.HashPassword(_selectedUser, Input.Password);
-        await UserDataAccess.SetPasswordHashAsync(_selectedUser.Id, hash, needChange: true);
-        ResetMessage = "Reset password successfully";
-    }
-
-    private sealed class InputModel
-    {
-        [Required, MinLength(6)]
-        [DataType(DataType.Password)]
-        [Display(Name = "Password")]
-        public string Password { get; set; } = "abc123";
+        _users = await UserDataAccess.GetAllAsync();
     }
 }

@@ -13,6 +13,7 @@ public static class ConfigureServices
         services.AddScoped<IDbConnection>(_ => new NpgsqlConnection(connectionString));
         services.AddScoped<UserDataAccess>();
         services.AddScoped<InventoryDataAccess>();
+        services.AddScoped<RoleDataAccess>();
         return services;
     }
 
