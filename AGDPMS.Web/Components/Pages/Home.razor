@@ -14,18 +14,21 @@
 <PageTitle>Home</PageTitle>
 
 <AuthorizeView>
-    <Authorized>
-        <h1>Hello, @context.User.Identity?.Name !</h1>
-        <ul>
-            @foreach (var claim in context.User.Claims)
-            {
-                <li>@claim.Type - @claim.Value</li>
-            }
-        </ul>
-    </Authorized>
+    <h1>Hello, @context.User.Identity?.Name !</h1>
+    <ul>
+        @foreach (var claim in context.User.Claims)
+        {
+            <li>@claim.Type - @claim.Value</li>
+        }
+    </ul>
+    Welcome to your new app.
+    <AuthorizeView Roles="Admin" Context="adminContext">
+        <a href="/accounts">Accounts</a>
+    </AuthorizeView>
+    <AuthorizeView Roles="Technician" Context="techContext">
+        <a href="/takeoff">Take Off</a>
+    </AuthorizeView>
 </AuthorizeView>
-Welcome to your new app.
 
-<a href="/accounts">Accounts</a>
 <br />
 <button type="button" @onclick='() => Nav.NavigateTo("/logout", forceLoad: true)'>Logout</button>
