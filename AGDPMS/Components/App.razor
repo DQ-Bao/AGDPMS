@@ -1,0 +1,29 @@
+@using Microsoft.AspNetCore.Components.Web
+@using AGDPMS.Components.Account.Pages
+@using AGDPMS.Components.Layout
+@using AGDPMS.Components.Pages
+@inject NavigationManager Navigation
+
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p role="alert">Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Check if user is remembered and redirect accordingly
+        var remembered = Microsoft.Maui.Storage.Preferences.Default.Get("remembered", false);
+        if (!remembered && Navigation.Uri.EndsWith("/"))
+        {
+            Navigation.NavigateTo("/login");
+        }
+    }
+}

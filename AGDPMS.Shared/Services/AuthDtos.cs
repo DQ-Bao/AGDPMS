@@ -87,3 +87,24 @@ public sealed class RoleDto
     public string Name { get; set; } = string.Empty;
 }
 
+public sealed class UserDto
+{
+    public int Id { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string PhoneNumber { get; set; } = string.Empty;
+    public string RoleName { get; set; } = string.Empty;
+    public bool NeedChangePassword { get; set; }
+    public int RoleId { get; set; }
+}
+
+public sealed class DeleteUserRequest
+{
+    public int UserId { get; set; }
+}
+
+public sealed class DeleteUserResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+}
+

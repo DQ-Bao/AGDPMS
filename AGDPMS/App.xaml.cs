@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Maui.Storage;
+using Microsoft.AspNetCore.Components.WebView.Maui;
 
 namespace AGDPMS
 {
@@ -12,25 +13,27 @@ namespace AGDPMS
 
         protected override Window CreateWindow(IActivationState? activationState)
         {
-            var services = Current?.Handler?.MauiContext?.Services;
-            var remembered = Preferences.Default.Get("remembered", false);
-            Page rootPage;
-            if (remembered)
+            // Create BlazorWebView for Razor components
+            var blazorWebView = new BlazorWebView
             {
-                rootPage = new MainPage();
-            }
-            else
+                HostPage = "wwwroot/index.html"
+            };
+            
+            // Set the root component to App.razor which handles routing
+            blazorWebView.RootComponents.Add(new RootComponent
             {
-                var loginPage = services?.GetService<AGDPMS.Pages.LoginPage>();
-                if (loginPage is null && services is not null)
-                {
-                    var vm = services.GetRequiredService<AGDPMS.Pages.LoginViewModel>();
-                    loginPage = new AGDPMS.Pages.LoginPage(vm);
-                }
-                rootPage = loginPage as Page ?? new MainPage();
-            }
-            var nav = new NavigationPage(rootPage) { Title = "AGDPMS" };
-            return new Window(nav) { Title = "AGDPMS" };
+                Selector = "#app",
+                ComponentType = typeof(Components.App)
+            });
+            
+            // Wrap BlazorWebView in a ContentPage
+            var contentPage = new ContentPage
+            {
+                Content = blazorWebView,
+                Title = "AGDPMS"
+            };
+            
+            return new Window(contentPage) { Title = "AGDPMS" };
         }
     }
 }

@@ -12,6 +12,8 @@ public interface IApiClient
     Task<dynamic?> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
     Task<AddAccountResponse?> AddAccountAsync(AddAccountRequest request, CancellationToken cancellationToken = default);
     Task<IEnumerable<RoleDto>?> GetRolesAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserDto>?> GetUsersAsync(CancellationToken cancellationToken = default);
+    Task<DeleteUserResponse?> DeleteUserAsync(int userId, CancellationToken cancellationToken = default);
 }
 
 public sealed class ApiClient(HttpClient httpClient) : IApiClient
@@ -63,6 +65,20 @@ public sealed class ApiClient(HttpClient httpClient) : IApiClient
         var response = await httpClient.GetAsync("/api/auth/roles", cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<IEnumerable<RoleDto>>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<IEnumerable<UserDto>?> GetUsersAsync(CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.GetAsync("/api/auth/users", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<IEnumerable<UserDto>>(cancellationToken: cancellationToken);
+    }
+
+    public async Task<DeleteUserResponse?> DeleteUserAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.DeleteAsync($"/api/auth/users/{userId}", cancellationToken);
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<DeleteUserResponse>(cancellationToken: cancellationToken);
     }
 }
 

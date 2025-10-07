@@ -236,6 +236,44 @@ api.MapGet("/auth/roles", async (RoleDataAccess roleDataAccess) =>
     return Results.Ok(roles.Select(r => new RoleDto { Id = r.Id, Name = r.Name }));
 });
 
+// Get users/accounts
+api.MapGet("/auth/users", async (UserDataAccess userDataAccess) =>
+{
+    var users = await userDataAccess.GetAllAsync();
+    return Results.Ok(users.Select(u => new UserDto 
+    { 
+        Id = u.Id, 
+        FullName = u.FullName, 
+        PhoneNumber = u.PhoneNumber, 
+        RoleName = u.Role.Name,
+        NeedChangePassword = u.NeedChangePassword,
+        RoleId = u.Role.Id
+    }));
+});
+
+// Delete user
+api.MapDelete("/auth/users/{userId:int}", async (
+    int userId,
+    UserDataAccess userDataAccess
+) =>
+{
+    try
+    {
+        var user = await userDataAccess.GetByIdAsync(userId);
+        if (user is null)
+        {
+            return Results.Ok(new DeleteUserResponse { Success = false, Message = "User not found" });
+        }
+
+        await userDataAccess.DeleteAsync(userId);
+        return Results.Ok(new DeleteUserResponse { Success = true, Message = "User deleted successfully" });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new DeleteUserResponse { Success = false, Message = ex.Message });
+    }
+});
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
