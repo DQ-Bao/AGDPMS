@@ -1,4 +1,4 @@
-﻿using Dapper;
+using Dapper;
 using System.Data;
 
 namespace AGDPMS.Web.Data;
@@ -85,5 +85,27 @@ public class UserDataAccess(IDbConnection conn)
                 PasswordHash = passwordHash,
                 NeedChangePassword = needChange ?? false,
                 Id = userId
+            });
+
+    public Task DeleteAsync(int userId) =>
+        conn.ExecuteAsync(@"
+            delete from users
+            where id = @Id",
+            new { Id = userId });
+
+    public Task UpdateAsync(AppUser user) =>
+        conn.ExecuteAsync(@"
+            update users
+            set fullname = @FullName,
+                phone = @PhoneNumber,
+                role_id = @RoleId,
+                need_change_password = @NeedChangePassword
+            where id = @Id",
+            new {
+                user.Id,
+                user.FullName,
+                user.PhoneNumber,
+                RoleId = user.Role.Id,
+                user.NeedChangePassword
             });
 }

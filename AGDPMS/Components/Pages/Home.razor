@@ -1,14 +1,77 @@
 ﻿@page "/"
+@using Microsoft.AspNetCore.Components.Web
 @using AGDPMS.Shared.Services
-@inject IFormFactor FormFactor
+@inject NavigationManager Navigation
+@inject IUserSession UserSession
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
-
-Welcome to your new app running on <em>@factor</em> using <em>@platform</em>.
+<div class="main-layout">
+    <div class="header">
+        <h1>AGDPMS</h1>
+        <div class="user-info">
+            <span>Hello, @GetUserFullName()!</span>
+            <button @onclick="Logout" class="logout-btn">Logout</button>
+        </div>
+    </div>
+    
+    <div class="content">
+        <h2>Welcome to your new app.</h2>
+        
+        <div class="user-details">
+            <h3>User Information:</h3>
+            <ul>
+                <li>Full Name: @GetUserFullName()</li>
+                <li>Phone: @GetUserPhone()</li>
+                <li>Role: @GetUserRole()</li>
+            </ul>
+        </div>
+        
+        <div class="actions">
+            <a href="/accounts" class="action-btn">Accounts</a>
+            <a href="/profile" class="action-btn">Profile</a>
+        </div>
+    </div>
+</div>
 
 @code {
-    private string factor => FormFactor.GetFormFactor();
-    private string platform => FormFactor.GetPlatform();
+    private UserProfileDto? _profile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profile = await UserSession.GetCurrentAsync();
+        StateHasChanged();
+    }
+
+    private string GetUserFullName()
+    {
+        return string.IsNullOrWhiteSpace(_profile?.FullName) ? "User" : _profile!.FullName;
+    }
+    
+    private string GetUserPhone()
+    {
+        return _profile?.PhoneNumber ?? string.Empty;
+    }
+    
+    private string GetUserRole()
+    {
+        return _profile?.RoleName ?? string.Empty;
+    }
+    
+    private void Logout()
+    {
+        // Clear stored secure session
+        try
+        {
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("remembered");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedUserId");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedPhone");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedFullName");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedRole");
+        }
+        catch { }
+        
+        // Navigate to login page
+        Navigation.NavigateTo("/login");
+    }
 }

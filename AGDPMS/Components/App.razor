@@ -1,0 +1,55 @@
+@using Microsoft.AspNetCore.Components.Web
+@using AGDPMS.Components.Account.Pages
+@using AGDPMS.Components.Layout
+@using AGDPMS.Components.Pages
+@inject NavigationManager Navigation
+@inject AGDPMS.Services.NavigationHistoryService NavHistory
+
+<Router AppAssembly="@typeof(App).Assembly" AdditionalAssemblies="new[] { typeof(AGDPMS.Shared.Routes).Assembly }">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+    </Found>
+    <NotFound>
+        <PageTitle>Not found</PageTitle>
+        <LayoutView Layout="@typeof(MainLayout)">
+            <p role="alert">Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    private bool _didRedirect;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Prefer SecureStorage; fall back to Preferences for compatibility
+            bool isRemembered = false;
+            try
+            {
+                var remembered = await Microsoft.Maui.Storage.SecureStorage.Default.GetAsync("remembered");
+                isRemembered = string.Equals(remembered, "true", StringComparison.OrdinalIgnoreCase);
+            }
+            catch { /* ignore */ }
+
+            if (!isRemembered)
+            {
+                var prefRemembered = Microsoft.Maui.Storage.Preferences.Default.Get("remembered", false);
+                isRemembered = prefRemembered;
+            }
+
+            if (!isRemembered && Navigation.Uri.EndsWith("/") && !_didRedirect)
+            {
+                _didRedirect = true;
+                Navigation.NavigateTo("/login", replace: true);
+            }
+
+            NavHistory.Attach(Navigation);
+            Navigation.LocationChanged += (_, args) =>
+            {
+                NavHistory.Push(args.Location);
+            };
+        }
+    }
+}

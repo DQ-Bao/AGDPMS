@@ -1,0 +1,105 @@
+@page "/login"
+@using Microsoft.AspNetCore.Components.Web
+@using AGDPMS.Shared.Services
+@inject IApiClient ApiClient
+@inject NavigationManager Navigation
+
+<div class="login-page">
+    <div class="login-container">
+        <h1>Login</h1>
+        
+        <div class="form-group">
+            <label for="phoneNumber">Phone Number</label>
+            <input type="tel" id="phoneNumber" @bind="phoneNumber" class="form-control" />
+        </div>
+        
+        <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" @bind="password" class="form-control" />
+        </div>
+        
+        @if (!string.IsNullOrWhiteSpace(message))
+        {
+            <div class="error-message">@message</div>
+        }
+        
+        <button @onclick="PerformLogin" class="btn btn-primary" disabled="@isLoading">
+            @if (isLoading)
+            {
+                <span>Logging in...</span>
+            }
+            else
+            {
+                <span>Login</span>
+            }
+        </button>
+        
+        <button @onclick="ForgotPassword" class="btn btn-link">Forgot password?</button>
+    </div>
+</div>
+
+@code {
+    private string phoneNumber = string.Empty;
+    private string password = string.Empty;
+    private string? message;
+    private bool isLoading = false;
+
+    private async Task PerformLogin()
+    {
+        message = null;
+        isLoading = true;
+        
+        try
+        {
+            var result = await ApiClient.LoginAsync(new LoginRequest
+            {
+                PhoneNumber = phoneNumber,
+                Password = password
+            });
+            
+            if (result is null || !result.Success)
+            {
+                message = result?.Message ?? "Login failed";
+                return;
+            }
+
+            // Check if user needs to change password
+            if (result.NeedChangePassword)
+            {
+                Navigation.NavigateTo($"/need-change-password/{result.UserId}");
+            }
+            else
+            {
+                // Persist login data securely on successful login
+                try
+                {
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("remembered", "true");
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedUserId", (result.UserId ?? 0).ToString());
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedPhone", result.PhoneNumber ?? string.Empty);
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedFullName", result.FullName ?? string.Empty);
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedRole", result.RoleName ?? string.Empty);
+                }
+                catch (Exception)
+                {
+                    // Non-fatal: if secure storage fails, proceed with navigation
+                }
+
+                // Navigate to main page
+                Navigation.NavigateTo("/");
+            }
+        }
+        catch (Exception ex)
+        {
+            message = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ForgotPassword()
+    {
+        Navigation.NavigateTo("/forgot-password");
+    }
+}
