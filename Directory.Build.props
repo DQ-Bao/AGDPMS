@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <!-- If you set these environment variables, MSBuild will pick them up automatically -->
+    <AndroidSdkDirectory Condition="'$(ANDROID_SDK_ROOT)' != ''">$(ANDROID_SDK_ROOT)</AndroidSdkDirectory>
+    <AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' and '$(ANDROID_HOME)' != ''">$(ANDROID_HOME)</AndroidSdkDirectory>
+    <AndroidSdkDirectory Condition="'$(AndroidSdkDirectory)' == '' and '$(OS)' == 'Windows_NT' and '$(LOCALAPPDATA)' != ''">$(LOCALAPPDATA)\Android\Sdk</AndroidSdkDirectory>
+    <JavaSdkDirectory Condition="'$(JAVA_HOME)' != ''">$(JAVA_HOME)</JavaSdkDirectory>
+    <AcceptAndroidSdkLicenses>true</AcceptAndroidSdkLicenses>
+  </PropertyGroup>
+</Project>
+
+
