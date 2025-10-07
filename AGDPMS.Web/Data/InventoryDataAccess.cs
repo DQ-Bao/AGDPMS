@@ -11,13 +11,23 @@ public class InventoryDataAccess(IDbConnection conn)
         select
             m.id as Id,
             m.name as Name,
-            m.type as Type,
             m.stock as Stock,
             m.weight as Weight,
-            m.thickness as Thickness
-        from material m;";
+            m.thickness as Thickness,
 
-        return conn.QueryAsync<Material>(query);
+            mt.id as Id,
+            mt.name as Name
+        from material m
+        join material_type mt
+        on m.type = mt.id;";
+
+        return conn.QueryAsync<Material, MaterialType, Material>(
+            query,
+            (m, mt) => {
+                m.Type = mt;
+                return m;
+            }
+        );
     }
     public Task<IEnumerable<Material>> GetAllAluminumAsync()
     {
@@ -25,14 +35,23 @@ public class InventoryDataAccess(IDbConnection conn)
         select
             m.id as Id,
             m.name as Name,
-            m.type as Type,
             m.stock as Stock,
             m.weight as Weight,
-            m.thickness as Thickness
-        from material m
-        where m.type = 'aluminum';";
+            m.thickness as Thickness,
 
-        return conn.QueryAsync<Material>(query);
+            mt.id as Id,
+            mt.name as Name
+        from material m
+        join material_type mt
+        on m.type = mt.id and mt.name = 'aluminum';";
+
+        return conn.QueryAsync<Material, MaterialType, Material>(
+            query,
+            (m, mt) => {
+                m.Type = mt;
+                return m;
+            }
+        );
     }
 
     public Task<IEnumerable<Material>> GetAllGlassAsync()
@@ -41,14 +60,23 @@ public class InventoryDataAccess(IDbConnection conn)
         select
             m.id as Id,
             m.name as Name,
-            m.type as Type,
             m.stock as Stock,
             m.weight as Weight,
-            m.thickness as Thickness
-        from material m
-        where m.type = 'glass';";
+            m.thickness as Thickness,
 
-        return conn.QueryAsync<Material>(query);
+            mt.id as Id,
+            mt.name as Name
+        from material m
+        join material_type mt
+        on m.type = mt.id and mt.name = 'glass';";
+
+        return conn.QueryAsync<Material, MaterialType, Material>(
+            query,
+            (m, mt) => {
+                m.Type = mt;
+                return m;
+            }
+        );
     }
 
     public Task<IEnumerable<Material>> GetAllAccessoryAsync()
@@ -57,14 +85,23 @@ public class InventoryDataAccess(IDbConnection conn)
         select
             m.id as Id,
             m.name as Name,
-            m.type as Type,
             m.stock as Stock,
             m.weight as Weight,
-            m.thickness as Thickness
-        from material m
-        where m.type = 'accessory';";
+            m.thickness as Thickness,
 
-        return conn.QueryAsync<Material>(query);
+            mt.id as Id,
+            mt.name as Name
+        from material m
+        join material_type mt
+        on m.type = mt.id and mt.name = 'accessory';";
+
+        return conn.QueryAsync<Material, MaterialType, Material>(
+            query,
+            (m, mt) => {
+                m.Type = mt;
+                return m;
+            }
+        );
     }
 
     public async Task<Material> CreateMaterialAsync(Material material)
@@ -80,7 +117,7 @@ public class InventoryDataAccess(IDbConnection conn)
             {
                 material.Id,
                 material.Name,
-                material.Type,
+                Type = material.Type.Id,
                 material.Stock,
                 material.Weight,
                 material.Thickness
