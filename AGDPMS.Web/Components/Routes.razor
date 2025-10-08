@@ -1,5 +1,4 @@
-﻿@rendermode InteractiveServer
-<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(AGDPMS.Shared.Routes).Assembly }">
+﻿<Router AppAssembly="typeof(Program).Assembly" AdditionalAssemblies="new[] { typeof(AGDPMS.Shared.Routes).Assembly }">
     <Found Context="routeData">
         <RouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
