@@ -2,7 +2,6 @@
 
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.Authentication
-@using Microsoft.Extensions.Caching.Memory
 @using System.ComponentModel.DataAnnotations
 @using System.Security.Claims
 @using AGDPMS.Web.Data
@@ -10,7 +9,6 @@
 @inject NavigationManager Nav
 @inject UserDataAccess UserDataAccess
 @inject IPasswordHasher<AppUser> PasswordHasher
-@inject IMemoryCache Cache
 
 <PageTitle>Login</PageTitle>
 
@@ -61,11 +59,31 @@
             return;
         }
 
-        var token = Guid.NewGuid().ToString("N");
-        Cache.Set($"signin:{token}", user.Id, TimeSpan.FromMinutes(5));
-        var returnUrl = user.NeedChangePassword ? "/need-change-password" : "/";
-        var callbackUrl = $"/api/auth/callback?token={token}&returnUrl={Uri.EscapeDataString(returnUrl)}";
-        Nav.NavigateTo(callbackUrl, forceLoad: true);
+        if (user.NeedChangePassword)
+        {
+            var limitClaims = new Claim[]
+            {
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new(ClaimTypes.Name, user.PhoneNumber),
+                new("NeedPasswordChange", user.NeedChangePassword.ToString()),
+            };
+            var limitIdentity = new ClaimsIdentity(limitClaims, Constants.AuthScheme);
+            var limitPrincipal = new ClaimsPrincipal(limitIdentity);
+            await HttpContext.SignInAsync(Constants.AuthScheme, limitPrincipal);
+            Nav.NavigateTo("/need-change-password", forceLoad: true);
+            return;
+        }
+
+        var claims = user.ToClaims();
+        var identity = new ClaimsIdentity(claims, Constants.AuthScheme);
+        var principal = new ClaimsPrincipal(identity);
+        var authProps = new AuthenticationProperties
+        {
+            IsPersistent = true
+        };
+
+        await HttpContext.SignInAsync(Constants.AuthScheme, principal, authProps);
+        Nav.NavigateTo("/");
     }
 
     public class LoginModel

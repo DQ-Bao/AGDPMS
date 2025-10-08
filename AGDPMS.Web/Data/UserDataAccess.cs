@@ -92,20 +92,4 @@ public class UserDataAccess(IDbConnection conn)
             delete from users
             where id = @Id",
             new { Id = userId });
-
-    public Task UpdateAsync(AppUser user) =>
-        conn.ExecuteAsync(@"
-            update users
-            set fullname = @FullName,
-                phone = @PhoneNumber,
-                role_id = @RoleId,
-                need_change_password = @NeedChangePassword
-            where id = @Id",
-            new {
-                user.Id,
-                user.FullName,
-                user.PhoneNumber,
-                RoleId = user.Role.Id,
-                user.NeedChangePassword
-            });
 }
