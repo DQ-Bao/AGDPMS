@@ -48,6 +48,14 @@ namespace AGDPMS
             // Navigation history service for Android back navigation
             builder.Services.AddSingleton<NavigationHistoryService>();
 
+            // Add device-specific services used by the AGDPMS.Shared project
+            builder.Services.AddSingleton<IFormFactor, FormFactor>();
+            builder.Services.AddHttpClient<IApiClient, AGDPMS.Services.ApiClient>(client =>
+            {
+                // Use HTTP for local development (matches AGDPMS.Web http profile on port 5273)
+                client.BaseAddress = new Uri("http://localhost:5273");
+            });
+
 #if DEBUG
             builder.Logging.AddDebug();
 #endif
