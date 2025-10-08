@@ -1,6 +1,7 @@
 using AGDPMS.Web;
 using AGDPMS.Web.Components;
 using AGDPMS.Web.Data;
+using AGDPMS.Web.Services;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,6 +35,7 @@ builder.Services.AddSmsSender(opts =>
 });
 
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<IPdfToImageService, PdfToImageService>();
 
 var app = builder.Build();
 
