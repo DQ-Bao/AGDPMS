@@ -4,19 +4,12 @@ using AGDPMS.Web.Data;
 using Microsoft.AspNetCore.Identity;
 using AGDPMS.Shared.Services;
 using Microsoft.Extensions.Caching.Memory;
-using AGDPMS.Shared.Services;
-using AGDPMS.Web.Services;
-using Microsoft.AspNetCore.Authentication;
-using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents(options =>
-    {
-        options.DetailedErrors = true;
-    });
+    .AddInteractiveServerComponents();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddDataAccesses(builder.Configuration.GetConnectionString("Default")!);
@@ -30,17 +23,11 @@ builder.Services.AddAuthentication(Constants.AuthScheme)
 
         opts.Cookie.Name = Constants.AuthCookie;
         opts.Cookie.HttpOnly = true;
-        opts.Cookie.SecurePolicy = builder.Environment.IsDevelopment()
-            ? CookieSecurePolicy.None
-            : CookieSecurePolicy.Always;
+        opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
         opts.Cookie.SameSite = SameSiteMode.Strict;
         opts.ExpireTimeSpan = TimeSpan.FromDays(1);
         opts.SlidingExpiration = true;
     });
-
-builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<IUserSession, WebUserSession>();
-builder.Services.AddScoped<IApiClient, WebApiClient>();
 
 builder.Services.AddSmsSender(opts =>
 {
@@ -209,7 +196,41 @@ api.MapPost("/auth/change-password", async (
     return Results.Ok(new { Success = true, Message = "Password changed successfully" });
 });
 
-// (deprecated) /auth/add-account removed; use POST /auth/users instead
+// Add account
+api.MapPost("/auth/add-account", async (
+    AddAccountRequest request,
+    UserDataAccess userDataAccess,
+    RoleDataAccess roleDataAccess,
+    IPasswordHasher<AppUser> passwordHasher,
+    ISmsSender smsSender
+) =>
+{
+    var role = (await roleDataAccess.GetAllAsync()).FirstOrDefault(r => r.Id == request.RoleId);
+    if (role is null)
+    {
+        return Results.Ok(new AddAccountResponse { Success = false, Message = "Invalid role selected" });
+    }
+
+    var user = new AppUser
+    {
+        PhoneNumber = request.PhoneNumber,
+        FullName = request.FullName,
+        Role = role,
+    };
+
+    user.PasswordHash = passwordHasher.HashPassword(user, "abc123");
+    
+    try
+    {
+        await userDataAccess.CreateAsync(user);
+        await smsSender.SendAsync("Account added. Default password: abc123", [user.PhoneNumber]);
+        return Results.Ok(new AddAccountResponse { Success = true, UserId = user.Id, Message = "Account created successfully" });
+    }
+    catch (Exception ex)
+    {
+        return Results.Ok(new AddAccountResponse { Success = false, Message = ex.Message });
+    }
+});
 
 // Get roles
 api.MapGet("/auth/roles", async (RoleDataAccess roleDataAccess) =>
@@ -256,120 +277,11 @@ api.MapDelete("/auth/users/{userId:int}", async (
     }
 });
 
-// Create user
-api.MapPost("/auth/users", async (
-    AddAccountRequest request,
-    UserDataAccess userDataAccess,
-    RoleDataAccess roleDataAccess,
-    IPasswordHasher<AppUser> passwordHasher,
-    ISmsSender smsSender
-) =>
-{
-    var role = (await roleDataAccess.GetAllAsync()).FirstOrDefault(r => r.Id == request.RoleId);
-    if (role is null)
-    {
-        return Results.Ok(new AddAccountResponse { Success = false, Message = "Invalid role selected" });
-    }
-
-    var user = new AppUser
-    {
-        PhoneNumber = request.PhoneNumber,
-        FullName = request.FullName,
-        Role = role,
-    };
-
-    user.PasswordHash = passwordHasher.HashPassword(user, "abc123");
-    try
-    {
-        await userDataAccess.CreateAsync(user);
-        await smsSender.SendAsync("Account added. Default password: abc123", [user.PhoneNumber]);
-        return Results.Ok(new AddAccountResponse { Success = true, UserId = user.Id, Message = "Account created successfully" });
-    }
-    catch (Exception ex)
-    {
-        return Results.Ok(new AddAccountResponse { Success = false, Message = ex.Message });
-    }
-});
-
-// Update user
-api.MapPut("/auth/users/{userId:int}", async (
-    int userId,
-    UserDto dto,
-    UserDataAccess userDataAccess,
-    RoleDataAccess roleDataAccess
-) =>
-{
-    var role = (await roleDataAccess.GetAllAsync()).FirstOrDefault(r => r.Id == dto.RoleId);
-    if (role is null)
-    {
-        return Results.Ok(new { Success = false, Message = "Invalid role selected" });
-    }
-
-    var existing = await userDataAccess.GetByIdAsync(userId);
-    if (existing is null)
-    {
-        return Results.Ok(new { Success = false, Message = "User not found" });
-    }
-
-    existing.FullName = dto.FullName;
-    existing.PhoneNumber = dto.PhoneNumber;
-    existing.Role = role;
-    existing.NeedChangePassword = dto.NeedChangePassword;
-
-    await userDataAccess.UpdateAsync(existing);
-    return Results.Ok(new { Success = true });
-});
-
-// Browser callback to establish auth cookie (used from interactive components)
-api.MapGet("/auth/callback", async (
-    string token,
-    IMemoryCache cache,
-    UserDataAccess userDataAccess,
-    HttpContext httpContext,
-    string? returnUrl
-) =>
-{
-    if (!cache.TryGetValue($"signin:{token}", out int userId))
-    {
-        return Results.BadRequest("Invalid or expired token");
-    }
-
-    var user = await userDataAccess.GetByIdAsync(userId);
-    if (user is null)
-    {
-        return Results.BadRequest("User not found");
-    }
-
-    var claims = user.ToClaims();
-    var identity = new ClaimsIdentity(claims, Constants.AuthScheme);
-    var principal = new ClaimsPrincipal(identity);
-    var authProps = new AuthenticationProperties
-    {
-        IsPersistent = true
-    };
-
-    await httpContext.SignInAsync(Constants.AuthScheme, principal, authProps);
-    cache.Remove($"signin:{token}");
-
-    return Results.Redirect(string.IsNullOrWhiteSpace(returnUrl) ? "/" : returnUrl);
-});
-
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
     .AddAdditionalAssemblies(typeof(AGDPMS.Shared._Imports).Assembly);
 
 app.MapAdditionalIdentityEndpoints();
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseDeveloperExceptionPage();
-}
-else
-{
-    app.UseExceptionHandler("/Error");
-    app.UseHsts();
-}
-
 
 app.Run();

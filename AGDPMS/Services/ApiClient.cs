@@ -3,7 +3,20 @@ using AGDPMS.Shared.Services;
 
 namespace AGDPMS.Services;
 
-public sealed class ApiClient(HttpClient httpClient) : AGDPMS.Shared.Services.IApiClient
+public interface IApiClient
+{
+    Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default);
+    Task<ForgotPasswordResponse?> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
+    Task<VerifyOtpResponse?> VerifyOtpAsync(VerifyOtpRequest request, CancellationToken cancellationToken = default);
+    Task<ResetPasswordResponse?> ResetPasswordAsync(ResetPasswordWithTokenRequest request, CancellationToken cancellationToken = default);
+    Task<dynamic?> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default);
+    Task<AddAccountResponse?> AddAccountAsync(AddAccountRequest request, CancellationToken cancellationToken = default);
+    Task<IEnumerable<RoleDto>?> GetRolesAsync(CancellationToken cancellationToken = default);
+    Task<IEnumerable<UserDto>?> GetUsersAsync(CancellationToken cancellationToken = default);
+    Task<DeleteUserResponse?> DeleteUserAsync(int userId, CancellationToken cancellationToken = default);
+}
+
+public sealed class ApiClient(HttpClient httpClient) : IApiClient
 {
     public async Task<LoginResponse?> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
@@ -33,16 +46,16 @@ public sealed class ApiClient(HttpClient httpClient) : AGDPMS.Shared.Services.IA
         return await response.Content.ReadFromJsonAsync<ResetPasswordResponse>(cancellationToken: cancellationToken);
     }
 
-    public async Task<ChangePasswordResponse?> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default)
+    public async Task<dynamic?> ChangePasswordAsync(ChangePasswordRequest request, CancellationToken cancellationToken = default)
     {
         var response = await httpClient.PostAsJsonAsync("/api/auth/change-password", request, cancellationToken);
         response.EnsureSuccessStatusCode();
-        return await response.Content.ReadFromJsonAsync<ChangePasswordResponse>(cancellationToken: cancellationToken);
+        return await response.Content.ReadFromJsonAsync<dynamic>(cancellationToken: cancellationToken);
     }
 
     public async Task<AddAccountResponse?> AddAccountAsync(AddAccountRequest request, CancellationToken cancellationToken = default)
     {
-        var response = await httpClient.PostAsJsonAsync("/api/auth/users", request, cancellationToken);
+        var response = await httpClient.PostAsJsonAsync("/api/auth/add-account", request, cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<AddAccountResponse>(cancellationToken: cancellationToken);
     }
@@ -66,13 +79,6 @@ public sealed class ApiClient(HttpClient httpClient) : AGDPMS.Shared.Services.IA
         var response = await httpClient.DeleteAsync($"/api/auth/users/{userId}", cancellationToken);
         response.EnsureSuccessStatusCode();
         return await response.Content.ReadFromJsonAsync<DeleteUserResponse>(cancellationToken: cancellationToken);
-    }
-
-    public async Task<bool> UpdateUserAsync(UserDto user, CancellationToken cancellationToken = default)
-    {
-        var response = await httpClient.PutAsJsonAsync($"/api/auth/users/{user.Id}", user, cancellationToken);
-        response.EnsureSuccessStatusCode();
-        return response.IsSuccessStatusCode;
     }
 }
 
