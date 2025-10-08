@@ -1,6 +1,8 @@
 ﻿@page "/"
 @using Microsoft.AspNetCore.Components.Web
+@using AGDPMS.Shared.Services
 @inject NavigationManager Navigation
+@inject IUserSession UserSession
 
 <PageTitle>Home</PageTitle>
 
@@ -27,34 +29,47 @@
         
         <div class="actions">
             <a href="/accounts" class="action-btn">Accounts</a>
+            <a href="/profile" class="action-btn">Profile</a>
         </div>
     </div>
 </div>
 
 @code {
+    private UserProfileDto? _profile;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _profile = await UserSession.GetCurrentAsync();
+        StateHasChanged();
+    }
+
     private string GetUserFullName()
     {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedFullName", "User");
+        return string.IsNullOrWhiteSpace(_profile?.FullName) ? "User" : _profile!.FullName;
     }
     
     private string GetUserPhone()
     {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedPhone", "");
+        return _profile?.PhoneNumber ?? string.Empty;
     }
     
     private string GetUserRole()
     {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedRole", "");
+        return _profile?.RoleName ?? string.Empty;
     }
     
     private void Logout()
     {
-        // Clear stored preferences
-        Microsoft.Maui.Storage.Preferences.Default.Remove("remembered");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedUserId");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedPhone");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedFullName");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedRole");
+        // Clear stored secure session
+        try
+        {
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("remembered");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedUserId");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedPhone");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedFullName");
+            Microsoft.Maui.Storage.SecureStorage.Default.Remove("rememberedRole");
+        }
+        catch { }
         
         // Navigate to login page
         Navigation.NavigateTo("/login");

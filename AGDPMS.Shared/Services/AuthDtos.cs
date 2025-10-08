@@ -67,6 +67,12 @@ public sealed class ChangePasswordRequest
     public string NewPassword { get; set; } = string.Empty;
 }
 
+public sealed class ChangePasswordResponse
+{
+    public bool Success { get; set; }
+    public string? Message { get; set; }
+}
+
 public sealed class AddAccountRequest
 {
     public string PhoneNumber { get; set; } = string.Empty;

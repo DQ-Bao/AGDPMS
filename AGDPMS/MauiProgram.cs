@@ -26,6 +26,30 @@ namespace AGDPMS
 
             // Add device-specific services used by the AGDPMS.Shared project
             builder.Services.AddSingleton<IFormFactor, FormFactor>();
+            builder.Services
+                .AddHttpClient<IApiClient, AGDPMS.Services.ApiClient>()
+                .ConfigureHttpClient(client =>
+                {
+                    // Use HTTP everywhere in Development to avoid device TLS headaches
+                    if (DeviceInfo.Platform == DevicePlatform.Android)
+                    {
+                        // Emulator uses 10.0.2.2, physical device uses 127.0.0.1 with adb reverse
+                        client.BaseAddress = new Uri(DeviceInfo.DeviceType == DeviceType.Virtual ? "http://10.0.2.2:5273" : "http://127.0.0.1:5273");
+                    }
+                    else
+                    {
+                        client.BaseAddress = new Uri("http://localhost:5273");
+                    }
+                });
+
+            // Register user session abstraction
+            builder.Services.AddScoped<IUserSession, MauiUserSession>();
+
+            // Navigation history service for Android back navigation
+            builder.Services.AddSingleton<NavigationHistoryService>();
+
+            // Add device-specific services used by the AGDPMS.Shared project
+            builder.Services.AddSingleton<IFormFactor, FormFactor>();
             builder.Services.AddHttpClient<IApiClient, AGDPMS.Services.ApiClient>(client =>
             {
                 // Use HTTP for local development (matches AGDPMS.Web http profile on port 5273)

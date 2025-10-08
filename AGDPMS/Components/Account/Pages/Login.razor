@@ -70,18 +70,18 @@
             }
             else
             {
-                // Always remember on successful login
+                // Persist login data securely on successful login
                 try
                 {
-                    Microsoft.Maui.Storage.Preferences.Default.Set("remembered", true);
-                    Microsoft.Maui.Storage.Preferences.Default.Set("rememberedUserId", result.UserId ?? 0);
-                    Microsoft.Maui.Storage.Preferences.Default.Set("rememberedPhone", result.PhoneNumber ?? string.Empty);
-                    Microsoft.Maui.Storage.Preferences.Default.Set("rememberedFullName", result.FullName ?? string.Empty);
-                    Microsoft.Maui.Storage.Preferences.Default.Set("rememberedRole", result.RoleName ?? string.Empty);
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("remembered", "true");
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedUserId", (result.UserId ?? 0).ToString());
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedPhone", result.PhoneNumber ?? string.Empty);
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedFullName", result.FullName ?? string.Empty);
+                    await Microsoft.Maui.Storage.SecureStorage.Default.SetAsync("rememberedRole", result.RoleName ?? string.Empty);
                 }
                 catch (Exception)
                 {
-                    // Non-fatal: if preferences fail, proceed with navigation
+                    // Non-fatal: if secure storage fails, proceed with navigation
                 }
 
                 // Navigate to main page
