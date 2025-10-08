@@ -50,6 +50,9 @@ builder.Services.AddSmsSender(opts =>
 
 builder.Services.AddMemoryCache();
 
+// Provide form factor info to shared components on Web host
+builder.Services.AddSingleton<IFormFactor, FormFactor>();
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
