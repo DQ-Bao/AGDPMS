@@ -4,6 +4,7 @@
 @using System.Data.Odbc
 @using Dapper
 
+<a href="/">Home</a>
 <h3>Upload mdb file</h3>
 
 <InputFile OnChange="HandleFileUpload" accept=".mdb" />
@@ -195,9 +196,23 @@
                             existingCav = cavity;
                         }
 
-                        if (material != null && !string.IsNullOrEmpty(material.Code))
+                        if (material != null && !string.IsNullOrEmpty(material.Code) && !string.IsNullOrEmpty(material.Symbol))
                         {
-                            existingCav.Materials.Add(material);
+                            var materials = existingCav.Materials;
+                            var existing = materials.FirstOrDefault(m =>
+                                m.Code == material.Code
+                                && m.Length == material.Length
+                                && m.Width == material.Width
+                            );
+
+                            if (existing != null)
+                            {
+                                existing.Num += material.Num;
+                            }
+                            else
+                            {
+                                materials.Add(material);
+                            }
                         }
                     }
 
