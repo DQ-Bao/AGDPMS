@@ -1,62 +1,89 @@
 ﻿@page "/"
+
 @using Microsoft.AspNetCore.Components.Web
-@inject NavigationManager Navigation
+@using System.Security.Claims
+@using System.IdentityModel.Tokens.Jwt
+@using Microsoft.AspNetCore.Authorization
+
+@attribute [Authorize]
+@inject NavigationManager Nav
 
 <PageTitle>Home</PageTitle>
 
-<div class="main-layout">
-    <div class="header">
-        <h1>AGDPMS</h1>
-        <div class="user-info">
-            <span>Hello, @GetUserFullName()!</span>
-            <button @onclick="Logout" class="logout-btn">Logout</button>
-        </div>
-    </div>
-    
-    <div class="content">
-        <h2>Welcome to your new app.</h2>
-        
-        <div class="user-details">
-            <h3>User Information:</h3>
-            <ul>
-                <li>Full Name: @GetUserFullName()</li>
-                <li>Phone: @GetUserPhone()</li>
-                <li>Role: @GetUserRole()</li>
-            </ul>
-        </div>
-        
-        <div class="actions">
-            <a href="/accounts" class="action-btn">Accounts</a>
+<div class="container mt-5">
+    <div class="card shadow-lg rounded-4 p-4 mx-auto" style="max-width: 480px;">
+        <div class="card-body text-center">
+            <h3 class="mb-3">Welcome to the app</h3>
+
+            @if (userInfo is not null)
+            {
+                <p><strong>Full Name:</strong> @userInfo.FullName</p>
+                <p><strong>Phone:</strong> @userInfo.PhoneNumber</p>
+                <p><strong>Role:</strong> @userInfo.Role</p>
+                <p><strong>NeedChangePassword:</strong> @userInfo.NeedChangePassword</p>
+            }
+            else
+            {
+                <p class="text-muted">Loading user info...</p>
+            }
+
+            <button class="btn btn-danger w-100 mt-4" @onclick="Logout">Logout</button>
         </div>
     </div>
 </div>
 
 @code {
-    private string GetUserFullName()
+    private UserInfo? userInfo;
+
+    protected override async Task OnInitializedAsync()
     {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedFullName", "User");
+        var token = await SecureStorage.Default.GetAsync("auth_token");
+        if (string.IsNullOrEmpty(token))
+        {
+            Nav.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        userInfo = DecodeToken(token);
     }
-    
-    private string GetUserPhone()
+
+    private UserInfo? DecodeToken(string token)
     {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedPhone", "");
-    }
-    
-    private string GetUserRole()
-    {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedRole", "");
+        try
+        {
+            var handler = new JwtSecurityTokenHandler();
+            var jwt = handler.ReadJwtToken(token);
+
+            var phone = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
+            var fullName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name)?.Value;
+            var role = jwt.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
+            var needChangePassword = jwt.Claims.FirstOrDefault(c => c.Type == "NeedChangePassword")?.Value;
+
+            return new UserInfo
+            {
+                FullName = fullName ?? "(Unknown)",
+                PhoneNumber = phone ?? "(Unknown)",
+                Role = role ?? "(Unknown)",
+                NeedChangePassword = needChangePassword?.ToLower() == "true"
+            };
+        }
+        catch
+        {
+            return null;
+        }
     }
     
     private void Logout()
     {
-        // Clear stored preferences
-        Microsoft.Maui.Storage.Preferences.Default.Remove("remembered");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedUserId");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedPhone");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedFullName");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedRole");
-        
-        // Navigate to login page
-        Navigation.NavigateTo("/login");
+        SecureStorage.Default.Remove("auth_token");
+        Nav.NavigateTo("/login");
+    }
+
+    private sealed class UserInfo
+    {
+        public required string FullName { get; set; }
+        public required string PhoneNumber { get; set; }
+        public required string Role { get; set; }
+        public required bool NeedChangePassword { get; set; }
     }
 }

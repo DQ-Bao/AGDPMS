@@ -4,6 +4,9 @@ using AGDPMS.Web.Data;
 using Microsoft.AspNetCore.Identity;
 using AGDPMS.Shared.Services;
 using Microsoft.Extensions.Caching.Memory;
+using AGDPMS.Web.Services;
+using AGDPMS.Shared.Models;
+using AGDPMS.Web.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,20 +17,10 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddDataAccesses(builder.Configuration.GetConnectionString("Default")!);
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
-builder.Services.AddAuthentication(Constants.AuthScheme)
-    .AddCookie(Constants.AuthScheme, opts =>
-    {
-        opts.LoginPath = "/login";
-        opts.AccessDeniedPath = "/access-denied";
-        opts.LogoutPath = "/logout";
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 
-        opts.Cookie.Name = Constants.AuthCookie;
-        opts.Cookie.HttpOnly = true;
-        opts.Cookie.SecurePolicy = CookieSecurePolicy.Always;
-        opts.Cookie.SameSite = SameSiteMode.Strict;
-        opts.ExpireTimeSpan = TimeSpan.FromDays(1);
-        opts.SlidingExpiration = true;
-    });
+builder.Services.AddCookieAndJwtAuth(opts => opts.Key = builder.Configuration["Jwt:Key"]!);
 
 builder.Services.AddSmsSender(opts =>
 {
@@ -35,10 +28,7 @@ builder.Services.AddSmsSender(opts =>
     opts.Password = "4algwipfnvcd0p";
 });
 
-builder.Services.AddMemoryCache();
-
-// Provide form factor info to shared components on Web host
-builder.Services.AddSingleton<IFormFactor, FormFactor>();
+builder.Services.AddScoped<IAuthService, WebAuthService>();
 
 var app = builder.Build();
 
@@ -57,35 +47,9 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-var api = app.MapGroup("/api");
-api.DisableAntiforgery();
+app.MapAuthEndpoints();
 
-api.MapPost("/auth/login", async (
-    LoginRequest request,
-    UserDataAccess userDataAccess,
-    IPasswordHasher<AppUser> passwordHasher
-) =>
-{
-    var user = await userDataAccess.GetByPhoneNumberAsync(request.PhoneNumber);
-    if (user is null)
-    {
-        return Results.Ok(new LoginResponse { Success = false, Message = "Invalid phone or password" });
-    }
-    var verify = passwordHasher.VerifyHashedPassword(user, user.PasswordHash, request.Password);
-    if (verify != PasswordVerificationResult.Success)
-    {
-        return Results.Ok(new LoginResponse { Success = false, Message = "Invalid phone or password" });
-    }
-    return Results.Ok(new LoginResponse
-    {
-        Success = true,
-        UserId = user.Id,
-        PhoneNumber = user.PhoneNumber,
-        FullName = user.FullName,
-        RoleName = user.Role.Name,
-        NeedChangePassword = user.NeedChangePassword
-    });
-});
+var api = app.MapGroup("/api");
 
 // Forgot password flow
 api.MapPost("/auth/forgot-password", async (
@@ -280,7 +244,7 @@ api.MapDelete("/auth/users/{userId:int}", async (
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode()
-    .AddAdditionalAssemblies(typeof(AGDPMS.Shared._Imports).Assembly);
+    .AddAdditionalAssemblies(typeof(AGDPMS.Shared.Components._Imports).Assembly);
 
 app.MapAdditionalIdentityEndpoints();
 
