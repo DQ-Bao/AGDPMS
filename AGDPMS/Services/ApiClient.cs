@@ -1,5 +1,5 @@
 using System.Net.Http.Json;
-using AGDPMS.Shared.Services;
+using AGDPMS.Shared.Models;
 
 namespace AGDPMS.Services;
 

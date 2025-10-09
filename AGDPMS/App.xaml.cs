@@ -1,39 +1,14 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Maui.Storage;
-using Microsoft.AspNetCore.Components.WebView.Maui;
+﻿namespace AGDPMS;
 
-namespace AGDPMS
+public partial class App : Application
 {
-    public partial class App : Application
+    public App()
     {
-        public App()
-        {
-            InitializeComponent();
-        }
+        InitializeComponent();
+    }
 
-        protected override Window CreateWindow(IActivationState? activationState)
-        {
-            // Create BlazorWebView for Razor components
-            var blazorWebView = new BlazorWebView
-            {
-                HostPage = "wwwroot/index.html"
-            };
-            
-            // Set the root component to App.razor which handles routing
-            blazorWebView.RootComponents.Add(new RootComponent
-            {
-                Selector = "#app",
-                ComponentType = typeof(Components.App)
-            });
-            
-            // Wrap BlazorWebView in a ContentPage
-            var contentPage = new ContentPage
-            {
-                Content = blazorWebView,
-                Title = "AGDPMS"
-            };
-            
-            return new Window(contentPage) { Title = "AGDPMS" };
-        }
+    protected override Window CreateWindow(IActivationState? activationState)
+    {
+        return new Window(new MainPage()) { Title = "AGDPMS" };
     }
 }
