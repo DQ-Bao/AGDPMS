@@ -30,6 +30,28 @@ create table if not exists users (
   constraint "UQ_users_phone" unique ("phone")
 );
 
+create table if not exists clients ( 
+  "id" serial,
+  "name" varchar(250) not null,
+  "address" varchar(250),
+  "phone" varchar(250),
+  "email" varchar(250),
+  constraint "pk_clients" primary key ("id")
+);
+
+create table if not exists projects ( 
+  "id" serial,
+  "name" varchar(250) not null,
+  "location" varchar(250) not null,
+  "client_id" integer not null,
+  "design_company" varchar(250),
+  "completion_date" date not null,
+  "created_at" timestamp default now() ,
+  "design_file_path" varchar(250),
+  constraint "pk_projects" primary key ("id"),
+  constraint "fk_projects_client_id" foreign key ("client_id") references clients ("id")
+);
+
 CREATE TABLE IF NOT EXISTS profiles (
     "profile_id" varchar(250),
     "profile_name" varchar(250),
