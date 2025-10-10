@@ -21,12 +21,11 @@ public class JwtService(IOptions<JwtOptions> opts)
         var claims = new List<Claim>
         {
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-            new(JwtRegisteredClaimNames.Sub, user.PhoneNumber),
-            new(JwtRegisteredClaimNames.NameId, user.Id.ToString()),
-            new(JwtRegisteredClaimNames.Name, user.FullName),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Name, user.FullName),
             new(JwtRegisteredClaimNames.PhoneNumber, user.PhoneNumber),
-            new("role", user.Role.Name),
-            new("NeedChangePassword", user.NeedChangePassword.ToString()),
+            new(ClaimTypes.Role, user.Role.Name),
+            new("need_change_password", user.NeedChangePassword.ToString()),
         };
 
         var handler = new JwtSecurityTokenHandler();

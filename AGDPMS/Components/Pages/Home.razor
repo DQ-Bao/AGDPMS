@@ -1,89 +1,39 @@
 ﻿@page "/"
 
-@using Microsoft.AspNetCore.Components.Web
-@using System.Security.Claims
-@using System.IdentityModel.Tokens.Jwt
+@using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Authorization
+@using AGDPMS.Services
 
 @attribute [Authorize]
+
 @inject NavigationManager Nav
+@inject CustomAuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Home</PageTitle>
 
-<div class="container mt-5">
-    <div class="card shadow-lg rounded-4 p-4 mx-auto" style="max-width: 480px;">
-        <div class="card-body text-center">
-            <h3 class="mb-3">Welcome to the app</h3>
-
-            @if (userInfo is not null)
-            {
-                <p><strong>Full Name:</strong> @userInfo.FullName</p>
-                <p><strong>Phone:</strong> @userInfo.PhoneNumber</p>
-                <p><strong>Role:</strong> @userInfo.Role</p>
-                <p><strong>NeedChangePassword:</strong> @userInfo.NeedChangePassword</p>
-            }
-            else
-            {
-                <p class="text-muted">Loading user info...</p>
-            }
-
-            <button class="btn btn-danger w-100 mt-4" @onclick="Logout">Logout</button>
+<AuthorizeView>
+    <Authorized>
+        <div class="container mt-5">
+            <div class="card shadow-lg rounded-4 p-4 mx-auto" style="max-width: 480px;">
+                <div class="card-body text-center">
+                    <h3 class="mb-3">Welcome to the app</h3>
+                    <ul>
+                        @foreach (var claim in context.User.Claims)
+                        {
+                            <li><strong>@claim.Type:</strong> @claim.Value</li>
+                        }
+                    </ul>
+                    <button class="btn btn-danger w-100 mt-4" @onclick="Logout">Logout</button>
+                </div>
+            </div>
         </div>
-    </div>
-</div>
+    </Authorized>
+</AuthorizeView>
 
 @code {
-    private UserInfo? userInfo;
-
-    protected override async Task OnInitializedAsync()
-    {
-        var token = await SecureStorage.Default.GetAsync("auth_token");
-        if (string.IsNullOrEmpty(token))
-        {
-            Nav.NavigateTo("/login", forceLoad: true);
-            return;
-        }
-
-        userInfo = DecodeToken(token);
-    }
-
-    private UserInfo? DecodeToken(string token)
-    {
-        try
-        {
-            var handler = new JwtSecurityTokenHandler();
-            var jwt = handler.ReadJwtToken(token);
-
-            var phone = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Sub)?.Value;
-            var fullName = jwt.Claims.FirstOrDefault(c => c.Type == JwtRegisteredClaimNames.Name)?.Value;
-            var role = jwt.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
-            var needChangePassword = jwt.Claims.FirstOrDefault(c => c.Type == "NeedChangePassword")?.Value;
-
-            return new UserInfo
-            {
-                FullName = fullName ?? "(Unknown)",
-                PhoneNumber = phone ?? "(Unknown)",
-                Role = role ?? "(Unknown)",
-                NeedChangePassword = needChangePassword?.ToLower() == "true"
-            };
-        }
-        catch
-        {
-            return null;
-        }
-    }
-    
     private void Logout()
     {
-        SecureStorage.Default.Remove("auth_token");
-        Nav.NavigateTo("/login");
-    }
-
-    private sealed class UserInfo
-    {
-        public required string FullName { get; set; }
-        public required string PhoneNumber { get; set; }
-        public required string Role { get; set; }
-        public required bool NeedChangePassword { get; set; }
+        AuthStateProvider.Logout();
+        Nav.NavigateTo("/login", replace: true);
     }
 }

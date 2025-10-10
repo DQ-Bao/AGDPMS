@@ -19,9 +19,7 @@ public sealed class ForgotPasswordRequest
 
 public sealed class ForgotPasswordResponse
 {
-    public bool Success { get; set; }
-    public string? Message { get; set; }
-    public int? UserId { get; set; }
+    public int UserId { get; set; }
 }
 
 public sealed class VerifyOtpRequest
@@ -30,76 +28,66 @@ public sealed class VerifyOtpRequest
     public string Otp { get; set; } = string.Empty;
 }
 
-public sealed class ResetPasswordRequest
-{
-    public int UserId { get; set; }
-    public string NewPassword { get; set; } = string.Empty;
-}
-
 public sealed class VerifyOtpResponse
 {
-    public bool Success { get; set; }
-    public string? Message { get; set; }
-    public string? ResetToken { get; set; }
+    public required string ResetToken { get; set; }
 }
 
 public sealed class ResetPasswordWithTokenRequest
 {
-    public string Token { get; set; } = string.Empty;
-    public string NewPassword { get; set; } = string.Empty;
-    public string ConfirmPassword { get; set; } = string.Empty;
+    public required string Token { get; set; }
+    public required string Password { get; set; }
 }
 
-public sealed class ResetPasswordResponse
+public sealed class ResetCurrentUserPasswordRequest
 {
-    public bool Success { get; set; }
-    public string? Message { get; set; }
+    public required string Password { get; set; }
 }
 
-public sealed class ChangePasswordRequest
-{
-    public int UserId { get; set; }
-    public string NewPassword { get; set; } = string.Empty;
-}
+//public sealed class ChangePasswordRequest
+//{
+//    public int UserId { get; set; }
+//    public string NewPassword { get; set; } = string.Empty;
+//}
 
-public sealed class AddAccountRequest
-{
-    public string PhoneNumber { get; set; } = string.Empty;
-    public string FullName { get; set; } = string.Empty;
-    public int RoleId { get; set; }
-}
+//public sealed class AddAccountRequest
+//{
+//    public string PhoneNumber { get; set; } = string.Empty;
+//    public string FullName { get; set; } = string.Empty;
+//    public int RoleId { get; set; }
+//}
 
-public sealed class AddAccountResponse
-{
-    public bool Success { get; set; }
-    public string? Message { get; set; }
-    public int? UserId { get; set; }
-}
+//public sealed class AddAccountResponse
+//{
+//    public bool Success { get; set; }
+//    public string? Message { get; set; }
+//    public int? UserId { get; set; }
+//}
 
-public sealed class RoleDto
-{
-    public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-}
+//public sealed class RoleDto
+//{
+//    public int Id { get; set; }
+//    public string Name { get; set; } = string.Empty;
+//}
 
-public sealed class UserDto
-{
-    public int Id { get; set; }
-    public string FullName { get; set; } = string.Empty;
-    public string PhoneNumber { get; set; } = string.Empty;
-    public string RoleName { get; set; } = string.Empty;
-    public bool NeedChangePassword { get; set; }
-    public int RoleId { get; set; }
-}
+//public sealed class UserDto
+//{
+//    public int Id { get; set; }
+//    public string FullName { get; set; } = string.Empty;
+//    public string PhoneNumber { get; set; } = string.Empty;
+//    public string RoleName { get; set; } = string.Empty;
+//    public bool NeedChangePassword { get; set; }
+//    public int RoleId { get; set; }
+//}
 
-public sealed class DeleteUserRequest
-{
-    public int UserId { get; set; }
-}
+//public sealed class DeleteUserRequest
+//{
+//    public int UserId { get; set; }
+//}
 
-public sealed class DeleteUserResponse
-{
-    public bool Success { get; set; }
-    public string? Message { get; set; }
-}
+//public sealed class DeleteUserResponse
+//{
+//    public bool Success { get; set; }
+//    public string? Message { get; set; }
+//}
 
