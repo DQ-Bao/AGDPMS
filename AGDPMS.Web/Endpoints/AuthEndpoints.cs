@@ -2,6 +2,7 @@
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
 using AGDPMS.Web.Services;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
@@ -12,6 +13,7 @@ public static class AuthEndpoints
 {
     public static void MapAuthEndpoints(this IEndpointRouteBuilder app)
     {
+        ArgumentNullException.ThrowIfNull(app);
         var auth = app.MapGroup("/api/auth").WithTags("Auth");
         auth.MapPost("/login", async (
             [FromBody] LoginRequest request,
@@ -109,5 +111,16 @@ public static class AuthEndpoints
         .WithName("ResetPassword")
         .Produces<ResetPasswordWithTokenRequest>(StatusCodes.Status202Accepted)
         .Produces(StatusCodes.Status400BadRequest);
+    }
+
+    public static IEndpointRouteBuilder MapAdditionalIdentityEndpoints(this IEndpointRouteBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        app.MapGet("/logout", async (HttpContext context) =>
+        {
+            await context.SignOutAsync(Constants.AuthScheme);
+            context.Response.Redirect("/login");
+        });
+        return app;
     }
 }

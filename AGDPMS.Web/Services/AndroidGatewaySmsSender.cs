@@ -4,7 +4,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using AGDPMS.Shared.Services;
 
-namespace AGDPMS.Web.Components.Account;
+namespace AGDPMS.Web.Services;
 
 public class AndroidSmsGatewayOptions
 {
