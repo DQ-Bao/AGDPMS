@@ -1,62 +1,39 @@
 ﻿@page "/"
-@using Microsoft.AspNetCore.Components.Web
-@inject NavigationManager Navigation
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Authorization
+@using AGDPMS.Services
+
+@attribute [Authorize]
+
+@inject NavigationManager Nav
+@inject CustomAuthenticationStateProvider AuthStateProvider
 
 <PageTitle>Home</PageTitle>
 
-<div class="main-layout">
-    <div class="header">
-        <h1>AGDPMS</h1>
-        <div class="user-info">
-            <span>Hello, @GetUserFullName()!</span>
-            <button @onclick="Logout" class="logout-btn">Logout</button>
+<AuthorizeView>
+    <Authorized>
+        <div class="container mt-5">
+            <div class="card shadow-lg rounded-4 p-4 mx-auto" style="max-width: 480px;">
+                <div class="card-body text-center">
+                    <h3 class="mb-3">Welcome to the app</h3>
+                    <ul>
+                        @foreach (var claim in context.User.Claims)
+                        {
+                            <li><strong>@claim.Type:</strong> @claim.Value</li>
+                        }
+                    </ul>
+                    <button class="btn btn-danger w-100 mt-4" @onclick="Logout">Logout</button>
+                </div>
+            </div>
         </div>
-    </div>
-    
-    <div class="content">
-        <h2>Welcome to your new app.</h2>
-        
-        <div class="user-details">
-            <h3>User Information:</h3>
-            <ul>
-                <li>Full Name: @GetUserFullName()</li>
-                <li>Phone: @GetUserPhone()</li>
-                <li>Role: @GetUserRole()</li>
-            </ul>
-        </div>
-        
-        <div class="actions">
-            <a href="/accounts" class="action-btn">Accounts</a>
-        </div>
-    </div>
-</div>
+    </Authorized>
+</AuthorizeView>
 
 @code {
-    private string GetUserFullName()
-    {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedFullName", "User");
-    }
-    
-    private string GetUserPhone()
-    {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedPhone", "");
-    }
-    
-    private string GetUserRole()
-    {
-        return Microsoft.Maui.Storage.Preferences.Default.Get("rememberedRole", "");
-    }
-    
     private void Logout()
     {
-        // Clear stored preferences
-        Microsoft.Maui.Storage.Preferences.Default.Remove("remembered");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedUserId");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedPhone");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedFullName");
-        Microsoft.Maui.Storage.Preferences.Default.Remove("rememberedRole");
-        
-        // Navigate to login page
-        Navigation.NavigateTo("/login");
+        AuthStateProvider.Logout();
+        Nav.NavigateTo("/login", replace: true);
     }
 }

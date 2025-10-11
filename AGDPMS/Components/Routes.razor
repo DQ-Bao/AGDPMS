@@ -1,0 +1,10 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+﻿<Router AppAssembly="@typeof(MauiProgram).Assembly" AdditionalAssemblies="new[] { typeof(AGDPMS.Shared.Components.Routes).Assembly }">
+    <Found Context="routeData">
+        <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+            <NotAuthorized>
+                <RedirectToLogin />
+            </NotAuthorized>
+        </AuthorizeRouteView>
+    </Found>
+</Router>

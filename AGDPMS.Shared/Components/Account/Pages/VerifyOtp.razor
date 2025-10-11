@@ -1,0 +1,65 @@
+﻿@page "/verify-otp/{UserId:int}"
+@layout AuthLayout
+
+@using System.ComponentModel.DataAnnotations
+@using AGDPMS.Shared.Services
+@using AGDPMS.Shared.Components.Layout
+
+@inject IAuthService Auth
+@inject NavigationManager Nav;
+
+<PageTitle>Verify OTP</PageTitle>
+
+<h3 class="text-center mb-4">Forgot your password?</h3>
+<p class="text-muted text-center mb-4">The code will expires in 5 minutes.</p>
+<EditForm Model="Input" OnValidSubmit="HandleVerify" method="post" FormName="verify-otp">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+    <div class="mb-3">
+        <label for="Input.Code" class="form-label">OTP Code</label>
+        <InputText @bind-Value="Input.Code" id="Input.Code" class="form-control" type="number" inputmode="numeric" />
+        <ValidationMessage For="@(() => Input.Code)" />
+    </div>
+    <button type="submit" class="btn btn-primary w-100" disabled="@IsLoading">
+        @if (IsLoading)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <text>Verifying...</text>
+        }
+        else
+        {
+            <text>Verify</text>
+        }
+    </button>
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <div class="alert alert-danger mt-3">@Message</div>
+    }
+</EditForm>
+
+@code {
+    [Parameter]
+    public int UserId { get; set; }
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private string? Message;
+    private bool IsLoading = false;
+
+    private async Task HandleVerify()
+    {
+        Message = string.Empty;
+        IsLoading = true;
+        var result = await Auth.VerifyOtpAsync(UserId, Input.Code);
+        IsLoading = false;
+        if (result.Success) Nav.NavigateTo($"/reset-password/{result.ResetToken}");
+        else Message = result.ErrorMessage ?? "Something went wrong";
+    }
+
+    private sealed class InputModel
+    {
+        [Required, StringLength(6, MinimumLength = 6)]
+        public string Code { get; set; } = string.Empty;
+    }
+}

@@ -1,0 +1,79 @@
+﻿@page "/login"
+@layout AuthLayout
+
+@using System.ComponentModel.DataAnnotations
+@using AGDPMS.Shared.Components.Layout
+@using AGDPMS.Shared.Services
+
+@inject IAuthService Auth
+@inject NavigationManager Nav
+
+<PageTitle>Login</PageTitle>
+
+<h3 class="text-center mb-4">Login</h3>
+<EditForm Model="Input" method="post" OnValidSubmit="LoginUser" FormName="login">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="mb-3">
+        <label class="form-label">Phone Number</label>
+        <InputText @bind-Value="Input.PhoneNumber" class="form-control" type="tel" inputmode="tel" />
+        <ValidationMessage For="@(() => Input.PhoneNumber)" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">Password</label>
+        <InputText @bind-Value="Input.Password" class="form-control" type="password" />
+        <ValidationMessage For="@(() => Input.Password)" />
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="/forgot-password" class="text-decoration-none small">Forgot password?</a>
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100" disabled="@IsLoading">
+        @if (IsLoading)
+        {
+            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+            <text>Logging in...</text>
+        }
+        else
+        {
+            <text>Login</text>
+        }
+    </button>
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <div class="alert alert-danger mt-3">@Message</div>
+    }
+</EditForm>
+
+@code {
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private string? Message = string.Empty;
+    private bool IsLoading = false;
+
+    public async Task LoginUser()
+    {
+        Message = string.Empty;
+        IsLoading = true;
+        var result = await Auth.LoginAsync(Input.PhoneNumber, Input.Password);
+        IsLoading = false;
+        if (result.Success) Nav.NavigateTo(result.RedirectUrl ?? "/");
+        else Message = result.ErrorMessage ?? "Login failed";
+    }
+
+    private sealed class InputModel
+    {
+        [Required, Phone]
+        [Display(Name = "Phone Number")]
+        public string PhoneNumber { get; set; } = string.Empty;
+
+        [Required, DataType(DataType.Password)]
+        [Display(Name = "Password")]
+        public string Password { get; set; } = string.Empty;
+    }
+}
