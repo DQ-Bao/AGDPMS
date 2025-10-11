@@ -211,8 +211,8 @@
         
         try
         {
-            newUser.PhoneNumber = newUser.PhoneNumber?.Trim();
-            newUser.FullName = newUser.FullName?.Trim();
+            newUser.PhoneNumber = newUser.PhoneNumber?.Trim() ?? string.Empty;
+            newUser.FullName = newUser.FullName?.Trim() ?? string.Empty;
 
             if (string.IsNullOrWhiteSpace(newUser.PhoneNumber))
             {
