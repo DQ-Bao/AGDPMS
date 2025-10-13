@@ -1,7 +1,7 @@
 using AGDPMS.Web;
 using AGDPMS.Web.Components;
-using AGDPMS.Web.Data;
 using Microsoft.AspNetCore.Identity;
+using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Services;
 using AGDPMS.Web.Endpoints;
@@ -27,6 +27,7 @@ builder.Services.AddSmsSender(opts =>
 });
 
 builder.Services.AddScoped<IAuthService, WebAuthService>();
+builder.Services.AddScoped<IUserService, WebUserService>();
 
 var app = builder.Build();
 
