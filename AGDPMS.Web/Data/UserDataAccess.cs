@@ -1,7 +1,9 @@
 using Dapper;
 using System.Data;
+using AGDPMS.Shared.Models;
 
 namespace AGDPMS.Web.Data;
+
 public class UserDataAccess(IDbConnection conn)
 {
     public Task<IEnumerable<AppUser>> GetAllAsync() => conn.QueryAsync<AppUser, AppRole, AppUser>(@"
@@ -10,6 +12,8 @@ public class UserDataAccess(IDbConnection conn)
             u.phone as PhoneNumber,
             u.password_hash as PasswordHash,
             u.need_change_password as NeedChangePassword,
+            u.email as Email, u.date_of_birth as DateOfBirth,
+            u.active as IsActive,
 
             r.id as Id, r.name as Name
         from users u
@@ -26,6 +30,8 @@ public class UserDataAccess(IDbConnection conn)
             u.phone as PhoneNumber,
             u.password_hash as PasswordHash,
             u.need_change_password as NeedChangePassword,
+            u.email as Email, u.date_of_birth as DateOfBirth,
+            u.active as IsActive,
 
             r.id as Id, r.name as Name
         from users u
@@ -44,6 +50,8 @@ public class UserDataAccess(IDbConnection conn)
             u.phone as PhoneNumber,
             u.password_hash as PasswordHash,
             u.need_change_password as NeedChangePassword,
+            u.email as Email, u.date_of_birth as DateOfBirth,
+            u.active as IsActive,
 
             r.id as Id, r.name as Name
         from users u
@@ -59,8 +67,8 @@ public class UserDataAccess(IDbConnection conn)
     public async Task<AppUser> CreateAsync(AppUser user)
     {
         var id = await conn.ExecuteScalarAsync<int>(@"
-            insert into users(fullname, phone, password_hash, role_id, need_change_password)
-            values (@FullName, @PhoneNumber, @PasswordHash, @RoleId, @NeedChangePassword)
+            insert into users(fullname, phone, password_hash, role_id, active, need_change_password)
+            values (@FullName, @PhoneNumber, @PasswordHash, @RoleId, @IsActive, @NeedChangePassword)
             returning id
         ", new
         {
@@ -68,11 +76,35 @@ public class UserDataAccess(IDbConnection conn)
             user.PhoneNumber,
             user.PasswordHash,
             RoleId = user.Role.Id,
+            user.IsActive,
             user.NeedChangePassword
         });
         user.Id = id;
         return user;
     }
+
+    public Task UpdateAsync(AppUser user) =>
+        conn.ExecuteAsync(@"
+            update users
+            set fullname = @FullName,
+                phone = @PhoneNumber,
+                role_id = @RoleId,
+                active = @IsActive,
+                need_change_password = @NeedChangePassword
+                email = @Email,
+                date_of_birth = @DateOfBirth,
+            where id = @Id",
+            new
+            {
+                user.FullName,
+                user.PhoneNumber,
+                RoleId = user.Role.Id,
+                user.IsActive,
+                user.NeedChangePassword,
+                user.Email,
+                user.DateOfBirth,
+                user.Id
+            });
 
     public Task SetPasswordHashAsync(int userId, string passwordHash, bool? needChange) =>
         conn.ExecuteAsync(@"

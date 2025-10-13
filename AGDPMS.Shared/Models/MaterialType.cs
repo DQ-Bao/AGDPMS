@@ -1,4 +1,4 @@
-﻿namespace AGDPMS.Web.Data;
+﻿namespace AGDPMS.Shared.Models;
 
 public class MaterialType
 {

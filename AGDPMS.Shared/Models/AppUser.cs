@@ -1,6 +1,6 @@
 using System.Security.Claims;
 
-namespace AGDPMS.Web.Data;
+namespace AGDPMS.Shared.Models;
 
 public class AppUser
 {
@@ -9,7 +9,10 @@ public class AppUser
     public string PasswordHash { get; set; } = string.Empty;
     public required string FullName { get; set; }
     public required AppRole Role { get; set; }
+    public bool IsActive { get; set; } = true;
     public bool NeedChangePassword { get; set; } = true;
+    public string? Email { get; set; }
+    public DateTime? DateOfBirth { get; set; }
 
     public Claim[] ToClaims() =>
         [
