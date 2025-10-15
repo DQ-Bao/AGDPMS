@@ -1,0 +1,132 @@
+﻿@using System.ComponentModel.DataAnnotations
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using AGDPMS.Shared.Validations
+
+@inject IUserService UserService
+
+<h5 class="fw-bold mb-3">Edit Profile</h5>
+@if (User is not null)
+{
+    <EditForm Model="@Input" method="post" OnValidSubmit="HandleEditProfile" FormName="edit-profile">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="mb-3">
+            <label class="form-label fw-bold">Full Name</label>
+            <InputText @bind-Value="@Input.FullName" class="form-control" />
+            <ValidationMessage For="@(() => Input.FullName)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Email</label>
+            <InputText @bind-Value="@Input.Email" class="form-control" type="email" inputmode="email" />
+            <ValidationMessage For="@(() => Input.Email)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Phone Number</label>
+            <input class="form-control" value="@User.PhoneNumber" type="tel" inputmode="tel" disabled />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Date of birth</label>
+            <InputDate @bind-Value="@Input.DateOfBirth" class="form-control" />
+            <ValidationMessage For="@(() => Input.DateOfBirth)" />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Role</label>
+            <input class="form-control" value="@User.Role.Name" disabled />
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">Account Status</label>
+            <div>
+                <span class="badge @(User.IsActive ? "bg-success" : "bg-danger")">
+                    @(User.IsActive ? "Active" : "Locked")
+                </span>
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary w-100" disabled="@IsLoading">
+                @if (IsLoading)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                    <text>Submitting...</text>
+                }
+                else
+                {
+                    <text>Edit Profile</text>
+                }
+            </button>
+        </div>
+        @if (!string.IsNullOrEmpty(SuccessMessage))
+        {
+            <div class="alert alert-success alert-dismissible fade show mt-3" role="alert">
+                @SuccessMessage
+                <button type="button" class="btn-close" @onclick="() => SuccessMessage = null"></button>
+            </div>
+        }
+        @if (!string.IsNullOrEmpty(ErrorMessage))
+        {
+            <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                @ErrorMessage
+                <button type="button" class="btn-close" @onclick="() => ErrorMessage = null"></button>
+            </div>
+        }
+    </EditForm>
+}
+
+@code {
+    [Parameter, EditorRequired] public AppUser? User { get; set; }
+    [Parameter] public EventCallback OnProfileUpdated { get; set; }
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private bool IsLoading = false;
+    private string? ErrorMessage;
+    private string? SuccessMessage;
+
+    protected override void OnParametersSet()
+    {
+        if (User is not null)
+        {
+            Input.FullName = User.FullName;
+            Input.Email = User.Email;
+            Input.DateOfBirth = User.DateOfBirth;
+        }
+    }
+
+    private async Task HandleEditProfile()
+    {
+        ErrorMessage = string.Empty;
+        SuccessMessage = string.Empty;
+        IsLoading = true;
+        if (User is null) return;
+        User.FullName = Input.FullName;
+        User.Email = Input.Email;
+        User.DateOfBirth = Input.DateOfBirth;
+        var result = await UserService.UpdateUserProfileAsync(User);
+        IsLoading = false;
+        if (result.Success)
+        {
+            SuccessMessage = "Cập nhật thông tin thành công.";
+            await OnProfileUpdated.InvokeAsync();
+        }
+        else ErrorMessage = result.ErrorMessage ?? "Unexpected error.";
+    }
+
+    private sealed class InputModel
+    {
+        [Required]
+        public string FullName { get; set; } = string.Empty;
+
+        [EmailAddress]
+        public string? Email { get; set; }
+
+        [BirthDay]
+        public DateTime? DateOfBirth { get; set; }
+    }
+}

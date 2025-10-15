@@ -5,13 +5,9 @@ namespace AGDPMS.Shared.Validations;
 
 public static class PasswordValidator
 {
-    public static bool IsValid(string password)
-    {
-        if (string.IsNullOrWhiteSpace(password)) return false;
-        var regex = new Regex(@"^(?=.*\d).{8,}$");
-        return regex.IsMatch(password);
-    }
+    public static bool IsValid(string password) => !string.IsNullOrWhiteSpace(password) && _PASSWORD_REGEX.IsMatch(password);
 
+    private static readonly Regex _PASSWORD_REGEX = new(@"^(?=.*\d).{8,}$", RegexOptions.Compiled | RegexOptions.CultureInvariant);
     public static string DefaultErrorMessage => "Mật khẩu phải dài ít nhất 8 ký tự và bao gồm ít nhất một chữ số.";
 }
 

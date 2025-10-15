@@ -34,6 +34,7 @@ public static class MauiProgram
             client.BaseAddress = new Uri("https://bedford-blvd-empirical-requirements.trycloudflare.com/api/");
             client.Timeout = TimeSpan.FromSeconds(30);
         })
+        .AddHttpMessageHandler<AuthHeaderHandler>()
         .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
