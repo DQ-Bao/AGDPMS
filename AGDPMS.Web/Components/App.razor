@@ -1,4 +1,6 @@
-﻿<!DOCTYPE html>
+﻿@inject NavigationManager Nav
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
@@ -11,7 +13,15 @@
     <HeadOutlet />
 </head>
 <body>
-    <Routes />
+    <Routes @rendermode="_defaultRenderMode" />
     <script src="_framework/blazor.web.js"></script>
 </body>
 </html>
+
+@code {
+    private IComponentRenderMode? _defaultRenderMode =>
+        Nav.Uri.Contains("login")
+     || Nav.Uri.Contains("need-change-password")
+     ? null
+     : RenderMode.InteractiveServer;
+}

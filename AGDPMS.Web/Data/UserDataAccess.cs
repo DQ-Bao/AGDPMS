@@ -90,9 +90,9 @@ public class UserDataAccess(IDbConnection conn)
                 phone = @PhoneNumber,
                 role_id = @RoleId,
                 active = @IsActive,
-                need_change_password = @NeedChangePassword
+                need_change_password = @NeedChangePassword,
                 email = @Email,
-                date_of_birth = @DateOfBirth,
+                date_of_birth = @DateOfBirth
             where id = @Id",
             new
             {

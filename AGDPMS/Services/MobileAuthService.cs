@@ -45,16 +45,8 @@ internal class MobileAuthService(HttpClient http, CustomAuthenticationStateProvi
     {
         try
         {
-            var token = await SecureStorage.Default.GetAsync("auth_token");
-            if (string.IsNullOrWhiteSpace(token))
-                return new BaseResult { Success = false, ErrorMessage = "Unauthorized" };
             var request = new ResetCurrentUserPasswordRequest { Password = password };
-            using var httpReq = new HttpRequestMessage(HttpMethod.Put, "users/me/password")
-            {
-                Content = JsonContent.Create(request),
-            };
-            httpReq.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            var response = await http.SendAsync(httpReq);
+            var response = await http.PostAsJsonAsync("users/me/password", request);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -128,7 +120,7 @@ internal class MobileAuthService(HttpClient http, CustomAuthenticationStateProvi
             var response = await http.PostAsJsonAsync("auth/reset-password", request);
             if (!response.IsSuccessStatusCode)
             {
-                var error = response.Content.ReadAsStringAsync().Result;
+                var error = await response.Content.ReadAsStringAsync();
                 return new BaseResult { Success = false, ErrorMessage = error };
             }
             return new BaseResult { Success = true };

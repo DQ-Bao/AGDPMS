@@ -39,55 +39,45 @@ public sealed class ResetPasswordWithTokenRequest
     public required string Password { get; set; }
 }
 
+public sealed record GetCurrentUserResponse(
+    int Id,
+    string FullName,
+    string PhoneNumber,
+    AppRole Role,
+    bool IsActive,
+    bool NeedChangePassword,
+    string? Email,
+    DateTime? DateOfBirth)
+{
+    public static GetCurrentUserResponse From(AppUser user) =>
+        new(user.Id, user.FullName, user.PhoneNumber, user.Role, user.IsActive, user.NeedChangePassword, user.Email, user.DateOfBirth);
+    public AppUser ToUser() => new()
+        {
+            Id = Id,
+            FullName = FullName,
+            PhoneNumber = PhoneNumber,
+            Role = Role,
+            IsActive = IsActive,
+            NeedChangePassword = NeedChangePassword,
+            Email = Email,
+            DateOfBirth = DateOfBirth
+        };
+}
+
 public sealed class ResetCurrentUserPasswordRequest
 {
     public required string Password { get; set; }
 }
 
-//public sealed class ChangePasswordRequest
-//{
-//    public int UserId { get; set; }
-//    public string NewPassword { get; set; } = string.Empty;
-//}
+public sealed class UpdateCurrentUserProfileRequest
+{
+    public required string FullName { get; set; }
+    public string? Email { get; set; }
+    public DateTime? DateOfBirth { get; set; }
+}
 
-//public sealed class AddAccountRequest
-//{
-//    public string PhoneNumber { get; set; } = string.Empty;
-//    public string FullName { get; set; } = string.Empty;
-//    public int RoleId { get; set; }
-//}
-
-//public sealed class AddAccountResponse
-//{
-//    public bool Success { get; set; }
-//    public string? Message { get; set; }
-//    public int? UserId { get; set; }
-//}
-
-//public sealed class RoleDto
-//{
-//    public int Id { get; set; }
-//    public string Name { get; set; } = string.Empty;
-//}
-
-//public sealed class UserDto
-//{
-//    public int Id { get; set; }
-//    public string FullName { get; set; } = string.Empty;
-//    public string PhoneNumber { get; set; } = string.Empty;
-//    public string RoleName { get; set; } = string.Empty;
-//    public bool NeedChangePassword { get; set; }
-//    public int RoleId { get; set; }
-//}
-
-//public sealed class DeleteUserRequest
-//{
-//    public int UserId { get; set; }
-//}
-
-//public sealed class DeleteUserResponse
-//{
-//    public bool Success { get; set; }
-//    public string? Message { get; set; }
-//}
-
+public sealed class ChangeCurrentUserPasswordRequest
+{
+    public required string CurrentPassword { get; set; }
+    public required string NewPassword { get; set; }
+}

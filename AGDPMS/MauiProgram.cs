@@ -28,17 +28,20 @@ public static class MauiProgram
         builder.Services.AddScoped<AuthenticationStateProvider>(provider => provider.GetRequiredService<CustomAuthenticationStateProvider>());
 
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
+        builder.Services.AddTransient<AuthHeaderHandler>();
         builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ApiClient"));
         builder.Services.AddHttpClient("ApiClient", client =>
         {
-            client.BaseAddress = new Uri("https://bedford-blvd-empirical-requirements.trycloudflare.com/api/");
+            client.BaseAddress = new Uri("https://widespread-florist-april-checklist.trycloudflare.com/api/");
             client.Timeout = TimeSpan.FromSeconds(30);
         })
+        .AddHttpMessageHandler<AuthHeaderHandler>()
         .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
         {
             ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
         }); // NOTE: For development only - accept self-signed certificates
         builder.Services.AddScoped<IAuthService, MobileAuthService>();
+        builder.Services.AddScoped<IUserService, MobileUserService>();
 
         return builder.Build();
     }
