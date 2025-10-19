@@ -3,6 +3,8 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 
+@inject NavigationManager Nav
+
 <!-- Offcanvas Sidebar for mobile -->
 <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="offcanvasSidebar">
     <div class="offcanvas-header">
@@ -67,7 +69,7 @@
         <button class="btn d-none d-md-inline" @onclick="ToggleSidebar">
             <i class="bi bi-list fs-4"></i>
         </button>
-        <span class="navbar-brand mb-0 h5 ms-3">@Title</span>
+        <span class="navbar-brand mb-0 h5 ms-3">@GetTitle()</span>
         <div class="ms-auto d-flex align-items-center gap-2">
             <div class="dropdown">
                 <button class="btn shadow-none position-relative" type="button" id="dropdownBell" data-bs-toggle="dropdown" aria-expanded="false">
@@ -106,8 +108,12 @@
 </div>
 
 @code {
-    [Parameter] public string Title { get; set; } = string.Empty;
     private bool sidebarCollapsed = false;
+    private string GetTitle()
+    {
+        if (Nav.Uri.Contains("/profile")) return "User Profile";
+        else return "Home";
+    }
     private void ToggleSidebar() => sidebarCollapsed = !sidebarCollapsed;
     private string GetUsername(ClaimsPrincipal principal) => principal.FindFirst("FullName")?.Value ?? principal.FindFirst("unique_name")?.Value ?? "Guest";
 }

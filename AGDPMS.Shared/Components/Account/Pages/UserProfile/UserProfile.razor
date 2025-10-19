@@ -7,23 +7,23 @@
 
 @inject IUserService UserService
 
-<div class="container-fluid py-4">
-    <a href="/">Home</a>
-    <h3 class="fw-bold mb-4">User Profile</h3>
-    <div class="row justify-content-start">
-        <div class="col-12 col-md-6">
-            <EditProfileForm User="User" />
-            <hr class="my-5" />
-            <ChangePasswordForm User="User" />
-            @if (!string.IsNullOrEmpty(ErrorMessage))
-            {
-                <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-                    @ErrorMessage
-                    <button type="button" class="btn-close" @onclick="() => ErrorMessage = null"></button>
-                </div>
-            }
-        </div>
+<PageTitle>User Profile</PageTitle>
+
+<div class="row justify-content-start">
+    <div class="col-12 col-md-6">
+        <EditProfileForm User="User" />
     </div>
+    <hr class="my-5 d-md-none" />
+    <div class="col-12 col-md-6">
+        <ChangePasswordForm User="User" />
+    </div>
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+            @ErrorMessage
+            <button type="button" class="btn-close" @onclick="() => ErrorMessage = null"></button>
+        </div>
+    }
 </div>
 
 @code {
