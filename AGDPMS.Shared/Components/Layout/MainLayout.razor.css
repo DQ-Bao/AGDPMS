@@ -1,0 +1,54 @@
+﻿body {
+    overflow-x: hidden;
+}
+
+#sidebar {
+    min-height: 100vh;
+    transition: width 0.3s ease;
+    width: 220px;
+}
+
+    #sidebar.collapsed {
+        width: 70px;
+    }
+
+    #sidebar .brand-text,
+    #sidebar .nav-link span {
+        transition: opacity 0.2s ease, visibility 0.2s ease;
+    }
+
+    #sidebar.collapsed .brand-text,
+    #sidebar.collapsed .nav-link span {
+        opacity: 0;
+        visibility: hidden;
+        width: 0;
+    }
+
+    #sidebar ::deep .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 0.75rem 0.8rem;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+/* Content shifts when sidebar collapses */
+#content {
+    margin-left: 220px;
+    transition: margin-left 0.3s ease;
+}
+
+#sidebar.collapsed + #content {
+    margin-left: 70px;
+}
+
+@media (max-width: 767.98px) {
+    #content {
+        margin-left: 0 !important;
+    }
+
+    #sidebar {
+        width: 220px;
+    }
+}
