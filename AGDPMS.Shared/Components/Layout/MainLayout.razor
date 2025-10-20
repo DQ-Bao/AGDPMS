@@ -1,0 +1,119 @@
+﻿@inherits LayoutComponentBase
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@inject NavigationManager Nav
+
+<!-- Offcanvas Sidebar for mobile -->
+<div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="offcanvasSidebar">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">💠 AGDPMS</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-2">
+        <ul class="nav nav-pills flex-column mb-auto">
+            <li class="nav-item">
+                <NavLink href="/" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i>Dashboard</NavLink>
+            </li>
+            <li>
+                <NavLink href="/calendar" class="nav-link text-white"><i class="bi bi-calendar3 me-2"></i>Calendar</NavLink>
+            </li>
+            <li>
+                <NavLink href="/kanban" class="nav-link text-white"><i class="bi bi-kanban me-2"></i>Kanban Board</NavLink>
+            </li>
+            <li>
+                <NavLink href="/invoice" class="nav-link text-white"><i class="bi bi-receipt me-2"></i>Invoice</NavLink>
+            </li>
+            <li>
+                <NavLink href="/pages" class="nav-link text-white"><i class="bi bi-layers me-2"></i>Pages</NavLink>
+            </li>
+        </ul>
+    </div>
+</div>
+
+<!-- Fixed Sidebar for Desktop -->
+<aside class="bg-dark text-white position-fixed d-none d-md-flex flex-column p-2 @(sidebarCollapsed ? "collapsed" : "")" id="sidebar">
+    <div class="d-flex align-items-center mb-3">
+        <span class="fs-4 fw-bold ms-2">💠</span>
+        <span class="fs-5 fw-bold ms-2 brand-text">AGDPMS</span>
+    </div>
+    <hr class="text-secondary" />
+    <ul class="nav nav-pills flex-column mb-auto">
+        <li class="nav-item">
+            <NavLink href="/" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span></NavLink>
+        </li>
+        <li>
+            <NavLink href="/calendar" class="nav-link text-white"><i class="bi bi-calendar3 me-2"></i><span>Calendar</span></NavLink>
+        </li>
+        <li>
+            <NavLink href="/kanban" class="nav-link text-white"><i class="bi bi-kanban me-2"></i><span>Kanban Board</span></NavLink>
+        </li>
+        <li>
+            <NavLink href="/invoice" class="nav-link text-white"><i class="bi bi-receipt me-2"></i><span>Invoice</span></NavLink>
+        </li>
+        <li>
+            <NavLink href="/pages" class="nav-link text-white"><i class="bi bi-layers me-2"></i><span>Pages</span></NavLink>
+        </li>
+    </ul>
+</aside>
+
+<!-- Main Content -->
+<div id="content">
+    <nav class="navbar navbar-light bg-white shadow-sm px-3">
+        <!-- Hamburger triggers different sidebar for mobile -->
+        <button class="btn d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar">
+            <i class="bi bi-list fs-4"></i>
+        </button>
+        <!-- Collapsible toggle for desktop -->
+        <button class="btn d-none d-md-inline" @onclick="ToggleSidebar">
+            <i class="bi bi-list fs-4"></i>
+        </button>
+        <span class="navbar-brand mb-0 h5 ms-3">@GetTitle()</span>
+        <div class="ms-auto d-flex align-items-center gap-2">
+            <div class="dropdown">
+                <button class="btn shadow-none position-relative" type="button" id="dropdownBell" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-bell fs-5"></i>
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownBell" style="min-width: 250px">
+                    <li><h6 class="dropdown-header">Notifications</h6></li>
+                    <li><a class="dropdown-item" href="#">New task assigned</a></li>
+                    <li><a class="dropdown-item" href="#">Project updated</a></li>
+                    <li><a class="dropdown-item" href="#">Server backup completed</a></li>
+                    <li><hr class="dropdown-divider" /></li>
+                    <li><a class="dropdown-item text-center text-primary" href="#">View all</a></li>
+                </ul>
+            </div>
+            <AuthorizeView>
+                <Authorized>
+                    <div class="dropdown">
+                        <a class="d-flex align-items-center text-decoration-none text-dark dropdown-toggle"
+                           href="#" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
+                            <strong>@GetUsername(context.User)</strong>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownUser">
+                            <li><a class="dropdown-item" href="/profile">Profile</a></li>
+                            <li><hr class="dropdown-divider" /></li>
+                            <li><a class="dropdown-item text-danger" href="#">Logout</a></li>
+                        </ul>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </nav>
+    <div class="container-fluid mt-4">
+        @Body
+    </div>
+</div>
+
+@code {
+    private bool sidebarCollapsed = false;
+    private string GetTitle()
+    {
+        if (Nav.Uri.Contains("/profile")) return "User Profile";
+        else return "Home";
+    }
+    private void ToggleSidebar() => sidebarCollapsed = !sidebarCollapsed;
+    private string GetUsername(ClaimsPrincipal principal) => principal.FindFirst("FullName")?.Value ?? principal.FindFirst("unique_name")?.Value ?? "Guest";
+}

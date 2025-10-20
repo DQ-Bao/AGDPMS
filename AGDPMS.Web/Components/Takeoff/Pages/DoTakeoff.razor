@@ -1,0 +1,287 @@
+﻿@page "/takeoff"
+@rendermode InteractiveServer
+
+@using System.Data.Odbc
+@using Dapper
+
+<a href="/">Home</a>
+<h3>Upload mdb file</h3>
+
+<InputFile OnChange="HandleFileUpload" accept=".mdb" />
+<button class="btn btn-primary" @onclick="LoadData" disabled="@string.IsNullOrEmpty(uploadedFilePath)">Load Data</button>
+@if (!string.IsNullOrEmpty(Message))
+{
+    <p>@Message</p>
+}
+<br />
+@if (projects.Any())
+{
+    <h4>Projects</h4>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Create Date</th>
+                <th>Vendor</th>
+                <th>Glass</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var proj in projects)
+            {
+                <tr>
+                    <td>@proj.Code</td>
+                    <td>@proj.CreateDate.ToShortDateString()</td>
+                    <td>@proj.Vendor?.Description</td>
+                    <td>@proj.Glass?.Description</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary"
+                                @onclick="@(() => ToggleProject(proj))">
+                            @(expandedProjects.Contains(proj) ? "Hide Cavities" : "Show Cavities")
+                        </button>
+                    </td>
+                </tr>
+
+                @if (expandedProjects.Contains(proj))
+                {
+                    <tr>
+                        <td colspan="5">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Cavity Code</th>
+                                        <th>Description</th>
+                                        <th>Width</th>
+                                        <th>Height</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var cav in proj.Cavities)
+                                    {
+                                        <tr>
+                                            <td>@cav.Code</td>
+                                            <td>@cav.Description</td>
+                                            <td>@cav.Width</td>
+                                            <td>@cav.Height</td>
+                                            <td>
+                                                <button class="btn btn-sm btn-outline-secondary"
+                                                        @onclick="@(() => ToggleCavity(cav))">
+                                                    @(expandedCavities.Contains(cav) ? "Hide Materials" : "Show Materials")
+                                                </button>
+                                            </td>
+                                        </tr>
+
+                                        @if (expandedCavities.Contains(cav))
+                                        {
+                                            <tr>
+                                                <td colspan="5">
+                                                    <table class="table table-sm">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>Code</th>
+                                                                <th>Description</th>
+                                                                <th>Symbol</th>
+                                                                <th>Type</th>
+                                                                <th>Num</th>
+                                                                <th>Length</th>
+                                                                <th>Width</th>
+                                                                <th>LeftAngle</th>
+                                                                <th>RightAngle</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            @foreach (var mat in cav.Materials)
+                                                            {
+                                                                <tr>
+                                                                    <td>@mat.Code</td>
+                                                                    <td>@mat.Description</td>
+                                                                    <td>@mat.Symbol</td>
+                                                                    <td>@mat.MatType</td>
+                                                                    <td>@mat.Num</td>
+                                                                    <td>@mat.Length</td>
+                                                                    <td>@mat.Width</td>
+                                                                    <td>@mat.LeftAngle</td>
+                                                                    <td>@mat.RightAngle</td>
+                                                                </tr>
+                                                            }
+                                                        </tbody>
+                                                    </table>
+                                                </td>
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private string? uploadedFilePath;
+    private string Message = string.Empty;
+    private List<Project> projects = [];
+    private HashSet<Project> expandedProjects = new();
+    private HashSet<Cavity> expandedCavities = new();
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        var tempPath = Path.Combine(Path.GetTempPath(), file.Name);
+
+        using var stream = File.Create(tempPath);
+        await file.OpenReadStream(200 * 1024 * 1024).CopyToAsync(stream); // max 200MB
+
+        uploadedFilePath = tempPath;
+        Message = $"File uploaded: {file.Name}";
+    }
+
+    private async Task LoadData()
+    {
+        if (string.IsNullOrEmpty(uploadedFilePath))
+        {
+            Message = "No file uploaded.";
+            return;
+        }
+        string connectionString = $"Driver={{Microsoft Access Driver (*.mdb, *.accdb)}};Dbq={uploadedFilePath};Uid=Admin;Pwd=;";
+        using var connection = new OdbcConnection(connectionString);
+        try
+        {
+            connection.Open();
+            string query = @"
+            select p.Code, p.CreateDate, 
+                   v.Code, v.Description,
+                   gl.Code, c.ClrDescription as Color, gl.Description, glt.Description as Type,
+                   cav.Code, cav.Description, cav.Width, cav.Height,
+                   bom.Code, mat.Description, mat.Symbol, matyp.Description as MatType,
+                   bom.Num, bom.Length, bom.Width, bom.LeftAngle, bom.RightAngle
+            from (((((((wsProject as p
+            left join wsVendor as v on p.Vendor = v.Code)
+            left join wsGlass as gl on p.Glass = gl.Code)
+            left join wsGlassType as glt on gl.Type = glt.Type)
+            left join wsColor as c on gl.Color = c.ClrRGB)
+            left join wsCavity as cav on p.Code = cav.ProjectCode)
+            left join wsBOMAccessory as bom on cav.Code = bom.CavityCode)
+            left join wsMaterial as mat on bom.Code = mat.Code)
+            left join wsMaterialType as matyp on mat.MaterialType = matyp.Code
+            where p.Code is not null
+            order by p.Code, cav.Code, bom.Code";
+            var lookup = new Dictionary<string, Project>();
+            var result = await connection.QueryAsync<Project, Vendor, Glass, Cavity, BOMAccessory, Project>(
+                query,
+                (project, vendor, glass, cavity, material) =>
+                {
+
+                    if (!lookup.TryGetValue(project.Code, out var proj))
+                    {
+                        proj = project;
+                        proj.Vendor = vendor;
+                        proj.Glass = glass;
+                        proj.Cavities = new List<Cavity>();
+                        lookup.Add(proj.Code, proj);
+                    }
+
+                    if (cavity != null && !string.IsNullOrEmpty(cavity.Code))
+                    {
+                        var existingCav = proj.Cavities.FirstOrDefault(c => c.Code == cavity.Code);
+                        if (existingCav == null)
+                        {
+                            cavity.Materials = new List<BOMAccessory>();
+                            proj.Cavities.Add(cavity);
+                            existingCav = cavity;
+                        }
+
+                        if (material != null && !string.IsNullOrEmpty(material.Code) && !string.IsNullOrEmpty(material.Symbol))
+                        {
+                            var materials = existingCav.Materials;
+                            var existing = materials.FirstOrDefault(m =>
+                                m.Code == material.Code
+                                && m.Length == material.Length
+                                && m.Width == material.Width
+                            );
+
+                            if (existing != null)
+                            {
+                                existing.Num += material.Num;
+                            }
+                            else
+                            {
+                                materials.Add(material);
+                            }
+                        }
+                    }
+
+                    return project;
+                },
+                splitOn: "Code");
+
+            projects = lookup.Values.ToList();
+        } catch (Exception ex)
+        {
+            Message = $"Error: {ex.Message}";
+        }
+    }
+
+    private void ToggleProject(Project proj)
+    {
+        if (!expandedProjects.Add(proj))
+            expandedProjects.Remove(proj);
+    }
+
+    private void ToggleCavity(Cavity cav)
+    {
+        if (!expandedCavities.Add(cav))
+            expandedCavities.Remove(cav);
+    }
+
+    public class Project
+    {
+        public required string Code { get; set; }
+        public required DateTime CreateDate { get; set; }
+        public required List<Cavity> Cavities { get; set; } = [];
+        public Vendor? Vendor { get; set; }
+        public Glass? Glass { get; set; }
+    }
+
+    public class Vendor
+    {
+        public required string Code { get; set; }
+        public required string Description { get; set; }
+    }
+
+    public class Glass
+    {
+        public required string Code { get; set; }
+        public required string Description { get; set; }
+        public string? Color { get; set; }
+        public string? Type { get; set; }
+    }
+
+    public class Cavity
+    {
+        public required string Code { get; set; }
+        public required string Description { get; set; }
+        public required int Width { get; set; }
+        public required int Height { get; set; }
+        public required List<BOMAccessory> Materials { get; set; } = [];
+    }
+
+    public class BOMAccessory
+    {
+        public required string Code { get; set; }
+        public required string Description { get; set; }
+        public required string Symbol { get; set; }
+        public required string MatType { get; set; }
+
+        public required int Num { get; set; }
+        public required int Length { get; set; }
+        public required int Width { get; set; }
+        public required int LeftAngle { get; set; }
+        public required int RightAngle { get; set; }
+    }
+}

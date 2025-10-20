@@ -1,17 +1,29 @@
-﻿<!DOCTYPE html>
+﻿@inject NavigationManager Nav
+
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <link rel="stylesheet" href="_content/AGDPMS.Shared/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="_content/AGDPMS.Shared/bootstrap-icons/font/bootstrap-icons.min.css" />
     <link rel="stylesheet" href="_content/AGDPMS.Shared/app.css" />
     <link rel="stylesheet" href="AGDPMS.Web.styles.css" />
     <link rel="icon" type="image/png" href="_content/AGDPMS.Shared/favicon.png" />
-    <HeadOutlet />
+    <HeadOutlet @rendermode="_defaultRenderMode" />
 </head>
 <body>
-    <Routes />
+    <Routes @rendermode="_defaultRenderMode" />
     <script src="_framework/blazor.web.js"></script>
+    <script src="_content/AGDPMS.Shared/bootstrap/bootstrap.bundle.min.js"></script>
 </body>
 </html>
+
+@code {
+    private IComponentRenderMode? _defaultRenderMode =>
+        Nav.Uri.Contains("login")
+     || Nav.Uri.Contains("need-change-password")
+     ? null
+     : RenderMode.InteractiveServer;
+}

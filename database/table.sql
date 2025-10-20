@@ -21,6 +21,9 @@ create table if not exists users (
 	"created_at" timestamp null default now() ,
 	"need_change_password" boolean not null default true ,
 	"role_id" integer not null,
+    "active" boolean not null default true,
+    "email" varchar(250),
+    "date_of_birth" date,
 	constraint "pk_users" primary key ("id"),
 	constraint "fk_users_role_id" foreign key ("role_id") references roles ("id"),
 	constraint "uq_users_phone" unique ("phone")
