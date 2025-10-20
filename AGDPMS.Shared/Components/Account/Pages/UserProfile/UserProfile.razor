@@ -1,0 +1,39 @@
+﻿@page "/profile"
+
+@using System.ComponentModel.DataAnnotations
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using AGDPMS.Shared.Validations
+
+@inject IUserService UserService
+
+<PageTitle>User Profile</PageTitle>
+
+<div class="row justify-content-start">
+    <div class="col-12 col-md-6">
+        <EditProfileForm User="User" />
+    </div>
+    <hr class="my-5 d-md-none" />
+    <div class="col-12 col-md-6">
+        <ChangePasswordForm User="User" />
+    </div>
+    @if (!string.IsNullOrEmpty(ErrorMessage))
+    {
+        <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+            @ErrorMessage
+            <button type="button" class="btn-close" @onclick="() => ErrorMessage = null"></button>
+        </div>
+    }
+</div>
+
+@code {
+    private AppUser? User { get; set; }
+    private string? ErrorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await UserService.GetCurrentUserAsync();
+        if (result.Success) User = result.User;
+        else ErrorMessage = result.ErrorMessage;
+    }
+}
