@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Security.AccessControl;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using Google.OrTools.LinearSolver;
+﻿using Google.OrTools.LinearSolver;
 
 namespace AGDPMS.Shared.Services;
 
