@@ -278,4 +278,3 @@ public class Solution
     public double[] pattern_quantity;
     public double total_waste;
 }
-
