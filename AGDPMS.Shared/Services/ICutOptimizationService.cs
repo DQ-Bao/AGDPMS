@@ -1,4 +1,4 @@
-﻿using Google.OrTools.LinearSolver;
+using Google.OrTools.LinearSolver;
 
 namespace AGDPMS.Shared.Services;
 
@@ -73,7 +73,8 @@ public interface ICutOptimizationService
         {
             if (finalX[j] > 1e-6)
             {
-                solution.pattern_quantity[j] = finalX[]
+                solution.pattern_quantity[j] = finalX[i];
+                j++;
             }
         }
 
@@ -87,7 +88,9 @@ public interface ICutOptimizationService
 
         for (int i = 0; i < n; i++)
         {
-            Console.WriteLine($"Item {i + 1} (len {lengths[i]}): demand = {demands[i]}, produced = {satisfied[i]:F0}");
+            Console.WriteLine(
+                $"Item {i + 1} (len {lengths[i]}): demand = {demands[i]}, produced = {satisfied[i]:F0}"
+            );
         }
 
         return solution;
@@ -134,7 +137,12 @@ public interface ICutOptimizationService
     }
 
     // === LP Master Problem ===
-    static double[] SolveMaster(List<double[]> patterns, double[] demand, out double[] x, out double objective)
+    static double[] SolveMaster(
+        List<double[]> patterns,
+        double[] demand,
+        out double[] x,
+        out double objective
+    )
     {
         int m = demand.Length;
         int n = patterns.Count;
@@ -144,7 +152,9 @@ public interface ICutOptimizationService
         for (int j = 0; j < n; j++)
             vars[j] = solver.MakeNumVar(0.0, double.PositiveInfinity, $"x{j}");
 
-        Google.OrTools.LinearSolver.Constraint[] cons = new Google.OrTools.LinearSolver.Constraint[m];
+        Google.OrTools.LinearSolver.Constraint[] cons = new Google.OrTools.LinearSolver.Constraint[
+            m
+        ];
         for (int i = 0; i < m; i++)
         {
             cons[i] = solver.MakeConstraint(demand[i], demand[i], $"demand_{i}");
@@ -171,7 +181,14 @@ public interface ICutOptimizationService
     }
 
     // === Integer Final Master with Waste ===
-    static void SolveFinalIntegerMaster(List<double[]> patterns, double[] demand, double[] lengths, double L, out double[] x, out double objective)
+    static void SolveFinalIntegerMaster(
+        List<double[]> patterns,
+        double[] demand,
+        double[] lengths,
+        double L,
+        out double[] x,
+        out double objective
+    )
     {
         int m = demand.Length;
         int n = patterns.Count;
@@ -261,3 +278,4 @@ public class Solution
     public double[] pattern_quantity;
     public double total_waste;
 }
+
