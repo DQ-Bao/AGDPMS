@@ -2,9 +2,16 @@ set client_encoding to 'utf8';
 
 drop table if exists stock_import;
 drop table if exists material;
+drop table if exists projects;
+drop table if exists profiles;
+drop table if exists projects_rfq;
+drop table if exists clients;
 drop table if exists material_type;
 drop table if exists users;
 drop table if exists roles;
+
+
+
 
 create table if not exists roles ( 
 	"id" serial,
@@ -33,6 +40,42 @@ create table if not exists material_type (
 	"id" serial,
 	"name" varchar(250),
 	constraint "pk_material_type" primary key ("id")
+);
+
+create table if not exists clients ( 
+  "id" serial,
+  "name" varchar(250) not null,
+  "address" varchar(250),
+  "phone" varchar(250),
+  "email" varchar(250),
+  constraint "pk_clients" primary key ("id")
+);
+
+create table if not exists projects_rfq ( 
+  "id" serial,
+  "name" varchar(250) not null,
+  "location" varchar(250) not null,
+  "client_id" integer not null,
+  "design_company" varchar(250),
+  "completion_date" date not null,
+  "created_at" timestamp default now() ,
+  "design_file_path" varchar(250),
+  "projects_rfq_status" varchar(250) not null,
+  "document" varchar(250),
+  constraint "pk_projects" primary key ("id"),
+  constraint "fk_projects_client_id" foreign key ("client_id") references clients ("id")
+);
+
+CREATE TABLE IF NOT EXISTS profiles (
+    "profile_id" varchar(250),
+    "profile_name" varchar(250),
+    "linear_density" numeric(10,3),
+    PRIMARY KEY ("profile_id")
+);
+
+CREATE TABLE IF NOT EXISTS projects (
+	project_id varchar,
+	PRIMARY KEY (project_id)
 );
 
 create table if not exists material (
