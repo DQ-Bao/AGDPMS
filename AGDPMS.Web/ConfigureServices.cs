@@ -17,6 +17,7 @@ public static class ConfigureServices
         services.AddScoped<UserDataAccess>();
         services.AddScoped<InventoryDataAccess>();
         services.AddScoped<RoleDataAccess>();
+        services.AddScoped<CavityDataAccess>();
         return services;
     }
 

@@ -1,0 +1,211 @@
+﻿@page "/projects/{ProjectId:int}"
+@implements IDisposable
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+
+@inject WStarService WStarService
+@inject IProductService ProductService
+
+<div class="mb-3">
+    <a href="/projects" class="text-decoration-none d-inline-flex align-items-center text-primary">
+        <i class="bi bi-arrow-left me-2 fs-5"></i>
+        <span class="fw-semibold">Quay lại</span>
+    </a>
+</div>
+<ul class="nav nav-tabs" id="dtlTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active"
+                id="tab-cavity"
+                data-bs-toggle="tab"
+                data-bs-target="#pane-cavity"
+                type="button"
+                role="tab"
+                aria-controls="pane-cavity"
+                aria-selected="true">
+            Thông tin cửa
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link"
+                id="tab-materials"
+                data-bs-toggle="tab"
+                data-bs-target="#pane-materials"
+                type="button"
+                role="tab"
+                aria-controls="pane-materials"
+                aria-selected="false">
+            Tổng hợp vật liệu
+        </button>
+    </li>
+</ul>
+<div class="tab-content" id="dtlTabsContent">
+    <div class="tab-pane fade show active" id="pane-cavity" role="tabpanel" aria-labelledby="tab-cavity">
+        <div class="mt-3">
+            @if (!string.IsNullOrEmpty(StatusMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show mb-2" role="alert">
+                    @StatusMessage
+                    <button type="button" class="btn-close" @onclick="() => StatusMessage = null"></button>
+                </div>
+            }
+            <div class="mb-3 d-flex align-items-center">
+                <div class="input-group w-auto me-2">
+                    <label class="input-group-text fw-semibold">Nhập thiết kế Wstar</label>
+                    <InputFile OnChange="OnInputFileChange" accept=".mdb" class="form-control" />
+                    @if (UploadedFilePath is not null)
+                    {
+                        <button type="button" @onclick="LoadWStarProjects" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#projModal">
+                            Chọn dự án
+                        </button>
+                    }
+                </div>
+                <button type="button" class="btn btn-primary">Báo giá</button>
+            </div>
+            <table class="table table-striped table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mã cửa</th>
+                        <th>Mô tả</th>
+                        <th>Rộng</th>
+                        <th>Cao</th>
+                        <th>Số lượng</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Cavities.Any())
+                    {
+                        @foreach (var cav in Cavities)
+                        {
+                            <tr>
+                                <td>@cav.Code</td>
+                                <td>@cav.Description</td>
+                                <td>@cav.Width</td>
+                                <td>@cav.Height</td>
+                                <td>@cav.Quantity bộ</td>
+                                <td>
+                                    <a href="/cavities/@cav.Id" class="btn btn-primary">Chi tiết</a>
+                                    <button @onclick="() => CavityToDelete = cav" type="button" class="btn btn-danger"
+                                            data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                                        Xóa cửa
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pane-materials" role="tabpanel" aria-labelledby="tab-materials">
+        <div class="mt-3">
+            <h5>Nhôm</h5>
+            <p class="text-muted">Nội dung thông tin về nhôm sẽ được hiển thị ở đây.</p>
+        </div>
+    </div>
+</div>
+<SelectWStarCavitiesModal @ref="SelectModal" ModalId="projModal" Projects="WStarProjects" OnConfirm="AddSelectedCavities" />
+<!-- Confirm Delete Modal -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmDeleteLabel">Xác nhận xóa</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                Bạn có chắc chắn muốn xóa cửa <strong>@CavityToDelete?.Code</strong> không?<br />
+                Hành động này không thể hoàn tác.
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" data-bs-dismiss="modal">Xóa</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int ProjectId { get; set; }
+
+    private string? StatusMessage;
+    private string? UploadedFilePath;
+    private IEnumerable<WStarProject> WStarProjects = [];
+    private IEnumerable<Cavity> Cavities = [];
+    private SelectWStarCavitiesModal? SelectModal;
+    private Cavity? CavityToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjectCavities();
+    }
+
+    private async Task LoadProjectCavities()
+    {
+        var result = await ProductService.GetProjectCavitiesAsync(ProjectId);
+        if (result.Success) Cavities = result.Cavities;
+        else StatusMessage = result.ErrorMessage;
+    }
+
+    private async Task OnInputFileChange(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file is null || !file.Name.EndsWith(".mdb", StringComparison.OrdinalIgnoreCase))
+        {
+            UploadedFilePath = null;
+            StatusMessage = "File không tồn tại hoặc không đúng định dạng";
+            return;
+        }
+        var tempFile = Path.Combine(Path.GetTempPath(), file.Name);
+        using var stream = File.Create(tempFile);
+        await file.OpenReadStream(200 * 1024 * 1024).CopyToAsync(stream);
+        UploadedFilePath = tempFile;
+    }
+
+    private async Task LoadWStarProjects()
+    {
+        if (SelectModal is not null) SelectModal.SetLoading(true);
+        var result = await WStarService.GetAllProjectAsync(UploadedFilePath);
+        if (result.Success) WStarProjects = result.Projects;
+        else StatusMessage = result.ErrorMessage;
+        if (SelectModal is not null) SelectModal.SetLoading(false);
+    }
+
+    private async Task AddSelectedCavities(IEnumerable<WStarCavity> selectedCavities)
+    {
+        var result = await ProductService.AddCavitiesFromWStarDesignAsync(ProjectId, selectedCavities);
+        if (result.Success)
+        {
+            StatusMessage = "Thêm cửa thành công";
+            await LoadProjectCavities();
+        }
+        else StatusMessage = result.ErrorMessage ?? "Unexpected Error";
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (CavityToDelete is null) return;
+        var result = await ProductService.DeleteCavityAsync(CavityToDelete.Id);
+        if (result.Success)
+        {
+            StatusMessage = $"Đã xóa cửa {CavityToDelete.Code}";
+            await LoadProjectCavities();
+        }
+        else StatusMessage = result.ErrorMessage ?? "Unexpected Error";
+        CavityToDelete = null;
+    }
+
+    public void Dispose()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(UploadedFilePath) && File.Exists(UploadedFilePath))
+            {
+                File.Delete(UploadedFilePath);
+                UploadedFilePath = null;
+            }
+        }
+        catch {}
+    }
+}

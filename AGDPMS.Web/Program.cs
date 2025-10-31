@@ -28,6 +28,8 @@ builder.Services.AddSmsSender(opts =>
 
 builder.Services.AddScoped<IAuthService, WebAuthService>();
 builder.Services.AddScoped<IUserService, WebUserService>();
+builder.Services.AddScoped<WStarService>();
+builder.Services.AddScoped<IProductService, WebProductService>();
 
 var app = builder.Build();
 

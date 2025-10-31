@@ -14,19 +14,10 @@
     <div class="offcanvas-body p-2">
         <ul class="nav nav-pills flex-column mb-auto">
             <li class="nav-item">
-                <NavLink href="/" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i>Dashboard</NavLink>
+                <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i>Dashboard</NavLink>
             </li>
-            <li>
-                <NavLink href="/calendar" class="nav-link text-white"><i class="bi bi-calendar3 me-2"></i>Calendar</NavLink>
-            </li>
-            <li>
-                <NavLink href="/kanban" class="nav-link text-white"><i class="bi bi-kanban me-2"></i>Kanban Board</NavLink>
-            </li>
-            <li>
-                <NavLink href="/invoice" class="nav-link text-white"><i class="bi bi-receipt me-2"></i>Invoice</NavLink>
-            </li>
-            <li>
-                <NavLink href="/pages" class="nav-link text-white"><i class="bi bi-layers me-2"></i>Pages</NavLink>
+            <li class="nav-item">
+                <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i>Projects</NavLink>
             </li>
         </ul>
     </div>
@@ -41,19 +32,10 @@
     <hr class="text-secondary" />
     <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
-            <NavLink href="/" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span></NavLink>
+            <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span></NavLink>
         </li>
-        <li>
-            <NavLink href="/calendar" class="nav-link text-white"><i class="bi bi-calendar3 me-2"></i><span>Calendar</span></NavLink>
-        </li>
-        <li>
-            <NavLink href="/kanban" class="nav-link text-white"><i class="bi bi-kanban me-2"></i><span>Kanban Board</span></NavLink>
-        </li>
-        <li>
-            <NavLink href="/invoice" class="nav-link text-white"><i class="bi bi-receipt me-2"></i><span>Invoice</span></NavLink>
-        </li>
-        <li>
-            <NavLink href="/pages" class="nav-link text-white"><i class="bi bi-layers me-2"></i><span>Pages</span></NavLink>
+        <li class="nav-item">
+            <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i><span>Projects</span></NavLink>
         </li>
     </ul>
 </aside>
@@ -112,7 +94,8 @@
     private string GetTitle()
     {
         if (Nav.Uri.Contains("/profile")) return "User Profile";
-        else return "Home";
+        if (Nav.Uri.Contains("/projects")) return "Dự án";
+        return "Home";
     }
     private void ToggleSidebar() => sidebarCollapsed = !sidebarCollapsed;
     private string GetUsername(ClaimsPrincipal principal) => principal.FindFirst("FullName")?.Value ?? principal.FindFirst("unique_name")?.Value ?? "Guest";
