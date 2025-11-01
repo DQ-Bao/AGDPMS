@@ -1,5 +1,7 @@
 set client_encoding to 'utf8';
 
+drop table if exists machines;
+drop table if exists machine_types;
 drop table if exists stock_import;
 drop table if exists material;
 drop table if exists projects;
@@ -97,3 +99,20 @@ create table if not exists stock_import (
     "date" date default now(),
     constraint "fk_stock_import_material" foreign key ("material_id") references material("id")
 );
+
+
+CREATE TABLE if not exists machine_types (
+  "id" SERIAL PRIMARY KEY,
+  "name" VARCHAR(250) NOT NULL
+);
+
+
+CREATE TABLE if not exists machines (
+  "id" SERIAL PRIMARY KEY ,
+  "name" VARCHAR(250) NOT NULL,
+  "machine_type_id" INTEGER NOT NULL,
+  "status" VARCHAR(50) NOT NULL DEFAULT 'Operational',
+  "entry_date" DATE NOT NULL DEFAULT CURRENT_DATE,
+  "last_maintenance_date" DATE NULL,  
+  CONSTRAINT "fk_machines_type_id" FOREIGN KEY ("machine_type_id") REFERENCES machine_types ("id")
+)

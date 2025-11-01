@@ -6,7 +6,14 @@ using System.Threading.Tasks;
 
 namespace AGDPMS.Shared.Models;
 
-    // Enum để quản lý các trạng thái
-    public enum ProjectRFQStatus { Pending, Scheduled, Active, Completed}
+// Enum để quản lý các trạng thái
+public enum ProjectRFQStatus { Pending, Scheduled, Active, Completed }
+
+public enum MachineStatus
+{
+    Operational, // Hoạt động
+    NeedsMaintenance, // Cần bảo trì
+    Broken // Bị hỏng
+}
 
 

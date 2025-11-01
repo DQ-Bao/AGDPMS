@@ -14,10 +14,10 @@
     <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Khách hàng</h4>
     <div>
         <button class="btn btn-secondary me-1" @onclick="GoToAllProjects">
-            <i class="bx bx-list-ul me-1"></i> Quản lý Dự án
+            <i class="bx bx-list-ul me"></i> Quản lý Dự án
         </button>
         <button class="btn btn-primary" @onclick="GoToCreateCustomerPage">
-            <i class="bx bx-plus me-1"></i> Thêm Khách hàng
+            <i class="bx bx-plus me"></i> Thêm Khách hàng
         </button>
     </div>
 </div>
@@ -88,20 +88,20 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <button class="btn btn-outline-primary me-1"
+                                    <button class="btn btn-outline-primary me"
                                             @onclick="() => GoToEditCustomerPage(client.Id)"
                                             title="Sửa khách hàng">
-                                        <i class="bx bx-edit-alt me-1"></i> Sửa
+                                        <i class="bx bx-edit-alt me"></i> Sửa
                                     </button>
-                                    <button class="btn btn-outline-danger me-1"
+                                    <button class="btn btn-outline-danger me"
                                             @onclick="() => RequestDeleteConfirmation(client)"
                                             title="Xóa khách hàng">
-                                        <i class="bx bx-trash me-1"></i> Xóa
+                                        <i class="bx bx-trash me"></i> Xóa
                                     </button>
                                     <button class="btn btn-outline-success"
                                             @onclick="() => GoToAddProjectPage(client.Id)"
                                             title="Thêm dự án RFQ mới cho khách hàng này">
-                                        <i class="bx bx-plus me-1"></i> Thêm DA
+                                        <i class="bx bx-plus me"></i> Thêm DA
                                     </button>
                                 </td>
                             </tr>
@@ -146,7 +146,7 @@ else
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h4 class="fw-bold py-3 mb-0">Các dự án của: <span class="text-primary">@selectedClient.Name</span></h4>
         <button class="btn btn-outline-secondary" @onclick="ShowAllClients">
-            <i class="bx bx-arrow-back me-1"></i> Quay lại Danh sách Khách hàng
+            <i class="bx bx-arrow-back me"></i> Quay lại Danh sách Khách hàng
         </button>
     </div>
     <div class="card">
@@ -186,7 +186,7 @@ else
                                 </td>
                                 <td>
                                     <button class="btn btn-outline-primary" @onclick="() => GoToEditProjectPage(project.Id)">
-                                        <i class="bx bx-edit-alt me-1"></i> Sửa Dự án
+                                        <i class="bx bx-edit-alt me"></i> Sửa Dự án
                                     </button>
                                 </td>
                             </tr>
@@ -214,10 +214,10 @@ else
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelDelete">
-                        <i class="bx bx-x me-1"></i> Hủy
+                        <i class="bx bx-x me"></i> Hủy
                     </button>
                     <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">
-                        <i class="bx bx-trash me-1"></i> Xóa
+                        <i class="bx bx-trash me"></i> Xóa
                     </button>
                 </div>
             </div>

@@ -365,3 +365,16 @@ VALUES
 ('Dự án Biệt thự FLC', 'Quy Nhơn', 1, 'Design Firm X', '2026-06-15', '2025-10-10 11:00:00', 'path/C.pdf', 'Pending', 'doc/C.docx'),
 ('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Scheduled', 'rfq/imperial_docs.docx'),
 ('Homestay Phố Cổ', 'Hà Nội', 5, NULL, '2025-11-30', '2025-10-20 16:30:00', NULL, 'Pending', 'rfq/homestay_hanoi.docx');
+
+INSERT INTO machine_types ("name") 
+VALUES 
+('Máy Cắt'),
+('Máy Phay Ổ Khóa'),
+('Máy Tiện Tự Động');
+
+INSERT INTO "public"."machines" 
+("name", "machine_type_id", "status", "entry_date", "last_maintenance_date")
+VALUES
+('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL),
+('Máy Cắt Góc', 2, 'Operational', '2025-02-20', NULL),
+('Máy Phay Ổ Khóa', 3, 'Operational', '2025-03-10', NULL);

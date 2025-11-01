@@ -1,11 +1,12 @@
 ﻿@page "/sale/projectrfq/add"
-@rendermode InteractiveServer 
+@rendermode InteractiveServer
 
 @using AGDPMS.Shared.Models
-@using AGDPMS.Shared.Services 
+@using AGDPMS.Shared.Services
 @using System.ComponentModel.DataAnnotations
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
+@inject IFileStorageService FileStorageService
 
 <PageTitle>Tạo mới dự án RFQ</PageTitle>
 
@@ -36,7 +37,6 @@ else
                         <ValidationMessage For="@(() => project.Location)" />
                     </div>
                 </div>
-
                 <div class="row">
                     <div class="mb-3 col-md-6">
                         <label for="clientId" class="form-label">Khách hàng</label>
@@ -47,19 +47,19 @@ else
                                 <option value="@customer.Id">@customer.Name</option>
                             }
                         </InputSelect>
-                         <ValidationMessage For="@(() => project.ClientId)" />
+                        <ValidationMessage For="@(() => project.ClientId)" />
                     </div>
                     <div class="mb-3 col-md-6">
                         <label for="designCompany" class="form-label">Công ty thiết kế</label>
                         <InputText id="designCompany" class="form-control" @bind-Value="project.DesignCompany" />
+                        <ValidationMessage For="@(() => project.DesignCompany)" />
                     </div>
                 </div>
-
                 <div class="row">
                     <div class="mb-3 col-md-6">
                         <label for="completionDate" class="form-label">Ngày hoàn thành</label>
                         <InputDate id="completionDate" class="form-control" @bind-Value="project.CompletionDate" />
-                         <ValidationMessage For="@(() => project.CompletionDate)" />
+                        <ValidationMessage For="@(() => project.CompletionDate)" />
                     </div>
                     <div class="mb-3 col-md-6">
                         <label for="status" class="form-label">Trạng thái</label>
@@ -69,98 +69,205 @@ else
                                 <option value="@status">@GetVietnameseStatus(status)</option>
                             }
                         </InputSelect>
+                        <ValidationMessage For="@(() => project.Status)" />
                     </div>
                 </div>
 
                 <div class="mb-3">
-                    <label for="designFile" class="form-label">File thiết kế (Tải lên 1 file)</label>
+                    <label for="designFile" class="form-label">File thiết kế (PDF, DOCX - Tối đa 100MB)</label>
                     <InputFile id="designFile" class="form-control" OnChange="HandleDesignFileSelected" />
-                    @* TODO: Display selected file name if needed *@
+                    @if (isUploadingDesignFile)
+                    {
+                        <div class="mt-2 small text-info">
+                            <i class="bx bx-loader bx-spin"></i> Đang tải lên...
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(savedDesignFilePath))
+                    {
+                        <div class="mt-2 small text-success">
+                            <i class="bx bx-check"></i> Đã tải lên: @Path.GetFileName(savedDesignFilePath)
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(designFileError))
+                    {
+                        <div class="text-danger small mt-1">@designFileError</div>
+                    }
                 </div>
 
                 <div class="mb-3">
-                    <label for="document" class="form-label">Tài liệu (Tải lên 1 file)</label>
+                    <label for="document" class="form-label">Tài liệu (PDF, DOCX - Tối đa 10MB)</label>
                     <InputFile id="document" class="form-control" OnChange="HandleDocumentSelected" />
-                     <ValidationMessage For="@(() => project.DocumentPath)" />
-                    @* TODO: Display selected file name if needed *@
+                    @if (isUploadingDocument)
+                    {
+                        <div class="mt-2 small text-info">
+                            <i class="bx bx-loader bx-spin"></i> Đang tải lên...
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(savedDocumentPath))
+                    {
+                        <div class="mt-2 small text-success">
+                            <i class="bx bx-check"></i> Đã tải lên: @Path.GetFileName(savedDocumentPath)
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(documentFileError))
+                    {
+                        <div class="text-danger small mt-1">@documentFileError</div>
+                    }
                 </div>
+
+                @if (!string.IsNullOrEmpty(submitErrorMessage))
+                {
+                    <div class="alert alert-danger" role="alert">
+                        @submitErrorMessage
+                    </div>
+                }
 
             </div>
             <div class="card-footer">
-                <button type="submit" class="btn btn-primary me-2">Lưu</button>
-                <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">Hủy</button>
+                <button type="submit" class="btn btn-primary me-2" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span>
+                            <i class="bx bx-loader bx-spin"></i> Đang lưu...
+                        </span>
+                    }
+                    else
+                    {
+                        <span>Lưu</span>
+                    }
+                </button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="GoBack" disabled="@isSubmitting">Hủy</button>
             </div>
         </div>
     </EditForm>
 }
 
 @code {
-    // Initialize with DateTime
     private AppRFQ project = new()
     {
-        CompletionDate = DateTime.Now, // Use DateTime directly
+        CompletionDate = DateTime.Now,
         CreatedAt = DateTime.Now,
         Status = ProjectRFQStatus.Pending
     };
 
-    private List<AppClient>? customers; // Make nullable
+    private List<AppClient>? customers;
 
-    // SỬA: Remove CompletionDateDateTime property
+    private string? submitErrorMessage;
 
-    // Load customers using Service
+    private string? designFileError;
+    private string? documentFileError;
+    private string? savedDesignFilePath;
+    private string? savedDocumentPath;
+
+    private bool isUploadingDesignFile = false;
+    private bool isUploadingDocument = false;
+    private bool isSubmitting = false;
+
+    [SupplyParameterFromQuery(Name = "clientId")]
+    public int ClientIdFromQuery { get; set; }
+
+    private readonly string[] allowedExtensions = new[] { ".pdf", ".docx", ".jpg", ".png", ".jpeg" };
+    private long maxFileSize = 100 * 1024 * 1024; // 100MB 
+
     protected override async Task OnInitializedAsync()
     {
-        // Load the list of clients for the dropdown
-        customers = (await SaleService.GetClientsAsync())?.ToList();
+        customers = (await SaleService.GetClientsAsync(null, 1, 9999))?.Items.ToList();
+
+        if (ClientIdFromQuery > 0)
+        {
+            project.ClientId = ClientIdFromQuery;
+        }
     }
 
-    // TODO: Implement actual file saving logic
     private async Task HandleDesignFileSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file != null)
+        isUploadingDesignFile = true;
+        designFileError = null;
+        StateHasChanged(); // Force UI update to show loading
+
+        try
         {
-            // For now, just store the name. Replace with actual upload logic.
-            // Example: var savedPath = await FileUploadService.SaveFileAsync(file);
-            // project.DesignFilePath = savedPath;
-            project.DesignFilePath = file.Name; // Placeholder
-            Console.WriteLine($"Selected Design File: {file.Name}");
+            var file = e.File;
+            if (file == null) return;
+
+            savedDesignFilePath = await FileStorageService.SaveFileAsync(
+                file, "designs", allowedExtensions, maxFileSize);
+
+            designFileError = null;
+        }
+        catch (Exception ex)
+        {
+            designFileError = ex.Message;
+            savedDesignFilePath = null;
+        }
+        finally
+        {
+            isUploadingDesignFile = false;
+            StateHasChanged(); // Force UI update to hide loading
         }
     }
 
     private async Task HandleDocumentSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file != null)
-        {
-             // For now, just store the name. Replace with actual upload logic.
-            // Example: var savedPath = await FileUploadService.SaveFileAsync(file);
-            // project.DocumentPath = savedPath;
-            project.DocumentPath = file.Name; // Placeholder
-            Console.WriteLine($"Selected Document File: {file.Name}");
-        }
-    }
-
-    // Use Service to save
-    private async Task HandleSubmit()
-    {
-    
-        if (project.ClientId == 0)
-        {
-            
-             Console.WriteLine("Client selection is required.");
-             return;
-        }
+        isUploadingDocument = true;
+        documentFileError = null;
+        StateHasChanged(); // Force UI update to show loading
 
         try
         {
-             await SaleService.CreateProjectRFQAsync(project); 
-             Console.WriteLine($"Đã lưu dự án mới: {project.ProjectRFQName}");
-             GoBack();
+            var file = e.File;
+            if (file == null) return;
+
+            savedDocumentPath = await FileStorageService.SaveFileAsync(
+                file, "documents", allowedExtensions, maxFileSize);
+
+            documentFileError = null;
         }
-        catch(Exception ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error saving project: {ex.Message}");
+            documentFileError = ex.Message;
+            savedDocumentPath = null;
+        }
+        finally
+        {
+            isUploadingDocument = false;
+            StateHasChanged(); // Force UI update to hide loading
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (isSubmitting) return;
+
+        isSubmitting = true;
+        submitErrorMessage = null;
+        StateHasChanged(); // Force UI update
+
+        try
+        {
+            // Kiểm tra lỗi file
+            if (!string.IsNullOrEmpty(designFileError) || !string.IsNullOrEmpty(documentFileError))
+            {
+                submitErrorMessage = "Vui lòng sửa lỗi tải file trước khi lưu.";
+                return;
+            }
+
+            // Gán đường dẫn file vào model
+            project.DesignFilePath = savedDesignFilePath;
+            project.DocumentPath = savedDocumentPath;
+
+            await SaleService.CreateProjectRFQAsync(project);
+            GoBack();
+        }
+        catch (Exception ex)
+        {
+            submitErrorMessage = $"Lỗi khi lưu dự án: {ex.Message}";
+            Console.WriteLine(submitErrorMessage);
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged(); // Force UI update
         }
     }
 
@@ -180,6 +287,4 @@ else
             _ => status.ToString()
         };
     }
-
 }
-
