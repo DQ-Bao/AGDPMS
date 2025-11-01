@@ -1,0 +1,198 @@
+﻿@page "/sale/projectrfq/edit/{id:int}"
+@rendermode InteractiveServer 
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services 
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager NavManager
+@inject ISaleServices SaleService
+
+<PageTitle>Chỉnh sửa dự án RFQ</PageTitle>
+
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Dự án RFQ /</span> Chỉnh sửa</h4>
+
+@if (project == null || customers == null) 
+{
+    <div class="p-3">Đang tải dự án...</div>
+}
+else
+{
+    <EditForm Model="@project" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        <div class="card">
+            <h5 class="card-header">Chỉnh sửa: @project.ProjectRFQName</h5>
+            <div class="card-body">
+
+                 <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label for="projectName" class="form-label">Tên dự án</label>
+                        <InputText id="projectName" class="form-control" @bind-Value="project.ProjectRFQName" />
+                         <ValidationMessage For="@(() => project.ProjectRFQName)" />
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label for="location" class="form-label">Địa điểm</label>
+                        <InputText id="location" class="form-control" @bind-Value="project.Location" />
+                        <ValidationMessage For="@(() => project.Location)" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label for="clientId" class="form-label">Khách hàng</label>
+                        <InputSelect id="clientId" class="form-select" @bind-Value="project.ClientId">
+                            <option value="0">-- Chọn khách hàng --</option>
+                            @foreach (var customer in customers)
+                            {
+                                <option value="@customer.Id">@customer.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => project.ClientId)" />
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label for="designCompany" class="form-label">Công ty thiết kế</label>
+                        <InputText id="designCompany" class="form-control" @bind-Value="project.DesignCompany" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label for="completionDate" class="form-label">Ngày hoàn thành</label>
+                        <InputDate id="completionDate" class="form-control" @bind-Value="project.CompletionDate" />
+                         <ValidationMessage For="@(() => project.CompletionDate)" />
+                    </div>
+                    <div class="mb-3 col-md-6">
+                        <label for="status" class="form-label">Trạng thái</label>
+                        <InputSelect id="status" class="form-select" @bind-Value="project.Status">
+                            @foreach (var status in (ProjectRFQStatus[])Enum.GetValues(typeof(ProjectRFQStatus)))
+                            {
+                                <option value="@status">@GetVietnameseStatus(status)</option>
+                            }
+                        </InputSelect>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label for="designFile" class="form-label">File thiết kế (Tải lên file mới để thay thế)</label>
+                    <InputFile id="designFile" class="form-control" OnChange="HandleDesignFileSelected" />
+                    @if (!string.IsNullOrEmpty(project.DesignFilePath))
+                    {
+                        <div class="mt-2">
+                             <i class="bx bx-file me-1"></i> File hiện tại: 
+                             <a href="@project.DesignFilePath" target="_blank">@Path.GetFileName(project.DesignFilePath)</a> 
+                        </div>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <label for="document" class="form-label">Tài liệu (Tải lên file mới để thay thế)</label>
+                    <InputFile id="document" class="form-control" OnChange="HandleDocumentSelected" />
+                    @if (!string.IsNullOrEmpty(project.DocumentPath))
+                    {
+                         <div class="mt-2">
+                             <i class="bx bx-file me-1"></i> File hiện tại: 
+                             <a href="@project.DocumentPath" target="_blank">@Path.GetFileName(project.DocumentPath)</a> 
+                         </div>
+                    }
+                </div>
+
+
+            </div>
+            <div class="card-footer">
+                <button type="submit" class="btn btn-primary me-2">Cập nhật</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">Hủy</button>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private AppRFQ? project; 
+    private List<AppClient>? customers; 
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Load project and customers concurrently
+        var projectTask = SaleService.GetProjectRFQByIdAsync(Id);
+        var customersTask = SaleService.GetClientsAsync();
+
+        await Task.WhenAll(projectTask, customersTask);
+
+        project = await projectTask;
+        customers = (await customersTask)?.ToList();
+
+        if (project == null)
+        {
+            NavManager.NavigateTo("/sale/projectrfq", forceLoad: true); 
+        }
+    }
+
+    private async Task HandleDesignFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null && project != null)
+        {
+            // Example: var savedPath = await FileUploadService.SaveFileAsync(file, project.Id, "design");
+            // project.DesignFilePath = savedPath;
+            project.DesignFilePath = $"new_{file.Name}"; // Placeholder - MUST BE REPLACED
+            Console.WriteLine($"Selected NEW Design File: {file.Name}");
+        }
+    }
+
+    private async Task HandleDocumentSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null && project != null)
+        {
+             // Example: var savedPath = await FileUploadService.SaveFileAsync(file, project.Id, "document");
+            // project.DocumentPath = savedPath;
+            project.DocumentPath = $"new_{file.Name}"; 
+            Console.WriteLine($"Selected NEW Document File: {file.Name}");
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+         if (project == null) return; 
+
+        if (project.ClientId == 0)
+        {
+             Console.WriteLine("Client selection is required.");
+             return;
+        }
+
+        try
+        {
+            // The UpdateProjectRFQAsync service method should only use project.ClientId
+            await SaleService.UpdateProjectRFQAsync(project); 
+            Console.WriteLine($"Đã cập nhật dự án: {project.ProjectRFQName}");
+            GoBack();
+        }
+        catch(Exception ex)
+        {
+            Console.WriteLine($"Error updating project: {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/sale/projectrfq");
+    }
+    private string GetVietnameseStatus(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Active => "Hoạt động",
+            ProjectRFQStatus.Completed => "Hoàn thành",
+            ProjectRFQStatus.Pending => "Đang chờ",
+            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            _ => status.ToString()
+        };
+    }
+
+}
+

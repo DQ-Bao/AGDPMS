@@ -349,3 +349,19 @@ values
 ('B3731', 'Đố đứng', 0.920, 1),
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
+
+INSERT INTO clients ("name", "address", "phone", "email")
+VALUES
+('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com'),
+('Barry Hunter', '456 Đường XYZ, TP. HCM', '091-234-5678', 'barry.hunter@example.com'),
+('Trevor Baker', '789 Đường QWE, Đà Nẵng', '092-345-6789', 'trevor.baker@example.com'),
+('Nguyễn Văn An', '101 Đường Hùng Vương, Huế', '098-888-9999', 'an.nguyen@company.vn'),
+('Trần Thị Bích', '22 Phố Cổ, Hà Nội', '097-777-6666', 'bich.tran@startup.com');
+
+INSERT INTO projects_rfq ("name", "location", "client_id", "design_company", "completion_date", "created_at", "design_file_path", "projects_rfq_status", "document")
+VALUES
+('Dự án Vinhome', 'Hà Nội', 1, 'Design Firm X', '2025-12-31', '2025-10-01 09:00:00', 'path/A.pdf', 'Active', 'doc/A.docx'),
+('Dự án Ecopark', 'Hưng Yên', 2, 'Design Firm Y', '2024-10-20', '2025-10-05 10:00:00', 'path/B.pdf', 'Completed', 'doc/B.docx'),
+('Dự án Biệt thự FLC', 'Quy Nhơn', 1, 'Design Firm X', '2026-06-15', '2025-10-10 11:00:00', 'path/C.pdf', 'Pending', 'doc/C.docx'),
+('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Scheduled', 'rfq/imperial_docs.docx'),
+('Homestay Phố Cổ', 'Hà Nội', 5, NULL, '2025-11-30', '2025-10-20 16:30:00', NULL, 'Pending', 'rfq/homestay_hanoi.docx');
