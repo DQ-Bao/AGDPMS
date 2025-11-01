@@ -7,13 +7,15 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <SupportedPlatform Include="browser" />
+    <SupportedPlatform Include="browser"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Google.OrTools" Version="9.14.6206" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.10" />
-    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.10" />
+    <PackageReference Include="Google.OrTools" Version="9.14.6206"/>
+    <PackageReference Include="Dapper" Version="2.1.66"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.10"/>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.10"/>
+    <PackageReference Include="System.Data.Odbc" Version="9.0.10"/>
   </ItemGroup>
 
 </Project>

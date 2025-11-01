@@ -1,0 +1,177 @@
+﻿@using AGDPMS.Shared.Models
+@using System.Text.RegularExpressions
+
+<div class="modal fade" id="@ModalId" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chọn cửa từ thiết kế Window Star</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (IsLoading)
+                {
+                    <div class="d-flex justify-content-center align-items-center py-5">
+                        <div class="spinner-border text-primary me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <strong>Đang tải dữ liệu thiết kế...</strong>
+                    </div>
+                }
+                else if (ProjectsWithCavities.Any())
+                {
+                    <div class="accordion" id="projectAccordion">
+                        @foreach (var proj in ProjectsWithCavities)
+                        {
+                            var projId = Regex.Replace(proj.Code, "[^a-zA-Z0-9_-]", "_");
+                            <div class="accordion-item mb-2 border rounded">
+                                <h2 class="accordion-header" id="heading-@projId">
+                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                            data-bs-target="#collapse-@projId" aria-expanded="false"
+                                            aria-controls="collapse-@projId">
+                                        <input type="checkbox" class="form-check-input me-2" checked="@proj.IsSelected"
+                                               @onchange="e => OnProjectCheckBoxChanged(proj, e.Value as bool?)" />
+                                        <div class="flex-grow-1">
+                                            <strong>@proj.Code</strong>
+                                            <small class="ms-2 text-muted">(@proj.CreateDate:dd-MM-yyyy)</small>
+                                        </div>
+                                    </button>
+                                </h2>
+                                <div id="collapse-@projId" class="accordion-collapse collapse"
+                                     aria-labelledby="heading-@projId" data-bs-parent="#projectAccordion">
+                                    <div class="accordion-body p-2">
+                                        <table class="table table-sm table-bordered mb-0 align-middle">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th style="width:40px;"></th>
+                                                    <th>Mã cửa</th>
+                                                    <th>Kiểu cách</th>
+                                                    <th>Vị trí</th>
+                                                    <th>Rộng</th>
+                                                    <th>Cao</th>
+                                                    <th>Số lượng</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                @foreach (var cav in proj.Cavities)
+                                                {
+                                                    <tr>
+                                                        <td>
+                                                            <input type="checkbox" class="form-check-input" checked="@cav.IsSelected"
+                                                                   @onchange="e => OnCavityCheckBoxChanged(proj, cav, e.Value as bool?)" />
+                                                        </td>
+                                                        <td>@cav.Code</td>
+                                                        <td>@cav.WindowType</td>
+                                                        <td>@cav.Location</td>
+                                                        <td>@cav.Width</td>
+                                                        <td>@cav.Height</td>
+                                                        <td>@cav.Quantity bộ</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="text-muted text-center">Không có dự án nào được tải.</p>
+                }
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" @onclick="ConfirmSelection" data-bs-dismiss="modal">
+                    Thêm các cửa đã chọn
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string ModalId { get; set; } = "wstarProjModal";
+    [Parameter] public IEnumerable<WStarProject> Projects { get; set; } = [];
+    [Parameter] public EventCallback<IEnumerable<WStarCavity>> OnConfirm { get; set; }
+
+    private List<WStarProjectWithCavities> ProjectsWithCavities { get; set; } = [];
+    private bool IsLoading { get; set; } = true;
+    public void SetLoading(bool loading)
+    {
+        IsLoading = loading;
+        InvokeAsync(StateHasChanged);
+    }
+
+    protected override void OnParametersSet()
+    {
+        ProjectsWithCavities = Projects
+            .Where(p => p.Cavities is not null && p.Cavities.Any())
+            .Select(p => new WStarProjectWithCavities
+            {
+                Code = p.Code,
+                CreateDate = p.CreateDate,
+                Cavities = p.Cavities.Select(c => new SelectableWStarCavity
+                {
+                    Code = c.Description,
+                    WindowType = c.WindowType,
+                    Quantity = c.Quantity,
+                    Location = c.Location,
+                    Width = c.Width,
+                    Height = c.Height,
+                }).ToList()
+            })
+            .ToList();
+    }
+
+    private void OnProjectCheckBoxChanged(WStarProjectWithCavities proj, bool? isChecked)
+    {
+        bool selected = isChecked ?? false;
+        proj.IsSelected = selected;
+        foreach (var cav in proj.Cavities)
+            cav.IsSelected = selected;
+    }
+
+    private void OnCavityCheckBoxChanged(WStarProjectWithCavities proj, SelectableWStarCavity cav, bool? isChecked)
+    {
+        cav.IsSelected = isChecked ?? false;
+        proj.IsSelected = proj.Cavities.All(c => c.IsSelected);
+    }
+
+    private async Task ConfirmSelection()
+    {
+        var selectedCodes = ProjectsWithCavities
+            .SelectMany(p => p.Cavities.Where(c => c.IsSelected).Select(c => c.Code))
+            .ToHashSet();
+        if (!selectedCodes.Any()) return;
+
+        var selectedCavities = Projects
+            .Where(p => p.Cavities is not null && p.Cavities.Any())
+            .SelectMany(p => p.Cavities.Where(c => selectedCodes.Contains(c.Description)))
+            .ToList();
+        if (!selectedCavities.Any()) return;
+
+        if (OnConfirm.HasDelegate) await OnConfirm.InvokeAsync(selectedCavities);
+    }
+
+    private sealed class WStarProjectWithCavities
+    {
+        public required string Code { get; set; }
+        public required DateTime CreateDate { get; set; }
+        public bool IsSelected { get; set; }
+        public List<SelectableWStarCavity> Cavities { get; set; } = [];
+    }
+
+    private sealed class SelectableWStarCavity
+    {
+        public required string Code { get; set; }
+        public string? WindowType { get; set; }
+        public required int Quantity { get; set; }
+        public string? Location { get; set; }
+        public required double Width { get; set; }
+        public required double Height { get; set; }
+        public bool IsSelected { get; set; }
+    }
+}
