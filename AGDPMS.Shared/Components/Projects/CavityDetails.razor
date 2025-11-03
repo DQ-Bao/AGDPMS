@@ -1,0 +1,352 @@
+﻿@page "/cavities/{CavityId:int}"
+
+@using System.ComponentModel.DataAnnotations
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+
+@inject IProductService ProductService
+
+<div class="mb-3">
+    <a href="@(Cavity?.ProjectId is not null ? $"/projects/{Cavity.ProjectId}" : "/projects")"
+       class="text-decoration-none d-inline-flex align-items-center text-primary">
+        <i class="bi bi-arrow-left me-2 fs-5"></i>
+        <span class="fw-semibold">Quay lại</span>
+    </a>
+</div>
+<ul class="nav nav-tabs" id="cavTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active"
+                id="tab-general"
+                data-bs-toggle="tab"
+                data-bs-target="#pane-general"
+                type="button"
+                role="tab"
+                aria-controls="pane-general"
+                aria-selected="true">
+            Thông tin cơ bản
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link"
+                id="tab-mats"
+                data-bs-toggle="tab"
+                data-bs-target="#pane-mats"
+                type="button"
+                role="tab"
+                aria-controls="pane-mats"
+                aria-selected="false">
+            Số liệu sản xuất
+        </button>
+    </li>
+</ul>
+<div class="tab-content" id="cavTabsContent">
+    <div class="tab-pane fade show active" id="pane-general" role="tabpanel" aria-labelledby="tab-general">
+        <div class="card shadow-sm border rounded-3 mb-4">
+            <div class="card-body">
+                @if (Cavity is not null)
+                {
+                    <EditForm Model="@Input" method="post" OnValidSubmit="SaveChange" FormName="edit-cavity">
+                        <DataAnnotationsValidator />
+                        <ValidationSummary />
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label class="form-label fw-semibold">Mã cửa</label>
+                                <InputText @bind-Value="Input.Code" class="form-control" />
+                                <ValidationMessage For="@(() => Input.Code)" />
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label fw-semibold">Mô tả</label>
+                                <InputText @bind-Value="Input.Description" class="form-control" />
+                                <ValidationMessage For="@(() => Input.Description)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Vị trí</label>
+                                <InputText @bind-Value="Input.Location" class="form-control" />
+                                <ValidationMessage For="@(() => Input.Location)" />
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Số lượng</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" value="@Cavity.Quantity" disabled />
+                                    <span class="input-group-text">bộ</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Kích thước</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" value="@Cavity.Width" disabled />
+                                    <span class="input-group-text">×</span>
+                                    <input type="number" class="form-control" value="@Cavity.Height" disabled />
+                                    <span class="input-group-text">mm</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-semibold">Kiểu cách</label>
+                                <input type="text" class="form-control" value="@Cavity.AluminumVendor" disabled />
+                            </div>
+                        </div>
+                        <div class="mt-4 text-end">
+                            <button type="submit" class="btn btn-success" disabled="@IsLoading">Lưu thay đổi</button>
+                        </div>
+                    </EditForm>
+                }
+                @if (!string.IsNullOrEmpty(StatusMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                        @StatusMessage
+                        <button type="button" class="btn-close" @onclick="() => StatusMessage = null"></button>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="pane-mats" role="tabpanel" aria-labelledby="tab-mats">
+        @if (Cavity is not null)
+        {
+            <!-- PROFILE -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingProfile">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProfile"
+                            aria-expanded="true" aria-controls="collapseProfile">
+                        Profile
+                    </button>
+                </h2>
+                <div id="collapseProfile" class="accordion-collapse collapse show" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Diễn giải</th>
+                                    <th>Ký hiệu</th>
+                                    <th>Kích thước</th>
+                                    <th>Số lượng</th>
+                                    <th>Đơn vị</th>
+                                    <th>Màu sắc</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "aluminum"))
+                                {
+                                    <tr>
+                                        <td>@bom.Material.Name</td>
+                                        <td>@bom.Material.Id</td>
+                                        <td>@bom.Length</td>
+                                        <td>@bom.Quantity</td>
+                                        <td>mm</td>
+                                        <td>@bom.Color</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- PKKK -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingPKKK">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapsePKKK"
+                            aria-expanded="false" aria-controls="collapsePKKK">
+                        Phụ kiện kim khí
+                    </button>
+                </h2>
+                <div id="collapsePKKK" class="accordion-collapse collapse" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Diễn giải</th>
+                                    <th>Ký hiệu</th>
+                                    <th>Số lượng</th>
+                                    <th>Đơn vị</th>
+                                    <th>Màu sắc</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "accessory"))
+                                {
+                                    <tr>
+                                        <td>@bom.Material.Name</td>
+                                        <td>@bom.Material.Id</td>
+                                        <td>@bom.Quantity</td>
+                                        <td>@bom.Unit</td>
+                                        <td>@bom.Color</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- KINH -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingKinh">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseKinh"
+                            aria-expanded="false" aria-controls="collapseKinh">
+                        Kính
+                    </button>
+                </h2>
+                <div id="collapseKinh" class="accordion-collapse collapse" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Diễn giải</th>
+                                    <th>Quy cách</th>
+                                    <th>Dài</th>
+                                    <th>Rộng</th>
+                                    <th>Số lượng</th>
+                                    <th>Đơn vị</th>
+                                    <th>Màu sắc</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "glass"))
+                                {
+                                    <tr>
+                                        <td>@bom.Material.Name</td>
+                                        <td>@bom.Material.Id</td>
+                                        <td>@bom.Length</td>
+                                        <td>@bom.Width</td>
+                                        <td>@bom.Quantity</td>
+                                        <td>mm</td>
+                                        <td>@bom.Color</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- GIOANG -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingGioang">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGioang"
+                            aria-expanded="false" aria-controls="collapseGioang">
+                        Gioăng
+                    </button>
+                </h2>
+                <div id="collapseGioang" class="accordion-collapse collapse" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Diễn giải</th>
+                                    <th>Ký hiệu</th>
+                                    <th>Kích thước</th>
+                                    <th>Số lượng</th>
+                                    <th>Đơn vị</th>
+                                    <th>Màu sắc</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "gasket"))
+                                {
+                                    <tr>
+                                        <td>@bom.Material.Name</td>
+                                        <td>@bom.Material.Id</td>
+                                        <td>@bom.Length</td>
+                                        <td>@bom.Quantity</td>
+                                        <td>@bom.Unit</td>
+                                        <td>@bom.Color</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <!-- VTP -->
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingVTP">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseVTP"
+                            aria-expanded="false" aria-controls="collapseVTP">
+                        Vật tư phụ
+                    </button>
+                </h2>
+                <div id="collapseVTP" class="accordion-collapse collapse" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-bordered table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Diễn giải</th>
+                                    <th>Ký hiệu</th>
+                                    <th>Số lượng</th>
+                                    <th>Đơn vị</th>
+                                    <th>Màu sắc</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "auxiliary"))
+                                {
+                                    <tr>
+                                        <td>@bom.Material.Name</td>
+                                        <td>@bom.Material.Id</td>
+                                        <td>@bom.Quantity</td>
+                                        <td>@bom.Unit</td>
+                                        <td>@bom.Color</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int CavityId { get; set; }
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = new();
+
+    private bool IsLoading = true;
+    private string? StatusMessage;
+    private Cavity? Cavity;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ProductService.GetCavityWithBOMsAsync(CavityId);
+        if (result.Success && result.Cavity is not null)
+        {
+            Cavity = result.Cavity;
+            Input = new InputModel
+                {
+                    Code = Cavity.Code,
+                    Description = Cavity.Description,
+                    Location = Cavity.Location
+                };
+        }
+        else StatusMessage = result.ErrorMessage ?? "Unexpected Error";
+        IsLoading = false;
+    }
+
+    private async Task SaveChange()
+    {
+        if (Cavity is null) return;
+        IsLoading = true;
+        var update = Cavity;
+        update.Code = Input.Code;
+        update.Description = Input.Description;
+        update.Location = Input.Location;
+        var result = await ProductService.UpdateCavityAsync(update);
+        IsLoading = false;
+        if (result.Success)
+        {
+            Cavity = update;
+            StatusMessage = "Đã lưu thay đổi";
+        }
+        else StatusMessage = result.ErrorMessage ?? "Unexpected Error";
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Mã cửa là bắt buộc")]
+        public string Code { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        public string? Location { get; set; }
+    }
+}

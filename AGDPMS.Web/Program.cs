@@ -33,12 +33,13 @@ builder.Services.AddScoped<ISaleServices, SaleService>();
 builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 
-builder.Services.AddScoped<UserDataAccess>();
 builder.Services.AddScoped<ClientDataAccess>();
 builder.Services.AddScoped<ProjectRFQDataAccess>();
 
 builder.Services.AddScoped<MachineDataAccess>(); 
 builder.Services.AddScoped<MachineTypeDataAccess>();
+builder.Services.AddScoped<WStarService>();
+builder.Services.AddScoped<IProductService, WebProductService>();
 
 builder.Services.AddSingleton<IWebHostEnvironment>(builder.Environment);
 var app = builder.Build();
