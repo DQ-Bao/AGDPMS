@@ -1,4 +1,5 @@
 ﻿@page "/qa/machines"
+
 @rendermode InteractiveServer
 @implements IDisposable
 
@@ -18,7 +19,7 @@
 
 <div class="mb-3">
     <input type="search" class="form-control" placeholder="Tìm kiếm theo tên máy, loại máy, trạng thái..."
-           value="@searchTerm" @oninput="DebounceSearch" />
+           value="@searchTerm" @oninput="DebounceSearch" />      
 </div>
 
 <div class="card">
@@ -84,7 +85,6 @@
             </table>
         }
     </div>
-
     @if (pagedResult != null && pagedResult.TotalPages > 1)
     {
         <div class="card-footer d-flex justify-content-between align-items-center">
@@ -122,6 +122,7 @@
                 <div class="modal-body">
                     <p>Bạn có chắc chắn muốn xóa máy: <strong>@machineToDelete.Name</strong> không?</p>
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Hủy</button>
                     <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Xóa</button>
@@ -164,15 +165,18 @@
                     <h5 class="modal-title">Xác nhận Trạng thái</h5>
                     <button type="button" class="btn-close" @onclick="CancelFailureReason" aria-label="Close"></button>
                 </div>
+
                 <div class="modal-body">
                     <p>
                         Xác nhận chuyển máy <strong>@machineChangingStatus.Name</strong> sang trạng thái:
                         <span class="badge @GetStatusClass(newStatusForMachine)">
                             @GetVietnameseStatus(newStatusForMachine)
                         </span>
+
                     </p>
                     <label for="failureReason" class="form-label">Vui lòng nhập lý do (lỗi là gì):</label>
                     <textarea id="failureReason" class="form-control" @bind="failureReason" @bind:event="oninput" rows="3"></textarea>
+
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelFailureReason">Hủy</button>
@@ -185,7 +189,6 @@
 
 
 @code {
-
 
     private PagedResult<AppMachine>? pagedResult;
     private bool isLoading = true;
@@ -200,12 +203,10 @@
     private bool showEditNameModal = false;
     private AppMachine? machineToEditName;
     private string newMachineName = string.Empty;
-
     private bool showReasonModal = false;
     private AppMachine? machineChangingStatus;
     private MachineStatus newStatusForMachine;
     private string failureReason = string.Empty;
-
 
     protected override async Task OnInitializedAsync() { await LoadData(); }
     private async Task LoadData()
@@ -221,6 +222,7 @@
         searchTimer?.Dispose();
         searchTimer = new System.Threading.Timer(PerformSearch, null, 500, Timeout.Infinite);
     }
+
     private void PerformSearch(object? state) { currentPage = 1; InvokeAsync(LoadData); }
     private async Task GoToPreviousPage() { if (pagedResult?.HasPreviousPage ?? false) { currentPage--; await LoadData(); } }
     private async Task GoToNextPage() { if (pagedResult?.HasNextPage ?? false) { currentPage++; await LoadData(); } }
@@ -234,6 +236,7 @@
             await QAService.DeleteMachineAsync(machineToDelete.Id);
             await LoadData();
         }
+
         machineToDelete = null;
         showDeleteConfirmation = false;
     }
@@ -252,6 +255,8 @@
         showEditNameModal = false;
     }
 
+
+
     private async Task ConfirmEditName()
     {
         if (machineToEditName != null && !string.IsNullOrWhiteSpace(newMachineName))
@@ -259,11 +264,12 @@
             machineToEditName.Name = newMachineName;
             await QAService.UpdateMachineAsync(machineToEditName);
             await SendNotificationAsync(machineToEditName, "Tên đã được cập nhật.");
-
             StateHasChanged();
         }
         CancelEditName();
     }
+
+
 
     private void RequestFailureReason(AppMachine machine, MachineStatus newStatus)
     {
@@ -278,7 +284,6 @@
         machineChangingStatus = null;
         failureReason = string.Empty;
         showReasonModal = false;
-
         InvokeAsync(LoadData);
     }
 
@@ -287,14 +292,10 @@
         if (machineChangingStatus != null)
         {
             machineChangingStatus.Status = newStatusForMachine;
-
             await SendNotificationAsync(machineChangingStatus, $"Báo cáo hỏng hóc/bảo trì: {failureReason}");
-
             await QAService.UpdateMachineAsync(machineChangingStatus);
-
             await LoadData();
         }
-
         machineChangingStatus = null;
         failureReason = string.Empty;
         showReasonModal = false;
@@ -315,17 +316,13 @@
         {
             var machineInList = pagedResult?.Items.FirstOrDefault(p => p.Id == machineId);
             if (machineInList == null) return;
-
             var oldStatus = machineInList.Status;
             if (oldStatus == newStatus) return;
-
             if (newStatus == MachineStatus.Operational && (oldStatus == MachineStatus.Broken || oldStatus == MachineStatus.NeedsMaintenance))
             {
                 machineInList.Status = newStatus;
                 machineInList.LastMaintenanceDate = DateTime.Now;
-
                 StateHasChanged();
-
                 await QAService.UpdateMachineAsync(machineInList);
                 await SendNotificationAsync(machineInList, "Máy đã được sửa và quay lại hoạt động.");
             }
@@ -343,10 +340,8 @@
         }
     }
 
-
     private void GoToCreatePage() => NavManager.NavigateTo("/qa/machines/add");
-    // private void GoToEditPage(int id) => NavManager.NavigateTo($"/qa/machines/edit/{id}"); 
-
+    // private void GoToEditPage(int id) => NavManager.NavigateTo($"/qa/machines/edit/{id}");
     private string GetStatusClass(MachineStatus status)
     {
         return status switch

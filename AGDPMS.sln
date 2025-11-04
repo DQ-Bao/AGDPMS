@@ -4,9 +4,6 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AGDPMS", "AGDPMS\AGDPMS.csproj", "{F229672D-CD00-47D4-812E-7F892EF5F03F}"
-	ProjectSection(ProjectDependencies) = postProject
-		{3220BEF9-AFA0-4596-9F5A-EC7E5667868E} = {3220BEF9-AFA0-4596-9F5A-EC7E5667868E}
-	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AGDPMS.Shared", "AGDPMS.Shared\AGDPMS.Shared.csproj", "{E7CE7BD6-ACBB-41C7-8E4E-E292A8A10A57}"
 EndProject

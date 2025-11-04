@@ -1,11 +1,14 @@
 ﻿@inherits LayoutComponentBase
+@implements IDisposable
 
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
 
 @inject NavigationManager Nav
+@inject INotificationService NotificationService
 
-<!-- Offcanvas Sidebar for mobile -->
 <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="offcanvasSidebar">
     <div class="offcanvas-header">
         <h5 class="offcanvas-title">💠 AGDPMS</h5>
@@ -23,7 +26,6 @@
     </div>
 </div>
 
-<!-- Fixed Sidebar for Desktop -->
 <aside class="bg-dark text-white position-fixed d-none d-md-flex flex-column p-2 @(sidebarCollapsed ? "collapsed" : "")" id="sidebar">
     <div class="d-flex align-items-center mb-3">
         <span class="fs-4 fw-bold ms-2">💠</span>
@@ -35,38 +37,77 @@
             <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span></NavLink>
         </li>
         <li class="nav-item">
+            <a class="nav-link text-white" data-bs-toggle="collapse" href="#pages-menu" role="button">
+                <i class="bi bi-layers me-2"></i><span>Pages</span> <i class="bi bi-chevron-down small brand-text"></i>
+            </a>
+            <div class="collapse" id="pages-menu">
+                <ul class="nav flex-column ps-4 small">
+                    <li class="nav-item"><NavLink href="/sale/projectrfq" class="nav-link text-white"><span>Quản lý Dự án RFQ</span></NavLink></li>
+                    <li class="nav-item"><NavLink href="/sale/customercontact" class="nav-link text-white"><span>Quản lý Khách hàng</span></NavLink></li>
+                    <li class="nav-item"><NavLink href="/qa/machines" class="nav-link text-white"><span>Quản lý Máy móc (QA)</span></NavLink></li>
+                </ul>
+            </div>
+        <li class="nav-item">
             <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i><span>Projects</span></NavLink>
         </li>
     </ul>
 </aside>
 
-<!-- Main Content -->
 <div id="content">
     <nav class="navbar navbar-light bg-white shadow-sm px-3">
-        <!-- Hamburger triggers different sidebar for mobile -->
         <button class="btn d-md-none" type="button" data-bs-toggle="offcanvas" data-bs-target="#offcanvasSidebar">
             <i class="bi bi-list fs-4"></i>
         </button>
-        <!-- Collapsible toggle for desktop -->
         <button class="btn d-none d-md-inline" @onclick="ToggleSidebar">
             <i class="bi bi-list fs-4"></i>
         </button>
+
         <span class="navbar-brand mb-0 h5 ms-3">@GetTitle()</span>
+
         <div class="ms-auto d-flex align-items-center gap-2">
+
             <div class="dropdown">
                 <button class="btn shadow-none position-relative" type="button" id="dropdownBell" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-bell fs-5"></i>
-                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">3</span>
+                    @if (unreadCount > 0)
+                    {
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                            @unreadCount
+                            <span class="visually-hidden">unread notifications</span>
+                        </span>
+                    }
                 </button>
-                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownBell" style="min-width: 250px">
-                    <li><h6 class="dropdown-header">Notifications</h6></li>
-                    <li><a class="dropdown-item" href="#">New task assigned</a></li>
-                    <li><a class="dropdown-item" href="#">Project updated</a></li>
-                    <li><a class="dropdown-item" href="#">Server backup completed</a></li>
-                    <li><hr class="dropdown-divider" /></li>
-                    <li><a class="dropdown-item text-center text-primary" href="#">View all</a></li>
+                <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownBell" style="min-width: 320px;">
+                    <li><h6 class="dropdown-header fw-bold">Thông báo</h6></li>
+                    @if (notifications.Any())
+                    {
+                        @foreach (var notification in notifications.Take(10)) // Giới hạn hiển thị
+                        {
+                            <li>
+                                <a class="@GetNotificationItemClass(notification)"
+                                   href="@notification.Url"
+                                   @onclick="() => MarkAsRead(notification)">
+                                    <div class="d-flex flex-column">
+                                        <div class="small @(notification.IsRead ? "text-muted" : "fw-semibold text-dark") mb-1">
+                                            @notification.Message
+                                        </div>
+                                        <div class="small text-muted">
+                                            @notification.Timestamp.ToString("g")
+                                        </div>
+                                    </div>
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider my-1" /></li>
+                        }
+                    }
+                    else
+                    {
+                        <li><span class="dropdown-item text-muted text-center small py-3">Không có thông báo</span></li>
+                    }
+                    <li><a class="dropdown-item text-center text-primary fw-semibold" href="/notifications">Xem tất cả</a></li>
                 </ul>
             </div>
+
             <AuthorizeView>
                 <Authorized>
                     <div class="dropdown">
@@ -77,10 +118,13 @@
                         <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownUser">
                             <li><a class="dropdown-item" href="/profile">Profile</a></li>
                             <li><hr class="dropdown-divider" /></li>
-                            <li><a class="dropdown-item text-danger" href="#">Logout</a></li>
+                            <li><a class="dropdown-item text-danger" href="/logout">Logout</a></li>
                         </ul>
                     </div>
                 </Authorized>
+                <NotAuthorized>
+                    <a class="btn btn-outline-primary" href="/login">Login</a>
+                </NotAuthorized>
             </AuthorizeView>
         </div>
     </nav>
@@ -91,12 +135,65 @@
 
 @code {
     private bool sidebarCollapsed = false;
+
+    private int unreadCount = 0;
+    private List<Notification> notifications = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        NotificationService.OnNotificationReceived += HandleNotificationReceived;
+        await LoadNotifications();
+    }
+
+    private async Task LoadNotifications()
+    {
+        unreadCount = await NotificationService.GetUnreadCountAsync();
+        notifications = await NotificationService.GetNotificationsAsync();
+    }
+
+    private async Task HandleNotificationReceived()
+    {
+        await LoadNotifications();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private string GetNotificationItemClass(Notification notification)
+    {
+        var baseClass = "dropdown-item py-2";
+        return notification.IsRead ? $"{baseClass} read-notification" : $"{baseClass} unread-notification";
+    }
+    private async Task MarkAsRead(Notification notification)
+    {
+        if (!notification.IsRead)
+        {
+            await NotificationService.MarkAsReadAsync(notification.Id);
+            notification.IsRead = true;
+            unreadCount--;
+        }
+    }
+
+    public void Dispose()
+    {
+        NotificationService.OnNotificationReceived -= HandleNotificationReceived;
+    }
+
     private string GetTitle()
     {
+        var uri = Nav.Uri;
+        if (uri.Contains("/sale/projectrfq")) return "Quản lý Dự án RFQ";
+        if (uri.Contains("/sale/customercontact")) return "Quản lý Khách hàng";
+        if (uri.Contains("/qa/machines")) return "Quản lý Máy móc";
+        if (uri.Contains("/profile")) return "User Profile";
+        if (uri.Contains("/calendar")) return "Calendar";
+        if (uri.Contains("/kanban")) return "Kanban Board";
+        if (uri.Contains("/invoice")) return "Invoice";
+        if (uri.Contains("/pages")) return "Pages";
+        return "Home";
         if (Nav.Uri.Contains("/profile")) return "User Profile";
         if (Nav.Uri.Contains("/projects")) return "Dự án";
         return "Home";
     }
+
     private void ToggleSidebar() => sidebarCollapsed = !sidebarCollapsed;
     private string GetUsername(ClaimsPrincipal principal) => principal.FindFirst("FullName")?.Value ?? principal.FindFirst("unique_name")?.Value ?? "Guest";
 }

@@ -32,6 +32,7 @@ builder.Services.AddScoped<IUserService, WebUserService>();
 builder.Services.AddScoped<ISaleServices, SaleService>();
 builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddScoped<ClientDataAccess>();
 builder.Services.AddScoped<ProjectRFQDataAccess>();

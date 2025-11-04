@@ -36,3 +36,60 @@ h1:focus {
 .form-floating > .form-control-plaintext:focus::placeholder, .form-floating > .form-control:focus::placeholder {
     text-align: start;
 }
+.dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item {
+    border-radius: 4px;
+    margin: 2px 4px;
+    transition: all 0.15s ease;
+}
+.dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item {
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+    .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:hover {
+        background-color: #0d6efd !important;
+        color: #ffffff !important;
+    }
+
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:hover .small,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:hover .small.text-primary,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:hover .text-muted {
+            color: #ffffff !important;
+        }
+
+
+    .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:active,
+    .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.active {
+        background-color: #0b5ed7 !important;
+        color: #ffffff !important;
+    }
+
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:active .small,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.active .small,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:active .small.text-primary,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.active .small.text-primary,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:active .text-muted,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.active .text-muted {
+            color: #ffffff !important;
+        }
+
+    .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:focus {
+        background-color: #e9ecef !important;
+        color: #212529 !important;
+        box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+    }
+
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item:focus .small.text-primary {
+            color: #0d6efd !important;
+        }
+
+    .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.show {
+        background-color: #0b5ed7 !important;
+        color: #ffffff !important;
+    }
+
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.show .small,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.show .small.text-primary,
+        .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.show .text-muted {
+            color: #ffffff !important;
+        }

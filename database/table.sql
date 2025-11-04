@@ -4,16 +4,11 @@ drop table if exists machines;
 drop table if exists machine_types;
 drop table if exists stock_import;
 drop table if exists material;
-drop table if exists projects;
-drop table if exists profiles;
 drop table if exists projects_rfq;
 drop table if exists clients;
 drop table if exists material_type;
 drop table if exists users;
 drop table if exists roles;
-
-
-
 
 create table if not exists roles ( 
 	"id" serial,
@@ -53,32 +48,21 @@ create table if not exists clients (
   constraint "pk_clients" primary key ("id")
 );
 
-create table if not exists projects_rfq ( 
-  "id" serial,
-  "name" varchar(250) not null,
-  "location" varchar(250) not null,
-  "client_id" integer not null,
-  "design_company" varchar(250),
-  "completion_date" date not null,
-  "created_at" timestamp default now() ,
-  "design_file_path" varchar(250),
-  "projects_rfq_status" varchar(250) not null,
-  "document" varchar(250),
-  constraint "pk_projects" primary key ("id"),
-  constraint "fk_projects_client_id" foreign key ("client_id") references clients ("id")
+CREATE TABLE IF NOT EXISTS projects_rfq (
+  "id" SERIAL,
+  "name" VARCHAR(250) NOT NULL,
+  "location" VARCHAR(250) NOT NULL,
+  "client_id" INTEGER NOT NULL,
+  "design_company" VARCHAR(250),
+  "completion_date" DATE NOT NULL,
+  "created_at" TIMESTAMP DEFAULT now(),
+  "design_file_path" VARCHAR(250),
+  "status" VARCHAR(250) NOT NULL DEFAULT 'Pending' CHECK ("status" IN ('Pending', 'Scheduled', 'Active', 'Completed')),
+  "document_path" VARCHAR(250),
+  CONSTRAINT "pk_projects" PRIMARY KEY ("id"),
+  CONSTRAINT "fk_projects_client_id" FOREIGN KEY ("client_id") REFERENCES clients ("id")
 );
 
-CREATE TABLE IF NOT EXISTS profiles (
-    "profile_id" varchar(250),
-    "profile_name" varchar(250),
-    "linear_density" numeric(10,3),
-    PRIMARY KEY ("profile_id")
-);
-
-CREATE TABLE IF NOT EXISTS projects (
-	project_id varchar,
-	PRIMARY KEY (project_id)
-);
 
 create table if not exists material (
     "id" varchar(250) primary key,
@@ -107,12 +91,13 @@ CREATE TABLE if not exists machine_types (
 );
 
 
-CREATE TABLE if not exists machines (
-  "id" SERIAL PRIMARY KEY ,
+CREATE TABLE machines (
+  "id" SERIAL,
   "name" VARCHAR(250) NOT NULL,
   "machine_type_id" INTEGER NOT NULL,
-  "status" VARCHAR(50) NOT NULL DEFAULT 'Operational',
-  "entry_date" DATE NOT NULL DEFAULT CURRENT_DATE,
-  "last_maintenance_date" DATE NULL,  
-  CONSTRAINT "fk_machines_type_id" FOREIGN KEY ("machine_type_id") REFERENCES machine_types ("id")
-)
+  "status" VARCHAR(50) NOT NULL DEFAULT 'Operational' CHECK ("status" IN ('Operational', 'NeedsMaintenance', 'Broken')),
+  "entry_date" DATE NOT NULL,
+  "last_maintenance_date" DATE NULL,
+  CONSTRAINT "machines_pkey" PRIMARY KEY ("id"),
+  CONSTRAINT "fk_machines_type_id" FOREIGN KEY ("machine_type_id") REFERENCES "public"."machine_types" ("id")
+);
