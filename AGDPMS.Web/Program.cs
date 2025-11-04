@@ -34,11 +34,7 @@ builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-builder.Services.AddScoped<ClientDataAccess>();
-builder.Services.AddScoped<ProjectRFQDataAccess>();
 
-builder.Services.AddScoped<MachineDataAccess>(); 
-builder.Services.AddScoped<MachineTypeDataAccess>();
 builder.Services.AddScoped<WStarService>();
 builder.Services.AddScoped<IProductService, WebProductService>();
 

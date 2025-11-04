@@ -2,7 +2,6 @@
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
 
-
 namespace AGDPMS.Web.Services;
 
 public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAccess clientDataAccess, ILogger<SaleService> logger) : ISaleServices
@@ -22,10 +21,9 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while getting all projects RFQ with clients");
-            throw;
+            return Enumerable.Empty<AppRFQ>();
         }
     }
-
     public async Task<AppRFQ?> GetProjectRFQByIdAsync(int projectId)
     {
         try
@@ -36,10 +34,9 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while getting project RFQ by ID: {ProjectId}", projectId);
-            throw;
+            return null; 
         }
     }
-
     public async Task<AppRFQ> CreateProjectRFQAsync(AppRFQ project)
     {
         try
@@ -50,10 +47,9 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while creating project RFQ");
-            throw;
+            return null!; 
         }
     }
-
     public async Task UpdateProjectRFQAsync(AppRFQ project)
     {
         try
@@ -64,10 +60,8 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while updating project RFQ with ID: {ProjectId}", project.Id);
-            throw;
         }
     }
-
     public async Task UpdateProjectRFQStatusAsync(int projectId, ProjectRFQStatus newStatus)
     {
         try
@@ -78,10 +72,8 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while updating project RFQ status for ID: {ProjectId} to {NewStatus}", projectId, newStatus);
-            throw;
         }
     }
-
     public async Task DeleteProjectRFQAsync(int projectId)
     {
         try
@@ -92,10 +84,8 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while deleting project RFQ with ID: {ProjectId}", projectId);
-            throw;
         }
     }
-
     public async Task<PagedResult<AppRFQ>> GetProjectsRFQWithClientAsync(string? searchTerm = null, int pageNumber = 1, int pageSize = 10)
     {
         try
@@ -108,12 +98,11 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         {
             _logger.LogError(ex, "Error occurred while getting paged projects RFQ with search term: {SearchTerm}, page: {PageNumber}, page size: {PageSize}",
                 searchTerm, pageNumber, pageSize);
-            throw;
+            return new PagedResult<AppRFQ>();
         }
     }
 
     // --- Client Methods Implementation ---
-
     public async Task<IEnumerable<AppClient>> GetClientsAsync()
     {
         try
@@ -124,10 +113,9 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while getting all clients");
-            throw;
+            return Enumerable.Empty<AppClient>();
         }
     }
-
     public async Task<AppClient?> GetClientByIdAsync(int clientId)
     {
         try
@@ -138,10 +126,9 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while getting client by ID: {ClientId}", clientId);
-            throw;
+            return null;
         }
     }
-
     public async Task<AppClient> CreateClientAsync(AppClient client)
     {
         try
@@ -152,10 +139,9 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while creating client");
-            throw;
+            return null!;
         }
     }
-
     public async Task UpdateClientAsync(AppClient client)
     {
         try
@@ -166,10 +152,8 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while updating client with ID: {ClientId}", client.Id);
-            throw;
         }
     }
-
     public async Task DeleteClientAsync(int clientId)
     {
         try
@@ -180,10 +164,8 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while deleting client with ID: {ClientId}", clientId);
-            throw;
         }
     }
-
     public async Task<PagedResult<AppClient>> GetClientsAsync(string? searchTerm = null, int pageNumber = 1, int pageSize = 10)
     {
         try
@@ -194,9 +176,9 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred while getting paged clients with search term: {SearchTerm}, page: {PageNumber}, page size: {SearchTerm}",
+            _logger.LogError(ex, "Error occurred while getting paged clients with search term: {SearchTerm}, page: {PageNumber}, page size: {PageSize}", // Sửa lỗi typo {SearchTerm} -> {PageSize}
                 searchTerm, pageNumber, pageSize);
-            throw;
+            return new PagedResult<AppClient>();
         }
     }
 }

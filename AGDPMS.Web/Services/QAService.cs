@@ -2,7 +2,6 @@
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
 
-
 namespace AGDPMS.Web.Services;
 
 public class QAService(
@@ -28,7 +27,7 @@ public class QAService(
         {
             _logger.LogError(ex, "Error occurred while getting paged machines with search term: {SearchTerm}, page: {PageNumber}, page size: {PageSize}",
                 searchTerm, pageNumber, pageSize);
-            throw;
+            return new PagedResult<AppMachine>(); 
         }
     }
 
@@ -42,7 +41,7 @@ public class QAService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while getting machine by ID: {MachineId}", machineId);
-            throw;
+            return null; 
         }
     }
 
@@ -56,7 +55,7 @@ public class QAService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while creating machine: {MachineName}", machine.Name);
-            throw;
+            return null!; 
         }
     }
 
@@ -67,26 +66,23 @@ public class QAService(
             _logger.LogInformation("Updating machine with ID: {MachineId}, Name: {MachineName}", machine.Id, machine.Name);
             await _machineAccess.UpdateAsync(machine);
 
-            // KÍCH HOẠT THÔNG BÁO
             try
             {
                 await _notificationService.AddNotificationAsync(new Notification
                 {
                     Message = $"Máy '{machine.Name}' vừa được cập nhật trạng thái.",
-                    Url = $"/qa/machines" // Hoặc trang detail nếu bạn đã tạo
+                    Url = $"/qa/machines"
                 });
                 _logger.LogInformation("Notification sent for machine update: {MachineId}", machine.Id);
             }
             catch (Exception notifEx)
             {
                 _logger.LogWarning(notifEx, "Failed to send notification for machine update: {MachineId}", machine.Id);
-                // Không throw ở đây để không ảnh hưởng đến operation chính
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while updating machine with ID: {MachineId}, Name: {MachineName}", machine.Id, machine.Name);
-            throw;
         }
     }
 
@@ -97,7 +93,6 @@ public class QAService(
             _logger.LogInformation("Updating machine status for ID: {MachineId} to {NewStatus}", machineId, newStatus);
             await _machineAccess.UpdateStatusAsync(machineId, newStatus);
 
-            // KÍCH HOẠT THÔNG BÁO
             try
             {
                 await _notificationService.AddNotificationAsync(new Notification
@@ -110,13 +105,11 @@ public class QAService(
             catch (Exception notifEx)
             {
                 _logger.LogWarning(notifEx, "Failed to send notification for machine status update: {MachineId}", machineId);
-                // Không throw ở đây để không ảnh hưởng đến operation chính
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while updating machine status for ID: {MachineId} to {NewStatus}", machineId, newStatus);
-            throw;
         }
     }
 
@@ -130,7 +123,6 @@ public class QAService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while deleting machine with ID: {MachineId}", machineId);
-            throw;
         }
     }
 
@@ -144,7 +136,7 @@ public class QAService(
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error occurred while getting all machine types");
-            throw;
+            return Enumerable.Empty<AppMachineType>(); 
         }
     }
 }
