@@ -47,6 +47,7 @@
                     <li class="nav-item"><NavLink href="/qa/machines" class="nav-link text-white"><span>Quản lý Máy móc (QA)</span></NavLink></li>
                 </ul>
             </div>
+        </li>
         <li class="nav-item">
             <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i><span>Projects</span></NavLink>
         </li>
@@ -188,7 +189,7 @@
         if (uri.Contains("/kanban")) return "Kanban Board";
         if (uri.Contains("/invoice")) return "Invoice";
         if (uri.Contains("/pages")) return "Pages";
-        return "Home";
+
         if (Nav.Uri.Contains("/profile")) return "User Profile";
         if (Nav.Uri.Contains("/projects")) return "Dự án";
         return "Home";
