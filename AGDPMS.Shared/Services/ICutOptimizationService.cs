@@ -68,6 +68,15 @@ public interface ICutOptimizationService
         solution.wastes = wastes;
         solution.used = used;
 
+        solution.pattern_quantity = new double[solution.patterns.Count];
+        for (int i = 0, j = 0; i < finalX.Length; i++)
+        {
+            if (finalX[j] > 1e-6)
+            {
+                solution.pattern_quantity[j] = finalX[]
+            }
+        }
+
         // === Demand Satisfaction ===
         double[] satisfied = new double[n];
         for (int i = 0; i < n; i++)
