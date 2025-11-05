@@ -1,0 +1,77 @@
+﻿@page "/sale/customercontact/add"
+@rendermode InteractiveServer 
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services 
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager NavManager
+@inject ISaleServices SaleService 
+
+<PageTitle>Tạo mới Khách hàng</PageTitle>
+
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Khách hàng /</span> Tạo mới</h4>
+
+<EditForm Model="@client" OnValidSubmit="HandleSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary /> 
+
+    <div class="card">
+        <h5 class="card-header">Thông tin khách hàng mới</h5>
+        <div class="card-body">
+
+            <div class="mb-3">
+                <label for="clientName" class="form-label">Tên khách hàng</label>
+                <InputText id="clientName" class="form-control" @bind-Value="client.Name" />
+                <ValidationMessage For="@(() => client.Name)" />
+            </div>
+
+            <div class="mb-3">
+                <label for="clientEmail" class="form-label">Email</label>
+                <InputText id="clientEmail" type="email" class="form-control" @bind-Value="client.Email" />
+                 <ValidationMessage For="@(() => client.Email)" />
+            </div>
+
+            <div class="mb-3">
+                <label for="clientPhone" class="form-label">Số điện thoại</label>
+                <InputText id="clientPhone" class="form-control" @bind-Value="client.Phone" />
+                <ValidationMessage For="@(() => client.Phone)" />
+            </div>
+
+            <div class="mb-3">
+                <label for="clientAddress" class="form-label">Địa chỉ</label>
+                <InputTextArea id="clientAddress" class="form-control" @bind-Value="client.Address" rows="3" />
+                <ValidationMessage For="@(() => client.Address)" />
+            </div>
+
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn btn-primary me">Lưu</button>
+            <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">Hủy</button>
+        </div>
+    </div>
+</EditForm>
+
+
+@code {
+    private AppClient client = new(); 
+
+    private async Task HandleSubmit()
+    {
+        try
+        {
+            await SaleService.CreateClientAsync(client);
+            Console.WriteLine($"Đã lưu khách hàng mới: {client.Name}");
+            GoBack();
+        }
+        catch (Exception ex)
+        {
+            
+            Console.WriteLine($"Error saving client: {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/sale/customercontact");
+    }
+}

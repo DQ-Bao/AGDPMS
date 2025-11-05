@@ -1,10 +1,11 @@
-using AGDPMS.Web;
-using AGDPMS.Web.Components;
-using Microsoft.AspNetCore.Identity;
 using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
-using AGDPMS.Web.Services;
+using AGDPMS.Web;
+using AGDPMS.Web.Components;
+using AGDPMS.Web.Data;
 using AGDPMS.Web.Endpoints;
+using AGDPMS.Web.Services;
+using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,9 +29,16 @@ builder.Services.AddSmsSender(opts =>
 
 builder.Services.AddScoped<IAuthService, WebAuthService>();
 builder.Services.AddScoped<IUserService, WebUserService>();
+builder.Services.AddScoped<ISaleServices, SaleService>();
+builder.Services.AddScoped<IQAService, QAService>();
+builder.Services.AddScoped<IFileStorageService, FileStorageService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+
+
 builder.Services.AddScoped<WStarService>();
 builder.Services.AddScoped<IProductService, WebProductService>();
 
+builder.Services.AddSingleton<IWebHostEnvironment>(builder.Environment);
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
