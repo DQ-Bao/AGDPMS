@@ -71,9 +71,10 @@ public interface ICutOptimizationService
         solution.pattern_quantity = new double[solution.patterns.Count];
         for (int i = 0, j = 0; i < finalX.Length; i++)
         {
-            if (finalX[j] > 1e-6)
+            if (finalX[i] > 1e-6)
             {
-                solution.pattern_quantity[j] = finalX[]
+                solution.pattern_quantity[j] = finalX[i];
+                j++;
             }
         }
 
