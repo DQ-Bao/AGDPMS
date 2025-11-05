@@ -175,7 +175,7 @@ public interface ICutOptimizationService
         // Demand constraints
         for (int i = 0; i < m; i++)
         {
-            var cons = solver.MakeConstraint(demand[i], double.PositiveInfinity, $"demand_{i}");
+            var cons = solver.MakeConstraint(demand[i], demand[i], $"demand_{i}");
             for (int j = 0; j < n; j++)
                 cons.SetCoefficient(vars[j], patterns[j][i]);
         }
