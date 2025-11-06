@@ -68,6 +68,16 @@ public interface ICutOptimizationService
         solution.wastes = wastes;
         solution.used = used;
 
+        solution.pattern_quantity = new double[solution.patterns.Count];
+        for (int i = 0, j = 0; i < finalX.Length; i++)
+        {
+            if (finalX[i] > 1e-6)
+            {
+                solution.pattern_quantity[j] = finalX[i];
+                j++;
+            }
+        }
+
         // === Demand Satisfaction ===
         double[] satisfied = new double[n];
         for (int i = 0; i < n; i++)
@@ -175,7 +185,7 @@ public interface ICutOptimizationService
         // Demand constraints
         for (int i = 0; i < m; i++)
         {
-            var cons = solver.MakeConstraint(demand[i], double.PositiveInfinity, $"demand_{i}");
+            var cons = solver.MakeConstraint(demand[i], demand[i], $"demand_{i}");
             for (int j = 0; j < n; j++)
                 cons.SetCoefficient(vars[j], patterns[j][i]);
         }
