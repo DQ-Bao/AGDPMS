@@ -71,27 +71,25 @@ public interface ICutOptimizationService
         solution.pattern_quantity = new double[solution.patterns.Count];
         for (int i = 0, j = 0; i < finalX.Length; i++)
         {
-            if (finalX[j] > 1e-6)
+            if (finalX[i] > 1e-6)
             {
                 solution.pattern_quantity[j] = finalX[i];
                 j++;
             }
         }
 
-        // === Demand Satisfaction ===
-        double[] satisfied = new double[n];
-        for (int i = 0; i < n; i++)
-        {
-            for (int j = 0; j < patterns.Count; j++)
-                satisfied[i] += patterns[j][i] * finalX[j];
-        }
+        //// === Demand Satisfaction ===
+        //double[] satisfied = new double[n];
+        //for (int i = 0; i < n; i++)
+        //{
+        //    for (int j = 0; j < patterns.Count; j++)
+        //        satisfied[i] += patterns[j][i] * finalX[j];
+        //}
 
-        for (int i = 0; i < n; i++)
-        {
-            Console.WriteLine(
-                $"Item {i + 1} (len {lengths[i]}): demand = {demands[i]}, produced = {satisfied[i]:F0}"
-            );
-        }
+        //for (int i = 0; i < n; i++)
+        //{
+        //    Console.WriteLine($"Item {i + 1} (len {lengths[i]}): demand = {demands[i]}, produced = {satisfied[i]:F0}");
+        //}
 
         return solution;
     }
@@ -272,7 +270,7 @@ public class Solution
     public double stock_len;
     public double[] demands;
     public double[] lengths;
-    public List<double[]> patterns;
+    public List<double[]> patterns = [];
     public double[] wastes;
     public double[] used;
     public double[] pattern_quantity;
