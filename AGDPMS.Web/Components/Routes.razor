@@ -3,4 +3,12 @@
         <RouteView RouteData="routeData" DefaultLayout="typeof(AGDPMS.Shared.Components.Layout.MainLayout)" />
         <FocusOnNavigate RouteData="routeData" Selector="h1" />
     </Found>
+
+    <NotFound>
+        <PageTitle>Not Found</PageTitle>
+        <LayoutView Layout="typeof(AGDPMS.Shared.Components.Layout.MainLayout)">
+            <p role="alert">Rất tiếc, không có gì ở địa chỉ này.</p>
+        </LayoutView>
+    </NotFound>
+
 </Router>
