@@ -4,7 +4,7 @@ drop table if exists machines;
 drop table if exists machine_types;
 drop table if exists stock_import;
 drop table if exists material;
-drop table if exists projects_rfq;
+drop table if exists projects;
 drop table if exists clients;
 drop table if exists material_type;
 drop table if exists users;
@@ -45,10 +45,12 @@ create table if not exists clients (
   "address" varchar(250),
   "phone" varchar(250),
   "email" varchar(250),
-  constraint "pk_clients" primary key ("id")
+  "sales_in_charge_id" integer,
+  constraint "pk_clients" primary key ("id"),
+  constraint "fk_clients_sales_id" foreign key ("sales_in_charge_id") references users ("id")
 );
 
-CREATE TABLE IF NOT EXISTS projects_rfq (
+CREATE TABLE IF NOT EXISTS projects (
   "id" SERIAL,
   "name" VARCHAR(250) NOT NULL,
   "location" VARCHAR(250) NOT NULL,
@@ -88,16 +90,20 @@ create table if not exists stock_import (
 CREATE TABLE if not exists machine_types (
   "id" SERIAL PRIMARY KEY,
   "name" VARCHAR(250) NOT NULL
+ 
 );
 
 
-CREATE TABLE machines (
+CREATE TABLE if not exists  machines (
   "id" SERIAL,
   "name" VARCHAR(250) NOT NULL,
   "machine_type_id" INTEGER NOT NULL,
   "status" VARCHAR(50) NOT NULL DEFAULT 'Operational' CHECK ("status" IN ('Operational', 'NeedsMaintenance', 'Broken')),
   "entry_date" DATE NOT NULL,
   "last_maintenance_date" DATE NULL,
+  "expected_completion_date" DATE NULL,
+  "capacity_value" NUMERIC(10,2), -- <<  công suất 
+  "capacity_unit" VARCHAR(50),     -- <<  đơn vị (sản phẩm/phút, kg/giờ, mm/phút)
   CONSTRAINT "machines_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "fk_machines_type_id" FOREIGN KEY ("machine_type_id") REFERENCES "public"."machine_types" ("id")
+  CONSTRAINT "fk_machines_type_id" FOREIGN KEY ("machine_type_id") REFERENCES machine_types("id")
 );

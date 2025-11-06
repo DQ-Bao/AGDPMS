@@ -1,6 +1,6 @@
 set client_encoding to 'utf8';
 
-insert into roles ("name") values ('Admin'), ('Technician');
+insert into roles ("name") values ('Director'), ('Technician'), ('Sale'), ('Inventory Manage'), ('Qa');
 
 insert into users ("fullname", "phone", "password_hash", "role_id")
 values ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1);
@@ -350,15 +350,15 @@ values
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
 
-INSERT INTO clients ("name", "address", "phone", "email")
+INSERT INTO clients ("name", "address", "phone", "email", "sales_in_charge_id")
 VALUES
-('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com'),
-('Barry Hunter', '456 Đường XYZ, TP. HCM', '091-234-5678', 'barry.hunter@example.com'),
-('Trevor Baker', '789 Đường QWE, Đà Nẵng', '092-345-6789', 'trevor.baker@example.com'),
-('Nguyễn Văn An', '101 Đường Hùng Vương, Huế', '098-888-9999', 'an.nguyen@company.vn'),
-('Trần Thị Bích', '22 Phố Cổ, Hà Nội', '097-777-6666', 'bich.tran@startup.com');
+('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com', NULL),
+('Barry Hunter', '456 Đường XYZ, TP. HCM', '091-234-5678', 'barry.hunter@example.com', NULL),
+('Trevor Baker', '789 Đường QWE, Đà Nẵng', '092-345-6789', 'trevor.baker@example.com', NULL),
+('Nguyễn Văn An', '101 Đường Hùng Vương, Huế', '098-888-9999', 'an.nguyen@company.vn', NULL),
+('Trần Thị Bích', '22 Phố Cổ, Hà Nội', '097-777-6666', 'bich.tran@startup.com', NULL);
 
-INSERT INTO projects_rfq ("name", "location", "client_id", "design_company", "completion_date", "created_at", "design_file_path", "status", "document_path")
+INSERT INTO projects ("name", "location", "client_id", "design_company", "completion_date", "created_at", "design_file_path", "status", "document_path")
 VALUES
 ('Dự án Vinhome', 'Hà Nội', 1, 'Design Firm X', '2025-12-31', '2025-10-01 09:00:00', 'path/A.pdf', 'Active', 'doc/A.docx'),
 ('Dự án Ecopark', 'Hưng Yên', 2, 'Design Firm Y', '2024-10-20', '2025-10-05 10:00:00', 'path/B.pdf', 'Completed', 'doc/B.docx'),
@@ -372,9 +372,9 @@ VALUES
 ('Máy Phay Ổ Khóa'),
 ('Máy Tiện Tự Động');
 
-INSERT INTO "public"."machines" 
-("name", "machine_type_id", "status", "entry_date", "last_maintenance_date")
+INSERT INTO machines 
+("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
 VALUES
-('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL),
-('Máy Cắt Góc', 2, 'Operational', '2025-02-20', NULL),
-('Máy Phay Ổ Khóa', 3, 'Operational', '2025-03-10', NULL);
+('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, 150, 'mm/phút', NULL),
+('Máy Cắt Góc', 1, 'Operational', '2025-02-20', NULL, 5, 'mm', NULL),
+('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);
