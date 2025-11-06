@@ -1,6 +1,7 @@
 ﻿using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
+<<<<<<< Updated upstream
 using System.Xml.Linq;
 
 namespace AGDPMS.Web.Services;
@@ -26,6 +27,81 @@ public class InventoryService : IInventoryService
     public Task<IEnumerable<Material>> GetMaterialByType(MaterialType type)
     {
         return _inventoryDataAccess.GetMaterialByTypeAsync(type);
+=======
+
+namespace AGDPMS.Web.Services;
+
+public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInventoryService
+{
+    public async Task<GetMaterialResult> GetMaterial()
+    {
+        try
+        {
+            return new GetMaterialResult
+            {
+                Success = true,
+                Materials = await _inventoryDataAccess.GetAllMaterialAsync()
+            };
+
+        } catch (Exception e)
+        {
+            return new GetMaterialResult { Success = false, ErrorMessage = e.Message };
+        }
+
+    }
+
+    public async Task<GetMaterialResult> GetMaterialById(string id)
+    {
+        try
+        {
+            return new GetMaterialResult
+            {
+                Success = true,
+                Materials = await _inventoryDataAccess.GetMaterialByIdAsync(id)
+            };
+
+        }
+        catch (Exception e)
+        {
+            return new GetMaterialResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<GetMaterialResult> GetMaterialByName(string name)
+    {
+
+        try
+        {
+            return new GetMaterialResult
+            {
+                Success = true,
+                Materials = await _inventoryDataAccess.GetMaterialByNameAsync(name)
+            };
+
+        }
+        catch (Exception e)
+        {
+            return new GetMaterialResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<GetMaterialResult> GetMaterialByType(MaterialType type)
+    {
+
+        try
+        {
+            return new GetMaterialResult
+            {
+                Success = true,
+                Materials = await _inventoryDataAccess.GetMaterialByTypeAsync(type)
+            };
+
+        }
+        catch (Exception e)
+        {
+            return new GetMaterialResult { Success = false, ErrorMessage = e.Message };
+        }
+>>>>>>> Stashed changes
     }
 
     public async Task<PagedResult<Material>> GetMaterialPage(int pageNumber = 1, int pageSize = 10)

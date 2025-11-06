@@ -29,9 +29,17 @@ builder.Services.AddSmsSender(opts =>
 
 builder.Services.AddScoped<IAuthService, WebAuthService>();
 builder.Services.AddScoped<IUserService, WebUserService>();
+<<<<<<< Updated upstream
 builder.Services.AddScoped<WStarService>();
 builder.Services.AddScoped<IProductService, WebProductService>();
 builder.Services.AddScoped<ISaleServices, SaleService>();
+=======
+builder.Services.AddScoped<IProductService, WebProductService>();
+builder.Services.AddScoped<ISaleServices, SaleService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
+
+builder.Services.AddScoped<WStarService>();
+>>>>>>> Stashed changes
 builder.Services.AddScoped<UserDataAccess>();
 builder.Services.AddScoped<ClientDataAccess>();
 builder.Services.AddScoped<ProjectRFQDataAccess>();
