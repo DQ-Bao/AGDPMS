@@ -1,6 +1,6 @@
-﻿using AGDPMS.Shared.Models;
-using Dapper;
+﻿using Dapper;
 using System.Data;
+using AGDPMS.Shared.Models;
 using System.Text;
 
 namespace AGDPMS.Web.Data;
@@ -17,8 +17,8 @@ public class ProjectRFQDataAccess(IDbConnection conn)
                 p.completion_date as CompletionDate,
                 p.created_at as CreatedAt,
                 p.design_file_path as DesignFilePath,
-                p.projects_rfq_status as Status,
-                p.document as DocumentPath,
+                p.status as Status,                 
+                p.document_path as DocumentPath,    
                 p.client_id as ClientId,
 
                 c.id as Id,
@@ -42,8 +42,8 @@ public class ProjectRFQDataAccess(IDbConnection conn)
                 p.completion_date as CompletionDate,
                 p.created_at as CreatedAt,
                 p.design_file_path as DesignFilePath,
-                p.projects_rfq_status as Status,
-                p.document as DocumentPath,
+                p.status as Status,                
+                p.document_path as DocumentPath,    
                 p.client_id as ClientId,
 
                 c.id as Id,
@@ -56,7 +56,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
             WHERE p.id = @Id
         ", (project, client) =>
           {
-              project.Client = client; // Dapper maps the selected client columns here
+              project.Client = client;
               return project;
           }, new { Id = id })).FirstOrDefault();
 
@@ -64,7 +64,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
     {
         var id = await conn.ExecuteScalarAsync<int>(@"
             INSERT INTO projects_rfq 
-            (name, location, client_id, design_company, completion_date, design_file_path, projects_rfq_status, document)
+            (name, location, client_id, design_company, completion_date, design_file_path, status, document_path) 
             VALUES 
             (@ProjectRFQName, @Location, @ClientId, @DesignCompany, @CompletionDate, @DesignFilePath, @Status, @DocumentPath)
             RETURNING id
@@ -93,8 +93,8 @@ public class ProjectRFQDataAccess(IDbConnection conn)
                 design_company = @DesignCompany,
                 completion_date = @CompletionDate,
                 design_file_path = @DesignFilePath,
-                projects_rfq_status = @Status,
-                document = @DocumentPath
+                status = @Status,                 
+                document_path = @DocumentPath     
             WHERE id = @Id
         ", new
         {
@@ -112,7 +112,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
     public Task UpdateStatusAsync(int id, ProjectRFQStatus status) =>
         conn.ExecuteAsync(@"
             UPDATE projects_rfq
-            SET projects_rfq_status = @Status
+            SET status = @Status                
             WHERE id = @Id
         ", new { Status = status.ToString(), Id = id });
 
@@ -134,10 +134,10 @@ public class ProjectRFQDataAccess(IDbConnection conn)
                 p.id as Id, p.name as ProjectRFQName, p.location as Location,
                 p.design_company as DesignCompany, p.completion_date as CompletionDate,
                 p.created_at as CreatedAt, p.design_file_path as DesignFilePath,
-                p.projects_rfq_status as Status, p.document as DocumentPath,
+                p.status as Status,                 
+                p.document_path as DocumentPath,    
                 p.client_id as ClientId,
                 c.id as Id, c.name as Name 
-                
             FROM projects_rfq p
             JOIN clients c ON p.client_id = c.id
         ";
@@ -146,29 +146,26 @@ public class ProjectRFQDataAccess(IDbConnection conn)
         sqlBuilder.Append(baseSelect);
         countSqlBuilder.Append(baseCount);
 
-        // Add WHERE clause for search
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {
             string whereClause = @"
                 WHERE (p.name ILIKE @SearchTerm OR 
                        p.location ILIKE @SearchTerm OR 
                        c.name ILIKE @SearchTerm)
-            "; 
+            ";
 
             sqlBuilder.Append(whereClause);
             countSqlBuilder.Append(whereClause);
             parameters.Add("SearchTerm", $"%{searchTerm}%");
         }
 
-        // Add ORDER BY
-        sqlBuilder.Append(" ORDER BY p.created_at DESC"); 
+        sqlBuilder.Append(" ORDER BY p.created_at DESC");
 
         int offset = (pageNumber - 1) * pageSize;
         sqlBuilder.Append(" LIMIT @PageSize OFFSET @Offset");
         parameters.Add("PageSize", pageSize);
         parameters.Add("Offset", offset);
 
-        // Execute both queries
         using var multi = await conn.QueryMultipleAsync(
             $"{countSqlBuilder}; {sqlBuilder}", parameters);
 
@@ -176,7 +173,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
 
         var items = multi.Read<AppRFQ, AppClient, AppRFQ>(
             (project, client) => { project.Client = client; return project; },
-            splitOn: "Id" 
+            splitOn: "Id"
         ).ToList();
 
         return new PagedResult<AppRFQ>

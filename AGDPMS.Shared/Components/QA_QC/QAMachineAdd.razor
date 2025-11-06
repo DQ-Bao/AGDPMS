@@ -1,0 +1,125 @@
+﻿@page "/qa/machines/add"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+@inject NavigationManager NavManager
+@inject IQAService QAService
+
+<PageTitle>Thêm máy mới</PageTitle>
+
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">QA / Quản lý Máy móc /</span> Thêm mới</h4>
+
+@if (machineTypes == null)
+{
+    <div class="p-3">Đang tải danh sách loại máy...</div>
+}
+else
+{
+    <EditForm Model="@machine" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="card">
+            <h5 class="card-header">Thông tin máy mới</h5>
+            <div class="card-body">
+
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label for="machineName" class="form-label">Tên máy</label>
+                        <InputText id="machineName" class="form-control" @bind-Value="machine.Name" />
+                        <ValidationMessage For="@(() => machine.Name)" />
+                    </div>
+
+                    <div class="mb-3 col-md-6">
+                        <label for="machineTypeId" class="form-label">Loại máy</label>
+                        <InputSelect id="machineTypeId" class="form-select" @bind-Value="machine.MachineTypeId">
+                            <option value="0">-- Chọn loại máy --</option>
+                            @foreach (var type in machineTypes)
+                            {
+                                <option value="@type.Id">@type.Name</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => machine.MachineTypeId)" />
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="mb-3 col-md-6">
+                        <label for="status" class="form-label">Trạng thái ban đầu</label>
+                        <InputSelect id="status" class="form-select" @bind-Value="machine.Status">
+                            @foreach (var status in (MachineStatus[])Enum.GetValues(typeof(MachineStatus)))
+                            {
+                                <option value="@status">@GetVietnameseStatus(status)</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="mb-3 col-md-6">
+                        <label for="entryDate" class="form-label">Ngày nhập</label>
+                        <InputDate id="entryDate" class="form-control" @bind-Value="machine.EntryDate" />
+                        <ValidationMessage For="@(() => machine.EntryDate)" />
+                    </div>
+                </div>
+
+            </div>
+            <div class="card-footer">
+                <button type="submit" class="btn btn-primary me-2">Lưu</button>
+                <button type="button" class="btn btn-outline-secondary" @onclick="GoBack">Hủy</button>
+            </div>
+        </div>
+    </EditForm>
+}
+
+@code {
+    // SỬA: Khởi tạo với EntryDate, LastMaintenanceDate là null
+    private AppMachine machine = new()
+    {
+        Status = MachineStatus.Operational,
+        EntryDate = DateTime.Now, // Mặc định là hôm nay
+        LastMaintenanceDate = null // Máy mới không có ngày bảo trì cuối
+    };
+
+    private List<AppMachineType>? machineTypes;
+
+    protected override async Task OnInitializedAsync()
+    {
+        machineTypes = (await QAService.GetMachineTypesAsync())?.ToList();
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (machine.MachineTypeId == 0)
+        {
+            Console.WriteLine("Vui lòng chọn loại máy");
+            return;
+        }
+
+        try
+        {
+            await QAService.CreateMachineAsync(machine);
+            GoBack();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Lỗi khi tạo máy: {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/qa/machines");
+    }
+
+    private string GetVietnameseStatus(MachineStatus status)
+    {
+        return status switch
+        {
+            MachineStatus.Operational => "Hoạt động",
+            MachineStatus.NeedsMaintenance => "Cần bảo trì",
+            MachineStatus.Broken => "Bị hỏng",
+            _ => status.ToString()
+        };
+    }
+}
