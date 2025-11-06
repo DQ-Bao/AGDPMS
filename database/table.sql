@@ -4,7 +4,7 @@ drop table if exists machines;
 drop table if exists machine_types;
 drop table if exists stock_import;
 drop table if exists material;
-drop table if exists projects_rfq;
+drop table if exists projects;
 drop table if exists clients;
 drop table if exists material_type;
 drop table if exists users;
@@ -50,7 +50,7 @@ create table if not exists clients (
   constraint "fk_clients_sales_id" foreign key ("sales_in_charge_id") references users ("id")
 );
 
-CREATE TABLE IF NOT EXISTS projects_rfq (
+CREATE TABLE IF NOT EXISTS projects (
   "id" SERIAL,
   "name" VARCHAR(250) NOT NULL,
   "location" VARCHAR(250) NOT NULL,
