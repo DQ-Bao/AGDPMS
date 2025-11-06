@@ -342,10 +342,11 @@ else
     {
         return status switch
         {
-            ProjectRFQStatus.Active => "bg-primary text-white",
-            ProjectRFQStatus.Completed => "bg-success text-white",
-            ProjectRFQStatus.Pending => "bg-warning text-dark",
-            ProjectRFQStatus.Scheduled => "bg-info text-white",
+            ProjectRFQStatus.Production => "bg-primary text-white",    
+            ProjectRFQStatus.Completed => "bg-success text-white",   
+            ProjectRFQStatus.Planning => "bg-info text-white",        
+            ProjectRFQStatus.Deploying => "bg-warning text-dark",     
+            ProjectRFQStatus.Cancelled => "bg-danger text-white",     
             _ => "bg-secondary text-white"
         };
     }
@@ -354,10 +355,11 @@ else
     {
         return status switch
         {
-            ProjectRFQStatus.Active => "Hoạt động",
+            ProjectRFQStatus.Planning => "Đang lên kế hoạch",
+            ProjectRFQStatus.Production => "Đang sản xuất",
+            ProjectRFQStatus.Deploying => "Đang triển khai",
             ProjectRFQStatus.Completed => "Hoàn thành",
-            ProjectRFQStatus.Pending => "Đang chờ",
-            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            ProjectRFQStatus.Cancelled => "Đã hủy",
             _ => status.ToString()
         };
     }
