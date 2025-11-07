@@ -186,10 +186,11 @@ else
     {
         return status switch
         {
-            ProjectRFQStatus.Active => "Hoạt động",
+            ProjectRFQStatus.Planning => "Đang lên kế hoạch",
+            ProjectRFQStatus.Production => "Đang sản xuất",
+            ProjectRFQStatus.Deploying => "Đang triển khai",
             ProjectRFQStatus.Completed => "Hoàn thành",
-            ProjectRFQStatus.Pending => "Đang chờ",
-            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            ProjectRFQStatus.Cancelled => "Đã hủy",
             _ => status.ToString()
         };
     }
