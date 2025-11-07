@@ -47,6 +47,8 @@ create table if not exists material (
     "name" varchar(250) not null,
     "type" integer,
     "stock" int not null default 0,
+	"length" numeric(10,3)
+	"width" numeric(10,3),
     "weight" numeric(10,3),
     "thickness" numeric(10,3),
 	constraint "fk_material_type" foreign key ("type") references material_type("id")
@@ -76,8 +78,13 @@ create table if not exists projects (
   "document_path" VARCHAR(250),
   constraint "pk_projects" primary key ("id"),
   constraint "fk_projects_client_id" foreign key ("client_id") references clients ("id")
+  constraint "pk_projects" primary key ("id"),
+  constraint "fk_projects_client_id" foreign key ("client_id") references clients ("id")
 );
 
+create table if not exists machine_types (
+  "id" serial primary key,
+  "name" varchar(250) not null
 create table if not exists machine_types (
   "id" serial primary key,
   "name" varchar(250) not null
@@ -125,7 +132,7 @@ create table if not exists material_plannings (
 	"created_at" timestamp null default now(),
 	constraint "pk_material_planning" primary key ("id"),
 	constraint "fk_material_planning_made_by" foreign key ("made_by") references "users"("id"),
-	constraint "fk_material_planning_project_id" foreign key ("project_id") references "projects_rfq"("id")
+	constraint "fk_material_planning_project_id" foreign key ("project_id") references "projects"("id")
 );
 
 create table if not exists material_planning_details (
