@@ -1,0 +1,31 @@
+﻿@using AGDPMS.Shared.Models
+
+@if (Message is not null)
+{
+    <div class=@($"{AlertClass()} alert-dismissible fade show {AdditionalClasses}") role="alert">
+        @Message
+        <button type="button" class="btn-close" @onclick="OnCloseClicked"></button>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public StatusMessage? Message { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public string? AdditionalClasses { get; set; }
+
+    private string AlertClass() => Message?.Type switch
+    {
+        Models.StatusMessageType.Info => "alert alert-info",
+        Models.StatusMessageType.Success => "alert alert-success",
+        Models.StatusMessageType.Warn => "alert alert-warning",
+        Models.StatusMessageType.Error => "alert alert-danger",
+        _ => "alert alert-secondary"
+    };
+
+    private async Task OnCloseClicked()
+    {
+        Message = null;
+        if (OnClose.HasDelegate)
+            await OnClose.InvokeAsync();
+    }
+}

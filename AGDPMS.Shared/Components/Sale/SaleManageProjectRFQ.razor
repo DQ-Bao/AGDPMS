@@ -1,0 +1,288 @@
+﻿@page "/sale/projectrfq"
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+
+@inject NavigationManager NavManager
+@inject ISaleServices SaleService
+
+<PageTitle>Quản lý Dự án RFQ</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Dự án </h4>
+    <div>
+        <button class="btn btn-secondary me-2" @onclick="GoToCustomerPage">
+            <i class="bx bx-user me-1"></i> Quản lý Khách hàng
+        </button>
+        <button class="btn btn-primary" @onclick="GoToCreatePage">
+            <i class="bx bx-plus me-1"></i> Tạo mới Dự án
+        </button>
+    </div>
+</div>
+
+<div class="mb-3">
+    <input type="search" class="form-control" placeholder="Tìm kiếm theo tên dự án, địa điểm, khách hàng..."
+           value="@searchTerm" @oninput="DebounceSearch" />
+</div>
+
+<div class="card">
+    <h5 class="card-header">Danh sách Dự án RFQ</h5>
+    <div class="table-responsive text-nowrap">
+        @if (isLoading)
+        {
+            <div class="p-3">Đang tải dự án...</div>
+        }
+        else if (pagedResult == null || !pagedResult.Items.Any())
+        {
+            <div class="p-3">Không tìm thấy dự án nào.</div>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Dự án</th>
+                        <th>Địa điểm</th>
+                        <th>Khách hàng</th>
+                        <th>Công ty TK</th>
+                        <th>Ngày HT</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    @foreach (var project in pagedResult.Items)
+                    {
+                        <tr>
+                            <td>
+                                <a href="/sale/projectrfq/detail/@project.Id" title="Xem chi tiết">
+                                    <strong>@project.ProjectRFQName</strong>
+                                </a>
+                            </td>
+                            <td>@project.Location</td>
+                            <td>
+                                <a href="/sale/customercontact/detail/@project.ClientId" title="Xem chi tiết khách hàng @project.Client?.Name">
+                                    @project.Client?.Name
+                                </a>
+                            </td>
+                            <td>@project.DesignCompany</td>
+                            <td>@project.CompletionDate.ToString("dd/MM/yyyy")</td>
+                            <td>
+                                <select class="form-select @GetStatusClass(project.Status)"
+                                        style="width: auto; min-width: 140px;"
+                                        value="@project.Status.ToString()"
+                                        @onchange="(e) => OnStatusChange(e, project.Id)">
+
+                                    @foreach (var status in (ProjectRFQStatus[])Enum.GetValues(typeof(ProjectRFQStatus)))
+                                    {
+                                        <option value="@status" class="@GetStatusClass(status)">
+                                            @GetVietnameseStatus(status)
+                                        </option>
+                                    }
+                                </select>
+                            </td>
+                            <td>
+                                <button class="btn btn-outline-primary me-1"
+                                        @onclick="() => GoToEditPage(project.Id)"
+                                        title="Sửa">
+                                    <i class="bx bx-edit-alt me-1"></i> Sửa
+                                </button>
+                                <button class="btn btn-outline-danger"
+                                        @onclick="() => RequestDeleteConfirmation(project)"
+                                        title="Xóa">
+                                    <i class="bx bx-trash me-1"></i> Xóa
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+
+    @if (pagedResult != null && pagedResult.TotalPages > 1)
+    {
+        <div class="card-footer d-flex justify-content-between align-items-center">
+            <div>
+                Trang @pagedResult.PageNumber / @pagedResult.TotalPages (Tổng: @pagedResult.TotalCount dự án)
+            </div>
+            <nav aria-label="Page navigation">
+                <ul class="pagination mb-0">
+                    <li class="page-item @(pagedResult.HasPreviousPage ? "" : "disabled")">
+                        <button class="page-link" @onclick="GoToPreviousPage" disabled="@(!pagedResult.HasPreviousPage)">
+                            &laquo; Trước
+                        </button>
+                    </li>
+                    <li class="page-item @(pagedResult.HasNextPage ? "" : "disabled")">
+                        <button class="page-link" @onclick="GoToNextPage" disabled="@(!pagedResult.HasNextPage)">
+                            Sau &raquo;
+                        </button>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+    }
+    else if (pagedResult != null && pagedResult.TotalCount > 0) 
+    {
+        <div class="card-footer text-muted">
+            Tổng: @pagedResult.TotalCount dự án
+        </div>
+    }
+
+</div>
+
+@if (showDeleteConfirmation && projectToDelete != null)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận Xóa</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc chắn muốn xóa dự án: <strong>@projectToDelete.ProjectRFQName</strong> không?</p>
+                    <p class="text-danger">Hành động này không thể hoàn tác.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">Hủy</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">Xóa</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private PagedResult<AppRFQ>? pagedResult;
+    private bool isLoading = true;
+    private string searchTerm = string.Empty;
+    private int currentPage = 1;
+    private int pageSize = 3; 
+    private System.Threading.Timer? searchTimer;
+
+    private bool showDeleteConfirmation = false;
+    private AppRFQ? projectToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+
+        pagedResult = await SaleService.GetProjectsRFQWithClientAsync(searchTerm, currentPage, pageSize);
+        isLoading = false;
+        StateHasChanged(); 
+    }
+
+    private void DebounceSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        searchTimer?.Dispose();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 500, Timeout.Infinite);
+    }
+
+    private void PerformSearch(object? state)
+    {
+        currentPage = 1; 
+        InvokeAsync(LoadData); 
+    }
+
+    private async Task GoToPreviousPage()
+    {
+        if (pagedResult?.HasPreviousPage ?? false)
+        {
+            currentPage--;
+            await LoadData();
+        }
+    }
+
+    private async Task GoToNextPage()
+    {
+        if (pagedResult?.HasNextPage ?? false)
+        {
+            currentPage++;
+            await LoadData();
+        }
+    }
+
+    private void RequestDeleteConfirmation(AppRFQ project)
+    {
+        projectToDelete = project;
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDelete()
+    {
+        projectToDelete = null;
+        showDeleteConfirmation = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (projectToDelete != null)
+        {
+            await SaleService.DeleteProjectRFQAsync(projectToDelete.Id);
+            await LoadData();
+
+        }
+        projectToDelete = null;
+        showDeleteConfirmation = false;
+    }
+
+    private async Task OnStatusChange(ChangeEventArgs e, int projectId)
+    {
+        if (Enum.TryParse<ProjectRFQStatus>(e.Value.ToString(), out var newStatus))
+        {
+
+            var projectInList = pagedResult?.Items.FirstOrDefault(p => p.Id == projectId);
+            if (projectInList != null)
+            {
+                projectInList.Status = newStatus;
+                StateHasChanged(); 
+            }
+
+            await SaleService.UpdateProjectRFQStatusAsync(projectId, newStatus);
+        }
+    }
+
+    private void GoToCreatePage() => NavManager.NavigateTo("/sale/projectrfq/add");
+    private void GoToEditPage(int id) => NavManager.NavigateTo($"/sale/projectrfq/edit/{id}");
+    private void GoToCustomerPage() => NavManager.NavigateTo("/sale/customercontact");
+
+    private string GetStatusClass(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Active => "bg-primary text-white",
+            ProjectRFQStatus.Completed => "bg-success text-white",
+            ProjectRFQStatus.Pending => "bg-warning text-dark",
+            ProjectRFQStatus.Scheduled => "bg-info text-white",
+            _ => "bg-secondary text-white"
+        };
+    }
+
+    private string GetVietnameseStatus(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Active => "Hoạt động",
+            ProjectRFQStatus.Completed => "Hoàn thành",
+            ProjectRFQStatus.Pending => "Đang chờ",
+            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            _ => status.ToString()
+        };
+    }
+
+    public void Dispose()
+    {
+        searchTimer?.Dispose();
+    }
+}

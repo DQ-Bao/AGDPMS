@@ -17,6 +17,12 @@ public static class ConfigureServices
         services.AddScoped<UserDataAccess>();
         services.AddScoped<InventoryDataAccess>();
         services.AddScoped<RoleDataAccess>();
+
+        services.AddScoped<ClientDataAccess>();
+        services.AddScoped<ProjectRFQDataAccess>();
+
+        services.AddScoped<MachineDataAccess>();
+        services.AddScoped<MachineTypeDataAccess>();
         services.AddScoped<CavityDataAccess>();
         // production data access
         services.AddScoped<StageTypeDataAccess>();

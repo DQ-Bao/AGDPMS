@@ -9,32 +9,56 @@
 @inject IPasswordHasher<AppUser> PasswordHasher
 @inject ISmsSender SmsSender
 
+
 @if (!string.IsNullOrEmpty(Message))
 {
-    <p>@Message</p>
+    <div class="alert @messageCssClass alert-dismissible" role="alert">
+        @Message
+        <button type="button" class="btn-close" @onclick="() => Message = null" aria-label="Close"></button>
+    </div>
 }
+
 <EditForm Model="Input" method="post" OnValidSubmit="HandleAddAccount" FormName="add-account">
     <DataAnnotationsValidator />
-    <ValidationSummary />
-    <div>
-        <label for="Input.PhoneNumber">Phone Number</label>
-        <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" />
+    <ValidationSummary class="alert alert-danger" />
+
+    <div class="row">
+
+        <div class="mb-3 col-md-6">
+            <label class="form-label" for="Input.FullName">Họ và tên</label>
+            <div class="input-group input-group-merge">
+                <span class="input-group-text"><i class="bx bx-user"></i></span>
+                <InputText @bind-Value="Input.FullName" id="Input.FullName" class="form-control" placeholder="Nguyễn Văn A" />
+            </div>
+        </div>
+
+        <div class="mb-3 col-md-6">
+            <label class="form-label" for="Input.PhoneNumber">Số điện thoại</label>
+            <div class="input-group input-group-merge">
+                <span class="input-group-text"><i class="bx bx-phone"></i></span>
+                <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="0912 345 678" />
+            </div>
+        </div>
+
+        <div class="mb-3 col-md-6">
+            <label class="form-label" for="Input.RoleId">Vai trò</label>
+            <div class="input-group input-group-merge">
+                <span class="input-group-text"><i class="bx bx-shield-quarter"></i></span>
+                <InputSelect @bind-Value="Input.RoleId" id="Input.RoleId" class="form-select">
+                    <option value="0">Chọn vai trò</option>
+                    @foreach (var role in Roles)
+                    {
+                        <option value="@role.Id">@role.Name</option>
+                    }
+                </InputSelect>
+            </div>
+        </div>
     </div>
-    <div>
-        <label for="Input.FullName">Full Name</label>
-        <InputText @bind-Value="Input.FullName" id="Input.FullName" />
+
+    <div class="mt-2">
+        <button type="submit" class="btn btn-primary me-2">Tạo tài khoản</button>
+        <button type="button" class="btn btn-outline-secondary" @onclick="() => OnCancel.InvokeAsync()">Hủy</button>
     </div>
-    <div>
-        <label for="Input.RoleId">Role</label>
-        <InputSelect @bind-Value="Input.RoleId" id="Input.RoleId">
-            @foreach (var role in Roles)
-            {
-                <option value="@role.Id">@role.Name</option>
-            }
-        </InputSelect>
-    </div>
-    <button type="button" @onclick="() => OnCancel.InvokeAsync()">Cancel</button>
-    <button type="submit">Create Account</button>
 </EditForm>
 
 @code {
@@ -46,13 +70,15 @@
     private InputModel Input { get; set; } = new();
 
     private string? Message;
+    private string messageCssClass = "alert-info";
 
     private async Task HandleAddAccount()
     {
         var role = Roles.FirstOrDefault(r => r.Id == Input.RoleId);
         if (role is null)
         {
-            Message = "Invalid role selected";
+            Message = "Vai trò được chọn không hợp lệ";
+            messageCssClass = "alert-danger";
             return;
         }
 
@@ -67,12 +93,16 @@
         try
         {
             await UserDataAccess.CreateAsync(user);
-            Message = "Add account successfully";
-            await SmsSender.SendAsync("Account added. Default password: abc123", [user.PhoneNumber]);
+            Message = "Thêm tài khoản thành công";
+            messageCssClass = "alert-success";
+            await SmsSender.SendAsync("Tài khoản đã được thêm. Mật khẩu mặc định: abc123", [user.PhoneNumber]);
             await OnAccountAdded.InvokeAsync(user);
-        } catch (Exception e)
+            Input = new();
+        }
+        catch (Exception e)
         {
             Message = e.Message;
+            messageCssClass = "alert-danger";
         }
     }
 
@@ -84,7 +114,8 @@
         [Required]
         public string FullName { get; set; } = string.Empty;
 
-        [Required]
+        [Required(ErrorMessage = "Vui lòng chọn một vai trò.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Vui lòng chọn một vai trò hợp lệ.")]
         public int RoleId { get; set; }
     }
 }

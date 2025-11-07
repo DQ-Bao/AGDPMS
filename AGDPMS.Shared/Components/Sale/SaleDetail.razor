@@ -1,0 +1,68 @@
+﻿@page "/sale/customercontact/detail/{id:int}"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services 
+@inject NavigationManager NavManager
+@inject ISaleServices SaleService
+
+<PageTitle>Chi tiết Khách hàng</PageTitle>
+
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Khách hàng /</span> Chi tiết</h4>
+
+@if (client == null)
+{
+    <div class="p-3">Đang tải chi tiết khách hàng...</div>
+}
+else
+{
+    <div class="card">
+        <h5 class="card-header">Chi tiết: @client.Name</h5>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Tên khách hàng</dt>
+                <dd class="col-sm-9">@client.Name</dd>
+
+                <dt class="col-sm-3">Email</dt>
+                <dd class="col-sm-9">@client.Email</dd>
+
+                <dt class="col-sm-3">Số điện thoại</dt>
+                <dd class="col-sm-9">@client.Phone</dd>
+
+                <dt class="col-sm-3">Địa chỉ</dt>
+                <dd class="col-sm-9">@client.Address</dd>
+            </dl>
+        </div>
+        <div class="card-footer">
+            <button class="btn btn-primary me" @onclick="() => GoToEdit(client.Id)">
+                <i class="bx bx-edit-alt me-1"></i> Sửa
+            </button>
+            <button class="btn btn-outline-secondary" @onclick="GoBack">
+                <i class="bx bx-arrow-back me"></i> Quay lại
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private AppClient? client; 
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = await SaleService.GetClientByIdAsync(Id); 
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/sale/customercontact");
+    }
+
+    private void GoToEdit(int id)
+    {
+        NavManager.NavigateTo($"/sale/customercontact/edit/{id}");
+    }
+
+}

@@ -1,0 +1,368 @@
+﻿@page "/sale/customercontact"
+@rendermode InteractiveServer
+@implements IDisposable
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+
+@inject NavigationManager NavManager
+@inject ISaleServices SaleService
+
+<PageTitle>Quản lý Khách hàng</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Khách hàng</h4>
+    <div>
+        <button class="btn btn-secondary me-1" @onclick="GoToAllProjects">
+            <i class="bx bx-list-ul me"></i> Quản lý Dự án
+        </button>
+        <button class="btn btn-primary" @onclick="GoToCreateCustomerPage">
+            <i class="bx bx-plus me"></i> Thêm Khách hàng
+        </button>
+    </div>
+</div>
+
+@if (selectedClient == null)
+{
+    <div class="mb-3">
+        <input type="search" class="form-control" placeholder="Tìm kiếm theo tên, email, SĐT, địa chỉ..."
+               value="@searchTerm" @oninput="DebounceSearch" />
+    </div>
+
+    <div class="card">
+        <h5 class="card-header">Danh sách Khách hàng</h5>
+        <div class="table-responsive text-nowrap">
+            @if (isLoading)
+            {
+                <div class="p-3">Đang tải danh sách khách hàng...</div>
+            }
+            else if (pagedClientResult == null || !pagedClientResult.Items.Any())
+            {
+                <div class="p-3">Không tìm thấy khách hàng nào.</div>
+            }
+            else
+            {
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Tên Khách hàng</th>
+                            <th>Email</th>
+                            <th>Số điện thoại</th>
+                            <th>Địa chỉ</th>
+                            <th>Dự án</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-border-bottom-0">
+                        @foreach (var client in pagedClientResult.Items)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="#" @onclick="() => ShowProjectsForClient(client)" @onclick:preventDefault="true" title="Xem các dự án của khách hàng này">
+                                        <strong>@client.Name</strong>
+                                    </a>
+                                </td>
+                                <td>@client.Email</td>
+                                <td>@client.Phone</td>
+                                <td>@client.Address</td>
+                                <td>
+                                    @{
+                                        var clientProjects = GetProjectsForClient(client.Id);
+                                    }
+                                    <div style="white-space: normal; min-width: 150px;">
+                                        @if (clientProjects.Any())
+                                        {
+                                            @foreach (var project in clientProjects)
+                                            {
+                                                <div class="mb-1">
+                                                    <a href="/sale/projectrfq/detail/@project.Id" title="Xem chi tiết @project.ProjectRFQName">
+                                                        <strong>@project.ProjectRFQName</strong>
+                                                    </a>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted small">Chưa có dự án</span>
+                                        }
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-primary me"
+                                            @onclick="() => GoToEditCustomerPage(client.Id)"
+                                            title="Sửa khách hàng">
+                                        <i class="bx bx-edit-alt me"></i> Sửa
+                                    </button>
+                                    <button class="btn btn-outline-danger me"
+                                            @onclick="() => RequestDeleteConfirmation(client)"
+                                            title="Xóa khách hàng">
+                                        <i class="bx bx-trash me"></i> Xóa
+                                    </button>
+                                    <button class="btn btn-outline-success"
+                                            @onclick="() => GoToAddProjectPage(client.Id)"
+                                            title="Thêm dự án RFQ mới cho khách hàng này">
+                                        <i class="bx bx-plus me"></i> Thêm DA
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+
+        @if (pagedClientResult != null && pagedClientResult.TotalPages > 1)
+        {
+            <div class="card-footer d-flex justify-content-between align-items-center">
+                <div>
+                    Trang @pagedClientResult.PageNumber / @pagedClientResult.TotalPages (Tổng: @pagedClientResult.TotalCount khách hàng)
+                </div>
+                <nav aria-label="Page navigation">
+                    <ul class="pagination mb-0">
+                        <li class="page-item @(pagedClientResult.HasPreviousPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="GoToPreviousClientPage" disabled="@(!pagedClientResult.HasPreviousPage)">
+                                &laquo; Trước
+                            </button>
+                        </li>
+                        <li class="page-item @(pagedClientResult.HasNextPage ? "" : "disabled")">
+                            <button class="page-link" @onclick="GoToNextClientPage" disabled="@(!pagedClientResult.HasNextPage)">
+                                Sau &raquo;
+                            </button>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+        }
+        else if (pagedClientResult != null && pagedClientResult.TotalCount > 0) 
+        {
+            <div class="card-footer text-muted">
+                Tổng: @pagedClientResult.TotalCount khách hàng
+            </div>
+        }
+    </div>
+}
+else
+{
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h4 class="fw-bold py-3 mb-0">Các dự án của: <span class="text-primary">@selectedClient.Name</span></h4>
+        <button class="btn btn-outline-secondary" @onclick="ShowAllClients">
+            <i class="bx bx-arrow-back me"></i> Quay lại Danh sách Khách hàng
+        </button>
+    </div>
+    <div class="card">
+        <h5 class="card-header">Danh sách Dự án RFQ</h5>
+        <div class="table-responsive text-nowrap">
+            @if (projectsForSelectedClient == null || !projectsForSelectedClient.Any())
+            {
+                <div class="p-3">Khách hàng này không có dự án nào hoặc đang tải...</div>
+            }
+            else
+            {
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Dự án</th>
+                            <th>Địa điểm</th>
+                            <th>Ngày hoàn thành</th>
+                            <th>Trạng thái</th>
+                            <th>Hành động</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-border-bottom-0">
+                        @foreach (var project in projectsForSelectedClient)
+                        {
+                            <tr>
+                                <td>
+                                    <a href="/sale/projectrfq/detail/@project.Id" title="Xem chi tiết dự án">
+                                        <strong>@project.ProjectRFQName</strong>
+                                    </a>
+                                </td>
+                                <td>@project.Location</td>
+                                <td>@project.CompletionDate.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    <span class="badge @GetStatusClass(project.Status)">
+                                        @GetVietnameseStatus(project.Status)
+                                    </span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-outline-primary" @onclick="() => GoToEditProjectPage(project.Id)">
+                                        <i class="bx bx-edit-alt me"></i> Sửa Dự án
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+        </div>
+    </div>
+}
+
+@if (showDeleteConfirmation && clientToDelete != null)
+{
+    <div class="modal-backdrop fade show"></div>
+    <div class="modal fade show" tabindex="-1" style="display: block;" role="dialog">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận Xóa</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc chắn muốn xóa khách hàng: <strong>@clientToDelete.Name</strong> không?</p>
+                    <p class="text-danger">Hành động này không thể hoàn tác.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelDelete">
+                        <i class="bx bx-x me"></i> Hủy
+                    </button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDelete">
+                        <i class="bx bx-trash me"></i> Xóa
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+
+@code {
+    private PagedResult<AppClient>? pagedClientResult;
+    private List<AppRFQ>? allProjects; 
+    private AppClient? selectedClient;
+    private List<AppRFQ>? projectsForSelectedClient;
+    private bool isLoading = true;
+    private string searchTerm = string.Empty; 
+    private System.Threading.Timer? searchTimer;
+    private int currentPage = 1;
+    private int pageSize = 3; 
+    private bool showDeleteConfirmation = false;
+    private AppClient? clientToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadClientData();
+
+        allProjects = (await SaleService.GetProjectsRFQWithClientAsync(null, 1, 9999))?.Items ?? new List<AppRFQ>();
+    }
+
+    private async Task LoadClientData()
+    {
+        isLoading = true;
+        pagedClientResult = await SaleService.GetClientsAsync(searchTerm, currentPage, pageSize);
+        isLoading = false;
+        StateHasChanged(); 
+    }
+
+    private void DebounceSearch(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        searchTimer?.Dispose();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 500, Timeout.Infinite);
+    }
+
+    private void PerformSearch(object? state)
+    {
+        currentPage = 1;
+        InvokeAsync(LoadClientData); 
+    }
+
+    private async Task GoToPreviousClientPage()
+    {
+        if (pagedClientResult?.HasPreviousPage ?? false)
+        {
+            currentPage--;
+            await LoadClientData();
+        }
+    }
+
+    private async Task GoToNextClientPage()
+    {
+        if (pagedClientResult?.HasNextPage ?? false)
+        {
+            currentPage++;
+            await LoadClientData();
+        }
+    }
+
+    private void RequestDeleteConfirmation(AppClient client)
+    {
+        clientToDelete = client;
+        showDeleteConfirmation = true;
+    }
+
+    private void CancelDelete()
+    {
+        clientToDelete = null;
+        showDeleteConfirmation = false;
+    }
+
+    private async Task ConfirmDelete()
+    {
+        if (clientToDelete != null)
+        {
+            await SaleService.DeleteClientAsync(clientToDelete.Id);
+            await LoadClientData();
+       }
+        clientToDelete = null;
+        showDeleteConfirmation = false;
+    }
+
+    private void ShowProjectsForClient(AppClient client)
+    {
+        selectedClient = client;
+        if (allProjects != null)
+        {
+            projectsForSelectedClient = allProjects.Where(p => p.ClientId == client.Id).ToList();
+        }
+        else
+        {
+            projectsForSelectedClient = new List<AppRFQ>();
+        }
+    }
+
+    private void ShowAllClients()
+    {
+        selectedClient = null;
+        projectsForSelectedClient = null;
+    }
+
+    private void GoToCreateCustomerPage() => NavManager.NavigateTo("/sale/customercontact/add");
+    private void GoToEditCustomerPage(int id) => NavManager.NavigateTo($"/sale/customercontact/edit/{id}");
+    private void GoToAllProjects() => NavManager.NavigateTo("/sale/projectrfq");
+    private void GoToEditProjectPage(int projectId) => NavManager.NavigateTo($"/sale/projectrfq/edit/{projectId}");
+    private void GoToAddProjectPage(int clientId) => NavManager.NavigateTo($"/sale/projectrfq/add?clientId={clientId}");
+ 
+    private List<AppRFQ> GetProjectsForClient(int clientId)
+    {
+        if (allProjects == null) return new List<AppRFQ>();
+        return allProjects.Where(p => p.ClientId == clientId).ToList();
+    }
+    private string GetStatusClass(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Active => "bg-primary text-white",
+            ProjectRFQStatus.Completed => "bg-success text-white",
+            ProjectRFQStatus.Pending => "bg-warning text-dark",
+            ProjectRFQStatus.Scheduled => "bg-info text-white",
+            _ => "bg-secondary text-white"
+        };
+    }
+
+    private string GetVietnameseStatus(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Active => "Hoạt động",
+            ProjectRFQStatus.Completed => "Hoàn thành",
+            ProjectRFQStatus.Pending => "Đang chờ",
+            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            _ => status.ToString()
+        };
+    }
+    public void Dispose()
+    {
+        searchTimer?.Dispose();
+    }
+}

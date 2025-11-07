@@ -12,40 +12,82 @@
 @inject UserDataAccess UserDataAccess
 @inject RoleDataAccess RoleDataAccess
 
-<PageTitle>Account List</PageTitle>
+<PageTitle>Danh sách tài khoản</PageTitle>
 
-<h3>AccountList</h3>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="fw-bold py-3 mb-0">
+        <span class="text-muted fw-light">Quản lý người dùng /</span> Danh sách tài khoản
+    </h4>
+    <button type="button" class="btn btn-primary" @onclick="() => _showAddForm = true">
+        <span class="tf-icons bx bx-plus me-1"></span>Thêm tài khoản mới
+    </button>
+</div>
 
-<a href="/">Home</a>
-<button type="button" @onclick="() => _showAddForm = true">Add account</button>
-<table border="1">
-    <tr>
-        <th>Id</th>
-        <th>Full Name</th>
-        <th>Phone Number</th>
-        <th>Role</th>
-        <th>Need Change Password</th>
-        <th>Actions</th>
-    </tr>
-    @foreach (var user in _users)
-    {
-        <tr>
-            <td>@user.Id</td>
-            <td>@user.FullName</td>
-            <td>@user.PhoneNumber</td>
-            <td>@user.Role.Name</td>
-            <td>@user.NeedChangePassword</td>
-            <td></td>
-        </tr>
-    }
-</table>
 
 @if (_showAddForm)
 {
-    <hr />
-    <h4>Add an account</h4>
-    <AddAccountForm Roles="_roles" OnAccountAdded="HandleAccountAdded" OnCancel="() => _showAddForm = false" />
+    <div class="card mb-4">
+        <h5 class="card-header">Thêm một tài khoản</h5>
+        <div class="card-body">
+            @* Component AddAccountForm được gọi ở đây *@
+            <AddAccountForm Roles="_roles" OnAccountAdded="HandleAccountAdded" OnCancel="() => _showAddForm = false" />
+        </div>
+    </div>
 }
+<div class="card">
+    <h5 class="card-header">Tài khoản người dùng</h5>
+    <div class="table-responsive text-nowrap">
+        <table class="table table-borderless">
+            <thead>
+                <tr>
+                    <th>Người dùng</th>
+                    <th>Số điện thoại</th>
+                    <th>Vai trò</th>
+                    <th>Trạng thái mật khẩu</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody class="table-border-bottom-0">
+                @foreach (var user in _users)
+                {
+                    <tr>
+                        <td>
+                            <i class="bx bx-user fa-lg text-primary me-3"></i>
+                            <strong>@user.FullName</strong>
+                        </td>
+                        <td>@user.PhoneNumber</td>
+                        <td>@user.Role.Name</td>
+                        <td>
+                            @if (user.NeedChangePassword)
+                            {
+                                <span class="badge bg-label-warning me-1">Yêu cầu đổi</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-label-success me-1">Đã đặt</span>
+                            }
+                        </td>
+                        <td>
+                            <div class="dropdown">
+                                <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown">
+                                    <i class="bx bx-dots-vertical-rounded"></i>
+                                </button>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item" href="javascript:void(0);">
+                                        <i class="bx bx-edit-alt me-1"></i> Sửa
+                                    </a>
+                                    <a class="dropdown-item" href="javascript:void(0);">
+                                        <i class="bx bx-trash me-1"></i> Xóa
+                                    </a>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
 
 @code {
     private IEnumerable<AppUser> _users = [];
@@ -61,5 +103,6 @@
     private async Task HandleAccountAdded(AppUser user)
     {
         _users = await UserDataAccess.GetAllAsync();
+        _showAddForm = false;
     }
 }

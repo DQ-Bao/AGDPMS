@@ -1,0 +1,118 @@
+﻿@page "/sale/projectrfq/detail/{id:int}"
+@rendermode InteractiveServer 
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services 
+@inject NavigationManager NavManager
+@inject ISaleServices SaleService 
+
+<PageTitle>Chi tiết dự án</PageTitle>
+
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Dự án RFQ /</span> Chi tiết</h4>
+
+@if (project == null) 
+{
+    <div class="p-3">Đang tải chi tiết dự án...</div>
+}
+else
+{
+    <div class="card">
+        <h5 class="card-header">Chi tiết: @project.ProjectRFQName</h5>
+        <div class="card-body">
+            <dl class="row">
+                <dt class="col-sm-3">Tên dự án</dt>
+                <dd class="col-sm-9">@project.ProjectRFQName</dd>
+
+                <dt class="col-sm-3">Địa điểm</dt>
+                <dd class="col-sm-9">@project.Location</dd>
+
+                <dt class="col-sm-3">Tên khách hàng</dt>
+                <dd class="col-sm-9">@project.Client?.Name</dd>
+
+                <dt class="col-sm-3">Email khách hàng</dt>
+                <dd class="col-sm-9">@project.Client?.Email</dd> 
+
+                <dt class="col-sm-3">SĐT khách hàng</dt>
+                <dd class="col-sm-9">@project.Client?.Phone</dd>
+
+                <dt class="col-sm-3">Công ty thiết kế</dt>
+                <dd class="col-sm-9">@project.DesignCompany</dd>
+
+                <dt class="col-sm-3">Ngày hoàn thành</dt>
+                <dd class="col-sm-9">@project.CompletionDate.ToString("dd/MM/yyyy")</dd> <dt class="col-sm-3">Ngày tạo</dt>
+                <dd class="col-sm-9">@project.CreatedAt.ToString("dd/MM/yyyy HH:mm")</dd>
+
+                <dt class="col-sm-3">Trạng thái</dt>
+                <dd class="col-sm-9">
+                    <span class="badge @GetStatusClass(project.Status)">
+                        @GetVietnameseStatus(project.Status)
+                    </span>
+                </dd>
+
+                <dt class="col-sm-3">File thiết kế</dt>
+                <dd class="col-sm-9">
+                    <a href="@project.DesignFilePath" target="_blank">@project.DesignFilePath</a>
+                </dd>
+
+                <dt class="col-sm-3">Tài liệu</dt>
+                <dd class="col-sm-9">
+                    <a href="@project.DocumentPath" target="_blank">@project.DocumentPath</a>
+                </dd>
+            </dl>
+        </div>
+        <div class="card-footer">
+             <button class="btn btn-primary me-2" @onclick="GoToEdit"> <i class="bx bx-edit-alt me"></i> Sửa
+            </button>
+            <button class="btn btn-secondary" @onclick="GoBack">
+                <i class="bx bx-arrow-back me"></i> Quay lại
+            </button>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private AppRFQ? project; 
+   
+    protected override async Task OnInitializedAsync()
+    {
+        project = await SaleService.GetProjectRFQByIdAsync(Id); 
+        
+    }
+
+    private void GoBack()
+    {
+        NavManager.NavigateTo("/sale/projectrfq");
+    }
+
+     private void GoToEdit() 
+    {
+        NavManager.NavigateTo($"/sale/projectrfq/edit/{Id}");
+    }
+
+    private string GetStatusClass(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Active => "bg-primary text-white",
+            ProjectRFQStatus.Completed => "bg-success text-white",
+            ProjectRFQStatus.Pending => "bg-warning text-dark",
+            ProjectRFQStatus.Scheduled => "bg-info text-white",
+            _ => "bg-secondary text-white"
+        };
+    }
+
+    private string GetVietnameseStatus(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Active => "Hoạt động",
+            ProjectRFQStatus.Completed => "Hoàn thành",
+            ProjectRFQStatus.Pending => "Đang chờ",
+            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            _ => status.ToString()
+        };
+    }
+}
+
