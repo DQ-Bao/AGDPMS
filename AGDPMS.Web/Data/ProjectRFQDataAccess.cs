@@ -23,7 +23,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
 
                 c.id as Id,
                 c.name as Name
-            FROM projects_rfq p
+            FROM projects p
             JOIN clients c ON p.client_id = c.id
             ORDER BY p.created_at DESC
         ", (project, client) =>
@@ -51,7 +51,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
                 c.address as Address, 
                 c.phone as Phone,     
                 c.email as Email      
-            FROM projects_rfq p
+            FROM projects p
             JOIN clients c ON p.client_id = c.id
             WHERE p.id = @Id
         ", (project, client) =>
@@ -63,7 +63,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
     public async Task<AppRFQ> CreateAsync(AppRFQ project)
     {
         var id = await conn.ExecuteScalarAsync<int>(@"
-            INSERT INTO projects_rfq 
+            INSERT INTO projects 
             (name, location, client_id, design_company, completion_date, design_file_path, status, document_path) 
             VALUES 
             (@ProjectRFQName, @Location, @ClientId, @DesignCompany, @CompletionDate, @DesignFilePath, @Status, @DocumentPath)
@@ -86,7 +86,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
 
     public Task UpdateAsync(AppRFQ project) =>
         conn.ExecuteAsync(@"
-            UPDATE projects_rfq
+            UPDATE projects
             SET name = @ProjectRFQName,
                 location = @Location,
                 client_id = @ClientId,
@@ -111,7 +111,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
 
     public Task UpdateStatusAsync(int id, ProjectRFQStatus status) =>
         conn.ExecuteAsync(@"
-            UPDATE projects_rfq
+            UPDATE projects
             SET status = @Status                
             WHERE id = @Id
         ", new { Status = status.ToString(), Id = id });
@@ -119,7 +119,7 @@ public class ProjectRFQDataAccess(IDbConnection conn)
     // Xóa dự án
     public Task DeleteAsync(int id) =>
         conn.ExecuteAsync(@"
-            DELETE FROM projects_rfq
+            DELETE FROM projects
             WHERE id = @Id
         ", new { Id = id });
 
@@ -138,10 +138,10 @@ public class ProjectRFQDataAccess(IDbConnection conn)
                 p.document_path as DocumentPath,    
                 p.client_id as ClientId,
                 c.id as Id, c.name as Name 
-            FROM projects_rfq p
+            FROM projects p
             JOIN clients c ON p.client_id = c.id
         ";
-        string baseCount = @"SELECT COUNT(*) FROM projects_rfq p JOIN clients c ON p.client_id = c.id";
+        string baseCount = @"SELECT COUNT(*) FROM projects p JOIN clients c ON p.client_id = c.id";
 
         sqlBuilder.Append(baseSelect);
         countSqlBuilder.Append(baseCount);

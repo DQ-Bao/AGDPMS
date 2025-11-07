@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AGDPMS.Shared", "AGDPMS.Sha
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AGDPMS.Web", "AGDPMS.Web\AGDPMS.Web.csproj", "{3220BEF9-AFA0-4596-9F5A-EC7E5667868E}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AGDPMS.Shared.Tests", "AGDPMS.Shared.Tests\AGDPMS.Shared.Tests.csproj", "{02397599-BD37-4E5B-9334-3B44C436E9F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -28,6 +30,10 @@ Global
 		{3220BEF9-AFA0-4596-9F5A-EC7E5667868E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3220BEF9-AFA0-4596-9F5A-EC7E5667868E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3220BEF9-AFA0-4596-9F5A-EC7E5667868E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{02397599-BD37-4E5B-9334-3B44C436E9F0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{02397599-BD37-4E5B-9334-3B44C436E9F0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{02397599-BD37-4E5B-9334-3B44C436E9F0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{02397599-BD37-4E5B-9334-3B44C436E9F0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

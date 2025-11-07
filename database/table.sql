@@ -58,38 +58,43 @@ create table if not exists clients (
   "address" varchar(250),
   "phone" varchar(250),
   "email" varchar(250),
-  constraint "pk_clients" primary key ("id")
+  "sales_in_charge_id" integer,
+  constraint "pk_clients" primary key ("id"),
+  constraint "fk_clients_sales_id" foreign key ("sales_in_charge_id") references users ("id")
 );
 
-CREATE TABLE IF NOT EXISTS projects (
-  "id" SERIAL,
-  "name" VARCHAR(250) NOT NULL,
-  "location" VARCHAR(250) NOT NULL,
-  "client_id" INTEGER NOT NULL,
-  "design_company" VARCHAR(250),
-  "completion_date" DATE NOT NULL,
-  "created_at" TIMESTAMP DEFAULT now(),
-  "design_file_path" VARCHAR(250),
-  "status" VARCHAR(250) NOT NULL DEFAULT 'Pending' CHECK ("status" IN ('Pending', 'Scheduled', 'Active', 'Completed')),
+create table if not exists projects (
+  "id" serial,
+  "name" varchar(250) not null,
+  "location" varchar(250) not null,
+  "client_id" integer not null,
+  "design_company" varchar(250),
+  "completion_date" date not null,
+  "created_at" timestamp default now(),
+  "design_file_path" varchar(250),
+  "status" varchar(250) not null default 'Pending' check ("status" in ('Pending', 'Scheduled', 'Active', 'Completed')),
   "document_path" VARCHAR(250),
-  CONSTRAINT "pk_projects" PRIMARY KEY ("id"),
-  CONSTRAINT "fk_projects_client_id" FOREIGN KEY ("client_id") REFERENCES clients ("id")
+  constraint "pk_projects" primary key ("id"),
+  constraint "fk_projects_client_id" foreign key ("client_id") references clients ("id")
 );
 
-CREATE TABLE if not exists machine_types (
-  "id" SERIAL PRIMARY KEY,
-  "name" VARCHAR(250) NOT NULL
+create table if not exists machine_types (
+  "id" serial primary key,
+  "name" varchar(250) not null
 );
 
-CREATE TABLE machines (
-  "id" SERIAL,
-  "name" VARCHAR(250) NOT NULL,
-  "machine_type_id" INTEGER NOT NULL,
-  "status" VARCHAR(50) NOT NULL DEFAULT 'Operational' CHECK ("status" IN ('Operational', 'NeedsMaintenance', 'Broken')),
-  "entry_date" DATE NOT NULL,
-  "last_maintenance_date" DATE NULL,
-  CONSTRAINT "machines_pkey" PRIMARY KEY ("id"),
-  CONSTRAINT "fk_machines_type_id" FOREIGN KEY ("machine_type_id") REFERENCES "public"."machine_types" ("id")
+create table if not exists  machines (
+  "id" serial,
+  "name" varchar(250) not null,
+  "machine_type_id" integer not null,
+  "status" varchar(50) not null default 'Operational' check ("status" in ('Operational', 'NeedsMaintenance', 'Broken')),
+  "entry_date" date not null,
+  "last_maintenance_date" date null,
+  "expected_completion_date" date null,
+  "capacity_value" numeric(10,2), -- <<  công suất 
+  "capacity_unit" varchar(50),     -- <<  đơn vị (sản phẩm/phút, kg/giờ, mm/phút)
+  constraint "machines_pkey" primary key ("id"),
+  constraint "fk_machines_type_id" foreign key ("machine_type_id") references machine_types("id")
 );
 
 create table if not exists stock_import (
