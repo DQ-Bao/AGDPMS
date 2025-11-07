@@ -1,0 +1,272 @@
+@using System.Net.Http.Json
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div>
+    @if (stages is null)
+    {
+        <div>Loading stages...</div>
+    }
+    else if (!stages.Any())
+    {
+        <div>No stages</div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Stage</th><th>Assigned QA</th><th>Status</th><th>Rejects</th><th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var s in stages)
+                    {
+                        var isPendingQa = s.AssignedQaUserId.HasValue && !s.IsCompleted;
+                        <tr>
+                            <td>@s.StageName</td>
+                            <td>@(s.AssignedQaUserName ?? "None")</td>
+                            <td>@(s.IsCompleted?"Completed":(s.AssignedQaUserId is null?"Not started":"Pending QA"))</td>
+                            <td>@s.RejectionCount</td>
+                            <td class="text-nowrap">
+                                @if (ShouldShowButton("AssignQa", s))
+                                {
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick='@(() => OpenQaSelector(s.Id))'>Assign QA</button>
+                                }
+                                @if (ShouldShowButton("Approve", s))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => Approve(s.Id))'>Approve</button>
+                                }
+                                @if (ShouldShowButton("Reject", s))
+                                {
+                                    <button class="btn btn-outline-danger btn-sm" @onclick='@(() => Reject(s.Id))'>Reject</button>
+                                }
+                                @if (ShouldShowButton("Complete", s))
+                                {
+                                    <button class="btn btn-outline-primary btn-sm" @onclick='@(() => CompleteByPm(s.Id))'>Complete</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div>
+            <button class="btn btn-sm btn-outline-primary" @onclick="AddStage">Add Stage</button>
+            <button class="btn btn-sm btn-outline-success" @onclick="ConfirmCompleteItem">Mark Item Completed</button>
+        </div>
+    }
+</div>
+
+@* Complete Item Confirmation Modal *@
+@if (showCompleteConfirm)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Complete Item</h5>
+                    <button type="button" class="btn-close" @onclick="CancelCompleteConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to mark this item as completed?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelCompleteConfirm">Cancel</button>
+                    <button type="button" class="btn btn-success" @onclick="CompleteItem">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* QA Selection Modal *@
+@if (showQaModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Select QA User</h5>
+                    <button type="button" class="btn-close" @onclick="CloseQaModal"></button>
+                </div>
+                <div class="modal-body">
+                    <input class="form-control mb-2" placeholder="Search QA..." @bind-value="qaSearch" @bind-value:event="oninput" @bind-value:after="LoadQaUsers" />
+                    <div class="list-group" style="max-height:300px; overflow:auto;">
+                        @if (qaUsers is null)
+                        {
+                            <div>Loading...</div>
+                        }
+                        else if (!qaUsers.Any())
+                        {
+                            <div>No QA users found</div>
+                        }
+                        else
+                        {
+                            @foreach (var qa in qaUsers)
+                            {
+                                <button type="button" class="list-group-item list-group-item-action" @onclick='@(() => SelectQa(qa.Id))'>
+                                    <div><strong>@qa.Name</strong></div>
+                                    <small class="text-muted">@qa.Phone</small>
+                                </button>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int ItemId { get; set; }
+
+    private List<StageVm>? stages;
+    private string? userRole;
+    private bool showQaModal = false;
+    private int? selectedStageIdForQa;
+    private List<QaUser>? qaUsers;
+    private string? qaSearch;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadUserRole();
+        await Load();
+    }
+
+    private async Task LoadUserRole()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userRole = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+    }
+
+    private async Task Load()
+    {
+        // stages come from order details; for simplicity reload the order and filter
+        var orderId = await Http.GetFromJsonAsync<int>($"/api/items/{ItemId}/order-id");
+        if (orderId == 0) { stages = new(); return; }
+        var detail = await Http.GetFromJsonAsync<DetailResp>($"/api/orders/{orderId}");
+        var item = detail?.items?.FirstOrDefault(i => i.Id == ItemId);
+        stages = item?.Stages ?? new();
+    }
+
+    private void OpenQaSelector(int stageId)
+    {
+        selectedStageIdForQa = stageId;
+        showQaModal = true;
+        qaSearch = null;
+        qaUsers = null;
+        LoadQaUsers();
+    }
+
+    private void CloseQaModal()
+    {
+        showQaModal = false;
+        selectedStageIdForQa = null;
+        qaSearch = null;
+    }
+
+    private async Task LoadQaUsers()
+    {
+        try
+        {
+            var url = "/api/lookup/qa-users" + (string.IsNullOrWhiteSpace(qaSearch) ? string.Empty : $"?q={Uri.EscapeDataString(qaSearch!)}");
+            qaUsers = await Http.GetFromJsonAsync<List<QaUser>>(url) ?? new();
+        }
+        catch
+        {
+            qaUsers = new();
+        }
+        StateHasChanged();
+    }
+
+    private async Task SelectQa(int qaUserId)
+    {
+        if (selectedStageIdForQa.HasValue)
+        {
+            await Http.PostAsJsonAsync($"/api/stages/{selectedStageIdForQa.Value}/assign-qa", new { ItemStageId = selectedStageIdForQa.Value, QaUserId = qaUserId });
+            await Load();
+        }
+        CloseQaModal();
+    }
+
+    private bool ShouldShowButton(string buttonName, StageVm stage)
+    {
+        var isPendingQa = stage.AssignedQaUserId.HasValue && !stage.IsCompleted;
+        
+        switch (buttonName)
+        {
+            case "AssignQa":
+                // PM can assign QA, but not if already assigned (PendingQA) or completed
+                return userRole == "ProductionManager" && !isPendingQa && !stage.IsCompleted;
+            case "Approve":
+            case "Reject":
+                // Only QA can approve/reject, and only if assigned and pending
+                return userRole == "QA" && isPendingQa;
+            case "Complete":
+                // PM can complete (bypass QA), but not if already completed
+                return userRole == "ProductionManager" && !stage.IsCompleted;
+            default:
+                return false;
+        }
+    }
+
+    private async Task Approve(int stageId)
+    {
+        await Http.PostAsync($"/api/stages/{stageId}/approve", null);
+        await Load();
+    }
+
+    private async Task Reject(int stageId)
+    {
+        await Http.PostAsJsonAsync($"/api/stages/{stageId}/reject", new { ItemStageId = stageId, Decision = "reject", Reason = "Not good" });
+        await Load();
+    }
+
+    private async Task CompleteByPm(int stageId)
+    {
+        // reuse approve endpoint for PM-complete bypass
+        await Http.PostAsync($"/api/stages/{stageId}/approve", null);
+        await Load();
+    }
+
+    private async Task AddStage()
+    {
+        // demo add first available stage type id = 1; real UI to pick later
+        await Http.PostAsync($"/api/items/{ItemId}/stages?stageTypeId=1", null);
+        await Load();
+    }
+
+    private bool showCompleteConfirm = false;
+    private void ConfirmCompleteItem() { showCompleteConfirm = true; StateHasChanged(); }
+    private void CancelCompleteConfirm() { showCompleteConfirm = false; StateHasChanged(); }
+    private async Task CompleteItem()
+    {
+        showCompleteConfirm = false;
+        await Http.PostAsync($"/api/items/{ItemId}/complete", null);
+        await Load();
+    }
+
+    private class DetailResp { public List<ItemVm>? items { get; set; } }
+    private class ItemVm { public int Id { get; set; } public List<StageVm>? Stages { get; set; } }
+    private class StageVm
+    {
+        public int Id { get; set; }
+        public string StageName { get; set; } = string.Empty;
+        public int? AssignedQaUserId { get; set; }
+        public string? AssignedQaUserName { get; set; }
+        public bool IsCompleted { get; set; }
+        public int RejectionCount { get; set; }
+    }
+    private class QaUser
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        public string? Phone { get; set; }
+    }
+}
+
+

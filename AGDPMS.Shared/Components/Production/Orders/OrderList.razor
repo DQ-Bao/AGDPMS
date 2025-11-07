@@ -1,0 +1,242 @@
+@page "/production/orders"
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Models.DTOs
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="container py-3">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item active">Production Orders</li>
+        </ol>
+    </nav>
+    <div class="d-flex align-items-center gap-2 mb-3">
+        <input class="form-control" style="max-width:320px" placeholder="Search..." @bind-value="search" @bind-value:event="oninput" />
+        <select class="form-select" style="max-width:320px" @onchange="OnProjectChanged">
+            <option value="">All projects</option>
+            @foreach (var p in projects)
+            {
+                <option value="@p.Id" selected="@(p.Id == projectId)">@p.Name</option>
+            }
+        </select>
+        @if (userRole == "ProductionManager")
+        {
+            <button class="btn btn-primary" @onclick="Create">Create</button>
+        }
+    </div>
+
+    <div class="table-responsive" style="max-height:60vh; overflow:auto;">
+        <table class="table table-sm align-middle">
+            <thead class="table-light">
+                <tr>
+                    <th role="button" @onclick='@(() => SortBy("code"))'>Code @SortIcon("code")</th>
+                    <th>Project</th>
+                    <th>Status</th>
+                    <th role="button" @onclick='@(() => SortBy("created_at"))'>Created @SortIcon("created_at")</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (orders is null)
+                {
+                    <tr><td colspan="5">Loading...</td></tr>
+                }
+                else if (!orders.Any())
+                {
+                    <tr><td colspan="5">No data found. @errorMessage</td></tr>
+                }
+                else
+                {
+                    @foreach (var o in orders)
+                    {
+                        var projectName = GetProjectName(o.ProjectId);
+                        <tr>
+                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@o.Code</td>
+                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@projectName</td>
+                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@o.Status</td>
+                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@o.CreatedAt</td>
+                            <td class="text-nowrap" @onclick:stopPropagation="true">
+                                @if (ShouldShowButton("Submit", o))
+                                {
+                                    <button class="btn btn-outline-primary btn-sm" disabled="@(!CanSubmit(o))" @onclick='@(() => SubmitOrder(o.Id))' title="Submit Order">Submit</button>
+                                }
+                                @if (ShouldShowButton("Cancel", o))
+                                {
+                                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanCancel(o))" @onclick='@(() => CancelOrder(o.Id))' title="Cancel Order">Cancel</button>
+                                }
+                                @if (ShouldShowButton("Finish", o))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanFinish(o))" @onclick='@(() => FinishOrder(o.Id))' title="Finish Order">Finish</button>
+                                }
+                                @if (ShouldShowButton("DirectorApprove", o))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanDirectorApprove(o))" @onclick='@(() => DirectorApproveOrder(o.Id))' title="Director Approve">Approve</button>
+                                }
+                                @if (ShouldShowButton("DirectorReject", o))
+                                {
+                                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanDirectorReject(o))" @onclick='@(() => DirectorRejectOrder(o.Id))' title="Director Reject">Reject</button>
+                                }
+                                @if (ShouldShowButton("QaMachines", o))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMachines(o))" @onclick='@(() => QaMachinesOrder(o.Id))' title="QA Machines Check">QA Machines</button>
+                                }
+                                @if (ShouldShowButton("QaMaterial", o))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMaterial(o))" @onclick='@(() => QaMaterialOrder(o.Id))' title="QA Material Check">QA Material</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@code {
+    private List<Lookup> projects = new();
+    private List<ProductionOrder>? orders;
+    private int? projectId;
+    private string? search;
+    private string sort = "created_at";
+    private string dir = "desc";
+    private string? errorMessage;
+    private string? userRole;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUserRole();
+        await LoadProjects();
+        await LoadOrders();
+    }
+
+    private async Task LoadUserRole()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userRole = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            var res = await Http.GetFromJsonAsync<List<Lookup>>("/api/lookup/projects");
+            projects = res ?? new();
+        }
+        catch
+        {
+            // Log or show error
+            projects = new();
+        }
+    }
+
+    private async Task LoadOrders()
+    {
+        errorMessage = null;
+        try
+        {
+            var queryParams = new List<string>();
+            if (projectId.HasValue)
+                queryParams.Add($"projectId={projectId.Value}");
+            if (!string.IsNullOrWhiteSpace(search))
+                queryParams.Add($"q={Uri.EscapeDataString(search)}");
+            queryParams.Add($"sort={sort}");
+            queryParams.Add($"dir={dir}");
+            var url = "/api/orders" + (queryParams.Any() ? "?" + string.Join("&", queryParams) : "");
+            var response = await Http.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                orders = await response.Content.ReadFromJsonAsync<List<ProductionOrder>>() ?? new();
+            }
+            else
+            {
+                errorMessage = $"Error: {response.StatusCode}";
+                orders = new();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            orders = new();
+        }
+    }
+
+    private async Task OnProjectChanged(ChangeEventArgs e)
+    {
+        var val = e.Value?.ToString();
+        projectId = int.TryParse(val, out var pid) ? pid : null;
+        await LoadOrders();
+    }
+
+    private async Task Create()
+    {
+        Nav.NavigateTo("/production/orders/create");
+        await Task.CompletedTask;
+    }
+
+    private async Task SortBy(string column)
+    {
+        if (sort == column)
+            dir = dir == "asc" ? "desc" : "asc";
+        else
+        {
+            sort = column;
+            dir = column == "created_at" ? "desc" : "asc";
+        }
+        await LoadOrders();
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sort != column) return (MarkupString)"";
+        var icon = dir == "asc" ? "▲" : "▼";
+        return (MarkupString)$"<span class=\"ms-1\">{icon}</span>";
+    }
+
+    private string GetProjectName(int projectId)
+    {
+        return projects.FirstOrDefault(p => p.Id == projectId)?.Name ?? projectId.ToString();
+    }
+
+    private bool ShouldShowButton(string buttonName, ProductionOrder order)
+    {
+        switch (buttonName)
+        {
+            case "Submit":
+            case "Cancel":
+            case "Finish":
+                return userRole == "ProductionManager";
+            case "DirectorApprove":
+            case "DirectorReject":
+                return userRole == "Admin";
+            case "QaMachines":
+            case "QaMaterial":
+                return userRole == "QA";
+            default:
+                return false;
+        }
+    }
+
+    private bool CanSubmit(ProductionOrder order) => order.Status == ProductionOrderStatus.Draft;
+    private bool CanCancel(ProductionOrder order) => order.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanFinish(ProductionOrder order) => order.Status == ProductionOrderStatus.InProduction;
+    private bool CanDirectorApprove(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanDirectorReject(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanQaMachines(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingQACheckMachines;
+    private bool CanQaMaterial(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingQACheckMaterial;
+
+    private async Task SubmitOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/submit", null); await LoadOrders(); }
+    private async Task CancelOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/cancel", null); await LoadOrders(); }
+    private async Task FinishOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/finish", null); await LoadOrders(); }
+    private async Task DirectorApproveOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/director/approve", null); await LoadOrders(); }
+    private async Task DirectorRejectOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/director/reject", null); await LoadOrders(); }
+    private async Task QaMachinesOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/qa/machines-approve", null); await LoadOrders(); }
+    private async Task QaMaterialOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/qa/material-approve", null); await LoadOrders(); }
+
+    private record Lookup(int Id, string? Name);
+}
+
+

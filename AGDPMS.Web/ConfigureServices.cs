@@ -18,6 +18,18 @@ public static class ConfigureServices
         services.AddScoped<InventoryDataAccess>();
         services.AddScoped<RoleDataAccess>();
         services.AddScoped<CavityDataAccess>();
+        // production data access
+        services.AddScoped<StageTypeDataAccess>();
+        services.AddScoped<ProductionOrderDataAccess>();
+        services.AddScoped<ProductionItemDataAccess>();
+        services.AddScoped<ProductionItemStageDataAccess>();
+        services.AddScoped<ProductionRejectReportDataAccess>();
+        services.AddScoped<ProjectDataAccess>();
+        services.AddScoped<ProductDataAccess>();
+        // production services
+        services.AddScoped<ProductionOrderService>();
+        services.AddScoped<StageService>();
+        services.AddScoped<QrService>();
         return services;
     }
 

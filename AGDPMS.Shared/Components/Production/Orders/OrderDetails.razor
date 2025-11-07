@@ -1,0 +1,238 @@
+@page "/production/orders/{Id:int}"
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Components.Production.Stages
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="container py-3">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/production/orders">Production Orders</a></li>
+            <li class="breadcrumb-item active">@(model?.order?.Code ?? "Details")</li>
+        </ol>
+    </nav>
+    @if (model is null)
+    {
+        <div>Loading...</div>
+    }
+    else
+    {
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <h5 class="mb-1">Order @model.order?.Code</h5>
+                <div class="text-secondary">Project: @model.order?.ProjectId | Status: @model.order?.Status</div>
+            </div>
+            <div class="d-flex gap-2">
+                @if (ShouldShowButton("Submit"))
+                {
+                    <button class="btn btn-outline-primary btn-sm" disabled="@(!CanSubmit())" @onclick="Submit">Submit</button>
+                }
+                @if (ShouldShowButton("Cancel"))
+                {
+                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanCancel())" @onclick="Cancel">Cancel</button>
+                }
+                @if (ShouldShowButton("Finish"))
+                {
+                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanFinish())" @onclick="ConfirmFinish">Finish</button>
+                }
+                @if (ShouldShowButton("DirectorApprove"))
+                {
+                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanDirectorApprove())" @onclick="DirectorApprove">Director Approve</button>
+                }
+                @if (ShouldShowButton("DirectorReject"))
+                {
+                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanDirectorReject())" @onclick="DirectorReject">Director Reject</button>
+                }
+                @if (ShouldShowButton("QaMachines"))
+                {
+                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMachines())" @onclick="QaMachines">QA Machines OK</button>
+                }
+                @if (ShouldShowButton("QaMaterial"))
+                {
+                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMaterial())" @onclick="QaMaterial">QA Material OK</button>
+                }
+            </div>
+        </div>
+
+        <div class="table-responsive" style="max-height:60vh; overflow:auto;">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th><th>Product</th><th>QR</th><th>Progress</th><th>Completed</th><th>Actions</th><th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var it in model.items)
+                    {
+                        var expanded = expandedItemId == it.Id;
+                        <tr>
+                            <td>@it.LineNo</td>
+                            <td>@(string.IsNullOrWhiteSpace(it.ProductName) ? $"Product {it.ProductId}" : it.ProductName)</td>
+                            <td>
+                                @if (!string.IsNullOrWhiteSpace(it.QRCode))
+                                {
+                                    <a href="@it.QRCode" target="_blank">Link</a>
+                                }
+                            </td>
+                            <td>@GetProgress(it)</td>
+                            <td>@(it.IsCompleted ? "Yes" : "No")</td>
+                            <td class="text-nowrap">
+                                @if (ShouldShowButton("Finish"))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanFinish())" @onclick="ConfirmFinish" title="Finish Order">Finish</button>
+                                }
+                                @if (ShouldShowButton("DirectorApprove"))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanDirectorApprove())" @onclick="DirectorApprove" title="Director Approve">Approve</button>
+                                }
+                                @if (ShouldShowButton("DirectorReject"))
+                                {
+                                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanDirectorReject())" @onclick="DirectorReject" title="Director Reject">Reject</button>
+                                }
+                                @if (ShouldShowButton("QaMachines"))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMachines())" @onclick="QaMachines" title="QA Machines Check">QA Machines</button>
+                                }
+                                @if (ShouldShowButton("QaMaterial"))
+                                {
+                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMaterial())" @onclick="QaMaterial" title="QA Material Check">QA Material</button>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                <button class="btn btn-link btn-sm" @onclick='@(() => Toggle(it.Id))'>@(expanded?"Hide stages":"Show stages")</button>
+                            </td>
+                        </tr>
+                        @if (expanded)
+                        {
+                            <tr>
+                                <td colspan="6">
+                                    <ItemStages ItemId="@it.Id" />
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private OrderDetailsResponse? model;
+    private int? expandedItemId;
+    private string? userRole;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadUserRole();
+        await Load();
+    }
+
+    private async Task LoadUserRole()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userRole = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+    }
+
+    private async Task Load()
+    {
+        model = await Http.GetFromJsonAsync<OrderDetailsResponse>($"/api/orders/{Id}");
+    }
+
+    private void Toggle(int id) => expandedItemId = expandedItemId == id ? null : id;
+
+    private bool ShouldShowButton(string buttonName)
+    {
+        switch (buttonName)
+        {
+            case "Submit":
+            case "Cancel":
+            case "Finish":
+                return userRole == "ProductionManager";
+            case "DirectorApprove":
+            case "DirectorReject":
+                return userRole == "Admin";
+            case "QaMachines":
+            case "QaMaterial":
+                return userRole == "QA";
+            default:
+                return false;
+        }
+    }
+
+    private bool CanSubmit() => model?.order?.Status == ProductionOrderStatus.Draft;
+    private bool CanCancel() => model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanFinish() => model?.order?.Status == ProductionOrderStatus.InProduction;
+    private bool CanDirectorApprove() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanDirectorReject() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanQaMachines() => model?.order?.Status == ProductionOrderStatus.PendingQACheckMachines;
+    private bool CanQaMaterial() => model?.order?.Status == ProductionOrderStatus.PendingQACheckMaterial;
+
+    private async Task Submit() { await Http.PostAsync($"/api/orders/{Id}/submit", null); await Load(); }
+    private async Task Cancel() { await Http.PostAsync($"/api/orders/{Id}/cancel", null); await Load(); }
+    private bool showFinishConfirm = false;
+    private void ConfirmFinish() { showFinishConfirm = true; StateHasChanged(); }
+    private void CancelFinishConfirm() { showFinishConfirm = false; StateHasChanged(); }
+    private async Task Finish() 
+    { 
+        showFinishConfirm = false;
+        await Http.PostAsync($"/api/orders/{Id}/finish", null); 
+        await Load(); 
+    }
+    
+    private string GetProgress(ItemDto item)
+    {
+        if (item.TotalStages == 0) return "0/0";
+        return $"{item.CompletedStages}/{item.TotalStages}";
+    }
+    private async Task DirectorApprove() { await Http.PostAsync($"/api/orders/{Id}/director/approve", null); await Load(); }
+    private async Task DirectorReject() { await Http.PostAsync($"/api/orders/{Id}/director/reject", null); await Load(); }
+    private async Task QaMachines() { await Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null); await Load(); }
+    private async Task QaMaterial() { await Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null); await Load(); }
+
+    private class OrderDetailsResponse
+    {
+        public ProductionOrder? order { get; set; }
+        public List<ItemDto> items { get; set; } = new();
+    }
+    private class ItemDto
+    {
+        public int Id { get; set; }
+        public int ProductId { get; set; }
+        public string? ProductName { get; set; }
+        public int LineNo { get; set; }
+        public string? QRCode { get; set; }
+        public bool IsCompleted { get; set; }
+        public int CompletedStages { get; set; }
+        public int TotalStages { get; set; }
+    }
+}
+
+@* Finish Confirmation Modal *@
+@if (showFinishConfirm)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Finish Order</h5>
+                    <button type="button" class="btn-close" @onclick="CancelFinishConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to finish this production order?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelFinishConfirm">Cancel</button>
+                    <button type="button" class="btn btn-success" @onclick="Finish">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+

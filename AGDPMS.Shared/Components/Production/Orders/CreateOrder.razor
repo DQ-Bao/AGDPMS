@@ -1,0 +1,214 @@
+@page "/production/orders/create"
+@using AGDPMS.Shared.Models.DTOs
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="container py-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/production/orders">Production Orders</a></li>
+            <li class="breadcrumb-item active">Create</li>
+        </ol>
+    </nav>
+    <h4>Create Production Order</h4>
+
+    <div class="mb-3" style="max-width:480px;">
+        <label class="form-label">Order Code <span class="text-danger">*</span></label>
+        <input class="form-control" placeholder="Enter order code..." @bind-value="orderCode" required />
+    </div>
+
+    <div class="mb-3" style="max-width:480px;">
+        <label class="form-label">Project</label>
+        <input class="form-control mb-2" placeholder="Search project..." @bind-value="projectSearch" @bind-value:event="oninput" @bind-value:after="LoadProjects" />
+        <div class="list-group" style="max-height:200px; overflow:auto;">
+            @foreach (var p in projects)
+            {
+                <button type="button" class="list-group-item list-group-item-action @(p.Id==projectId?"active":"")" @onclick="() => SelectProject(p.Id)">@p.Name</button>
+            }
+        </div>
+    </div>
+
+    @if (projectId is not null)
+    {
+        <div class="mb-3">
+            <label class="form-label">Products</label>
+            <input class="form-control mb-2" placeholder="Search product..." @bind-value="productSearch" @bind-value:event="oninput" @bind-value:after="LoadProducts" />
+            <div class="table-responsive" style="max-height:40vh; overflow:auto;">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:48px;"></th>
+                            <th>Product</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in products)
+                        {
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input" checked="@selected.Contains(p.Id)" @onchange="(e)=>Toggle(p.Id,(bool)e.Value!)" />
+                                </td>
+                                <td>@p.Name</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div>
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+            <button class="btn btn-primary" @onclick="Submit" disabled="@(!selected.Any() || isSubmitting)">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Create
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Lookup> projects = new();
+    private List<Lookup> products = new();
+    private int? projectId;
+    private string? projectSearch;
+    private string? productSearch;
+    private HashSet<int> selected = new();
+    private string? errorMessage;
+    private bool isSubmitting = false;
+    private string? orderCode;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            var url = "/api/lookup/projects" + (string.IsNullOrWhiteSpace(projectSearch) ? string.Empty : $"?q={Uri.EscapeDataString(projectSearch!)}");
+            projects = await Http.GetFromJsonAsync<List<Lookup>>(url) ?? new();
+        }
+        catch
+        {
+            projects = new();
+        }
+        StateHasChanged();
+    }
+
+    private async Task LoadProducts()
+    {
+        if (projectId is null) { products = new(); StateHasChanged(); return; }
+        try
+        {
+            var url = $"/api/lookup/products?projectId={projectId}&q={Uri.EscapeDataString(productSearch ?? string.Empty)}";
+            products = await Http.GetFromJsonAsync<List<Lookup>>(url) ?? new();
+        }
+        catch
+        {
+            products = new();
+        }
+        StateHasChanged();
+    }
+
+    private async Task SelectProject(int id)
+    {
+        projectId = id;
+        selected.Clear();
+        errorMessage = null;
+        await LoadProducts();
+        StateHasChanged();
+    }
+
+    private void Toggle(int productId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            selected.Add(productId);
+        }
+        else
+        {
+            selected.Remove(productId);
+        }
+        StateHasChanged();
+    }
+
+    private async Task Submit()
+    {
+        errorMessage = null;
+        if (string.IsNullOrWhiteSpace(orderCode))
+        {
+            errorMessage = "Please enter an order code.";
+            StateHasChanged();
+            return;
+        }
+        if (projectId is null || !selected.Any())
+        {
+            errorMessage = "Please select a project and at least one product.";
+            StateHasChanged();
+            return;
+        }
+        isSubmitting = true;
+        StateHasChanged();
+        try
+        {
+            var dto = new ProductionOrderCreateDto
+            {
+                Code = orderCode.Trim(),
+                ProjectId = projectId.Value,
+                Items = selected.Select(id => new ProductionOrderCreateItemDto { ProductId = id }).ToList()
+            };
+            var url = "/api/orders";
+            var res = await Http.PostAsJsonAsync(url, dto);
+            if (res.IsSuccessStatusCode)
+            {
+                var body = await res.Content.ReadFromJsonAsync<CreateResult>();
+                if (body is not null)
+                {
+                    Nav.NavigateTo($"/production/orders/{body.id}");
+                }
+                else
+                {
+                    errorMessage = "Failed to create order: Invalid response";
+                    isSubmitting = false;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                var errorText = await res.Content.ReadAsStringAsync();
+                if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized || res.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    errorMessage = $"Authorization failed. Please ensure you are logged in with the ProductionManager role. Status: {res.StatusCode}";
+                }
+                else if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    var content = await res.Content.ReadAsStringAsync();
+                    errorMessage = $"Endpoint not found (404). URL: {url}. Response: {content}. Please check if the API is running and the route is correct. Ensure you are logged in with ProductionManager role.";
+                }
+                else
+                {
+                    errorMessage = $"Error: {res.StatusCode} - {errorText}";
+                }
+                isSubmitting = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private record Lookup(int Id, string? Name);
+    private record CreateResult(int id);
+}
+
+

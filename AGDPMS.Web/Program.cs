@@ -5,6 +5,8 @@ using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Services;
 using AGDPMS.Web.Endpoints;
+using Microsoft.AspNetCore.Components;
+using System.Net.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -17,6 +19,20 @@ builder.Services.AddDataAccesses(builder.Configuration.GetConnectionString("Defa
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
+// Configure HttpClient for Blazor Server with cookie forwarding
+builder.Services.AddTransient<CookieForwardingHandler>();
+builder.Services.AddHttpClient("BlazorServer")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler())
+    .AddHttpMessageHandler<CookieForwardingHandler>();
+    
+builder.Services.AddScoped(sp =>
+{
+    var nav = sp.GetRequiredService<NavigationManager>();
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var client = factory.CreateClient("BlazorServer");
+    client.BaseAddress = new Uri(nav.BaseUri);
+    return client;
+});
 
 builder.Services.AddCookieAndJwtAuth(opts => opts.Key = builder.Configuration["Jwt:Key"]!);
 
@@ -50,6 +66,11 @@ app.UseAntiforgery();
 
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
+app.MapProductionOrders();
+app.MapProductionStages();
+app.MapStageTypes();
+app.MapQr();
+app.MapLookup();
 
 //var api = app.MapGroup("/api");
 
@@ -66,9 +87,9 @@ app.MapUserEndpoints();
 //        return Results.Ok(new { Success = false, Message = "User not found" });
 //    }
 
-//    var hash = passwordHasher.HashPassword(user, request.NewPassword);
+//    var hash = passwordHasher.HashPassword(user, "abc123");
 //    await userDataAccess.SetPasswordHashAsync(user.Id, hash, needChange: false);
-
+    
 //    return Results.Ok(new { Success = true, Message = "Password changed successfully" });
 //});
 
@@ -95,7 +116,7 @@ app.MapUserEndpoints();
 //    };
 
 //    user.PasswordHash = passwordHasher.HashPassword(user, "abc123");
-    
+//    
 //    try
 //    {
 //        await userDataAccess.CreateAsync(user);
@@ -161,3 +182,28 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.Run();
+
+// Cookie forwarding handler for Blazor Server HttpClient
+public class CookieForwardingHandler : DelegatingHandler
+{
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public CookieForwardingHandler(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    {
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext?.Request.Headers.ContainsKey("Cookie") == true)
+        {
+            var cookieHeader = httpContext.Request.Headers["Cookie"].ToString();
+            if (!string.IsNullOrEmpty(cookieHeader))
+            {
+                request.Headers.Add("Cookie", cookieHeader);
+            }
+        }
+        return await base.SendAsync(request, cancellationToken);
+    }
+}

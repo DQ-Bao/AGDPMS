@@ -2,9 +2,16 @@ set client_encoding to 'utf8';
 
 insert into roles ("name") values ('Admin'), ('Technician');
 
-insert into users ("fullname", "phone", "password_hash", "role_id")
-values ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1);
+-- Ensure production roles exist
+insert into roles ("name")
+select v.name from (values ('ProductionManager'), ('QA')) as v(name)
+where not exists (select 1 from roles r where r."name" = v.name);
 
+insert into users ("fullname", "phone", "password_hash", "role_id")
+values 
+('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1),
+('Nguyễn Bảo Khánh', '0966699704', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 1),
+('Nguyễn Bảo Khánh', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3);
 insert into material_type ("name")
 values
 ('aluminum'),
@@ -349,3 +356,96 @@ values
 ('B3731', 'Đố đứng', 0.920, 1),
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
+
+-- Projects dummy
+insert into projects ("name") values
+('Project Alpha'),
+('Project Beta');
+
+-- Products dummy, linked to projects
+insert into products ("name", "project_id") values
+('Window Frame', 1),
+('Door Leaf', 1),
+('Glass Panel', 2),
+('Corner Bracket', 2);
+
+-- Seed default stage types (if not exists)
+insert into stage_types ("code", "name", "display_order", "is_active", "is_default")
+select v.code, v.name, v.display_order, true, true
+from (
+    values
+        ('CUT_AL', 'Cắt nhôm', 1),
+        ('MILL_LOCK', 'Phay ổ khóa', 2),
+        ('DOOR_CORNER_CUT', 'Cắt góc cửa', 3),
+        ('GLASS_INSTALL', 'Lắp kính', 4)
+) as v(code, name, display_order)
+where not exists (select 1 from stage_types s where s."code" = v.code);
+
+-- ==========================
+-- Dummy Production Orders
+-- ==========================
+
+-- Orders
+insert into production_orders ("project_id", "code", "status", "is_cancelled", "created_at")
+select v.project_id, v.code, v.status, false, now()
+from (
+    values
+        (1, 'PO-ALPHA-001', 0),
+        (2, 'PO-BETA-001',  0)
+) as v(project_id, code, status)
+where not exists (select 1 from production_orders o where o."code" = v.code);
+
+-- Items for PO-ALPHA-001 (assumes products inserted above exist with given names)
+insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, p.id, 1, null, false, now()
+from production_orders o
+join products p on p."name" = 'Window Frame'
+where o."code" = 'PO-ALPHA-001'
+and not exists (
+    select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 1
+);
+
+insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, p.id, 2, null, false, now()
+from production_orders o
+join products p on p."name" = 'Door Leaf'
+where o."code" = 'PO-ALPHA-001'
+and not exists (
+    select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 2
+);
+
+-- Items for PO-BETA-001
+insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, p.id, 1, null, false, now()
+from production_orders o
+join products p on p."name" = 'Glass Panel'
+where o."code" = 'PO-BETA-001'
+and not exists (
+    select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 1
+);
+
+insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, p.id, 2, null, false, now()
+from production_orders o
+join products p on p."name" = 'Corner Bracket'
+where o."code" = 'PO-BETA-001'
+and not exists (
+    select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 2
+);
+
+-- Create default stages for all items in these orders
+insert into production_item_stages ("production_order_item_id", "stage_type_id", "is_completed", "created_at")
+select i.id, st.id, false, now()
+from production_order_items i
+join production_orders o on o.id = i.production_order_id
+join stage_types st on st.is_default = true
+where o."code" in ('PO-ALPHA-001','PO-BETA-001')
+and not exists (
+    select 1 from production_item_stages s where s.production_order_item_id = i.id and s.stage_type_id = st.id
+);
+
+-- QA user for testing assign QA (uses seeded role 'QA')
+insert into users ("fullname", "phone", "password_hash", "role_id")
+select 'QA Tester', '0900000000', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', r.id
+from roles r where r."name" = 'QA'
+on conflict do nothing;

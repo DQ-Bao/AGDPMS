@@ -19,6 +19,11 @@
             <li class="nav-item">
                 <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i>Projects</NavLink>
             </li>
+            <AuthorizeView Roles="Admin,QA,ProductionManager">
+                <li class="nav-item">
+                    <NavLink href="/production/orders" class="nav-link text-white"><i class="bi bi-gear me-2"></i>Production Orders</NavLink>
+                </li>
+            </AuthorizeView>
         </ul>
     </div>
 </div>
@@ -37,6 +42,11 @@
         <li class="nav-item">
             <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i><span>Projects</span></NavLink>
         </li>
+        <AuthorizeView Roles="Admin,QA,ProductionManager">
+            <li class="nav-item">
+                <NavLink href="/production/orders" class="nav-link text-white"><i class="bi bi-gear me-2"></i><span>Production Orders</span></NavLink>
+            </li>
+        </AuthorizeView>
     </ul>
 </aside>
 
@@ -95,6 +105,7 @@
     {
         if (Nav.Uri.Contains("/profile")) return "User Profile";
         if (Nav.Uri.Contains("/projects")) return "Dự án";
+        if (Nav.Uri.Contains("/production/orders")) return "Production Orders";
         return "Home";
     }
     private void ToggleSidebar() => sidebarCollapsed = !sidebarCollapsed;
