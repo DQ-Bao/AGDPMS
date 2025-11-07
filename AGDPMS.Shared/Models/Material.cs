@@ -8,5 +8,7 @@ public class Material
     public int Stock { set; get; }
     public decimal Weight { set; get; }
     public decimal Thickness { set; get; }
+    public IEnumerable<double> StockLength { set; get; }
+    public IEnumerable<double> StockQuantity { set; get }
 
 }
