@@ -10,7 +10,7 @@ public static class StageTypesEndpoints
     public static IEndpointRouteBuilder MapStageTypes(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/stage-types")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager" });
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
         group.MapGet("", async (StageTypeDataAccess access) =>
         {

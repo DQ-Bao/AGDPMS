@@ -10,27 +10,27 @@ public static class ProductionStagesEndpoints
     public static IEndpointRouteBuilder MapProductionStages(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/stages")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager,QA" });
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa" });
 
         group.MapPost("/{stageId:int}/assign-qa", async (int stageId, AssignStageQaDto dto, StageService svc) =>
         {
             await svc.AssignQaAsync(stageId, dto.QaUserId);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
         group.MapPost("/{stageId:int}/approve", async (int stageId, StageService svc) =>
         {
             await svc.ApproveAsync(stageId);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA,ProductionManager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
 
         group.MapPost("/{stageId:int}/reject", async (int stageId, StageDecisionDto dto, StageService svc, ProductionRejectReportDataAccess rejectAccess) =>
         {
             await svc.RejectAsync(stageId, rejectedByUserId: 0, reason: dto.Reason ?? string.Empty, rejectAccess);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
 
-        var itemGroup = app.MapGroup("/api/items").RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager" });
+        var itemGroup = app.MapGroup("/api/items").RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
         itemGroup.MapPost("/{itemId:int}/complete", async (int itemId, StageService svc) =>
         {
             await svc.ForceCompleteItemAsync(itemId);

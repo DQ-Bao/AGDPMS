@@ -1,3 +1,4 @@
+@using System.Net.Http
 @using System.Net.Http.Json
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
@@ -15,6 +16,10 @@
     }
     else
     {
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
         <div class="table-responsive">
             <table class="table table-sm align-middle">
                 <thead class="table-light">
@@ -46,7 +51,7 @@
                                 }
                                 @if (ShouldShowButton("Complete", s))
                                 {
-                                    <button class="btn btn-outline-primary btn-sm" @onclick='@(() => CompleteByPm(s.Id))'>Complete</button>
+                                    <button class="btn btn-outline-primary btn-sm" @onclick='@(() => ConfirmStageComplete(s.Id))'>Complete</button>
                                 }
                             </td>
                         </tr>
@@ -60,6 +65,28 @@
         </div>
     }
 </div>
+
+@* Complete Stage Confirmation Modal *@
+@if (stageConfirmId.HasValue)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Complete Stage</h5>
+                    <button type="button" class="btn-close" @onclick="CancelStageComplete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to mark this stage as completed?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelStageComplete">Cancel</button>
+                    <button type="button" class="btn btn-primary" @onclick="CompleteStageConfirmed">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 @* Complete Item Confirmation Modal *@
 @if (showCompleteConfirm)
@@ -130,6 +157,8 @@
     private int? selectedStageIdForQa;
     private List<QaUser>? qaUsers;
     private string? qaSearch;
+    private string? errorMessage;
+    private int? stageConfirmId;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -145,6 +174,7 @@
 
     private async Task Load()
     {
+        errorMessage = null;
         // stages come from order details; for simplicity reload the order and filter
         var orderId = await Http.GetFromJsonAsync<int>($"/api/items/{ItemId}/order-id");
         if (orderId == 0) { stages = new(); return; }
@@ -187,8 +217,7 @@
     {
         if (selectedStageIdForQa.HasValue)
         {
-            await Http.PostAsJsonAsync($"/api/stages/{selectedStageIdForQa.Value}/assign-qa", new { ItemStageId = selectedStageIdForQa.Value, QaUserId = qaUserId });
-            await Load();
+            await ExecuteStageAction(() => Http.PostAsJsonAsync($"/api/stages/{selectedStageIdForQa.Value}/assign-qa", new { ItemStageId = selectedStageIdForQa.Value, QaUserId = qaUserId }));
         }
         CloseQaModal();
     }
@@ -201,53 +230,86 @@
         {
             case "AssignQa":
                 // PM can assign QA, but not if already assigned (PendingQA) or completed
-                return userRole == "ProductionManager" && !isPendingQa && !stage.IsCompleted;
+                return IsProductionManager() && !isPendingQa && !stage.IsCompleted;
             case "Approve":
             case "Reject":
                 // Only QA can approve/reject, and only if assigned and pending
-                return userRole == "QA" && isPendingQa;
+                return IsQa() && isPendingQa;
             case "Complete":
                 // PM can complete (bypass QA), but not if already completed
-                return userRole == "ProductionManager" && !stage.IsCompleted;
+                return IsProductionManager() && !stage.IsCompleted;
             default:
                 return false;
         }
     }
 
-    private async Task Approve(int stageId)
+    private bool HasRole(string role) => string.Equals(userRole, role, StringComparison.OrdinalIgnoreCase);
+    private bool IsProductionManager() => HasRole("ProductionManager") || HasRole("Production Manager");
+    private bool IsQa() => HasRole("QA") || HasRole("Qa");
+
+    private async Task ExecuteStageAction(Func<Task<HttpResponseMessage>> action)
     {
-        await Http.PostAsync($"/api/stages/{stageId}/approve", null);
-        await Load();
+        try
+        {
+            var response = await action();
+            if (response.IsSuccessStatusCode)
+            {
+                errorMessage = null;
+                await Load();
+            }
+            else
+            {
+                var detail = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Action failed: {response.StatusCode} - {detail}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        await InvokeAsync(StateHasChanged);
     }
 
-    private async Task Reject(int stageId)
-    {
-        await Http.PostAsJsonAsync($"/api/stages/{stageId}/reject", new { ItemStageId = stageId, Decision = "reject", Reason = "Not good" });
-        await Load();
-    }
+    private Task Approve(int stageId) => ExecuteStageAction(() => Http.PostAsync($"/api/stages/{stageId}/approve", null));
 
-    private async Task CompleteByPm(int stageId)
-    {
-        // reuse approve endpoint for PM-complete bypass
-        await Http.PostAsync($"/api/stages/{stageId}/approve", null);
-        await Load();
-    }
+    private Task Reject(int stageId) => ExecuteStageAction(() => Http.PostAsJsonAsync($"/api/stages/{stageId}/reject", new { ItemStageId = stageId, Decision = "reject", Reason = "Not good" }));
 
-    private async Task AddStage()
+    private Task AddStage()
     {
         // demo add first available stage type id = 1; real UI to pick later
-        await Http.PostAsync($"/api/items/{ItemId}/stages?stageTypeId=1", null);
-        await Load();
+        return ExecuteStageAction(() => Http.PostAsync($"/api/items/{ItemId}/stages?stageTypeId=1", null));
+    }
+
+    private void ConfirmStageComplete(int stageId)
+    {
+        stageConfirmId = stageId;
+        StateHasChanged();
+    }
+
+    private void CancelStageComplete()
+    {
+        stageConfirmId = null;
+        StateHasChanged();
+    }
+
+    private Task CompleteStageConfirmed()
+    {
+        if (!stageConfirmId.HasValue)
+            return Task.CompletedTask;
+        var stageId = stageConfirmId.Value;
+        stageConfirmId = null;
+        StateHasChanged();
+        return ExecuteStageAction(() => Http.PostAsync($"/api/stages/{stageId}/approve", null));
     }
 
     private bool showCompleteConfirm = false;
     private void ConfirmCompleteItem() { showCompleteConfirm = true; StateHasChanged(); }
     private void CancelCompleteConfirm() { showCompleteConfirm = false; StateHasChanged(); }
-    private async Task CompleteItem()
+    private Task CompleteItem()
     {
         showCompleteConfirm = false;
-        await Http.PostAsync($"/api/items/{ItemId}/complete", null);
-        await Load();
+        StateHasChanged();
+        return ExecuteStageAction(() => Http.PostAsync($"/api/items/{ItemId}/complete", null));
     }
 
     private class DetailResp { public List<ItemVm>? items { get; set; } }

@@ -184,12 +184,12 @@
                 var errorText = await res.Content.ReadAsStringAsync();
                 if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized || res.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    errorMessage = $"Authorization failed. Please ensure you are logged in with the ProductionManager role. Status: {res.StatusCode}";
+                    errorMessage = $"Authorization failed. Please ensure you are logged in with the Production Manager role. Status: {res.StatusCode}";
                 }
                 else if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     var content = await res.Content.ReadAsStringAsync();
-                    errorMessage = $"Endpoint not found (404). URL: {url}. Response: {content}. Please check if the API is running and the route is correct. Ensure you are logged in with ProductionManager role.";
+                    errorMessage = $"Endpoint not found (404). URL: {url}. Response: {content}. Please check if the API is running and the route is correct. Ensure you are logged in with the Production Manager role.";
                 }
                 else
                 {

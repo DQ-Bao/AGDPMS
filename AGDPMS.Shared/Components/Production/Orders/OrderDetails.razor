@@ -2,6 +2,7 @@
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Components.Production.Stages
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http
 @using System.Security.Claims
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -56,6 +57,11 @@
                 }
             </div>
         </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
 
         <div class="table-responsive" style="max-height:60vh; overflow:auto;">
             <table class="table table-sm align-middle">
@@ -126,6 +132,7 @@
     private OrderDetailsResponse? model;
     private int? expandedItemId;
     private string? userRole;
+    private string? errorMessage;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -141,6 +148,7 @@
 
     private async Task Load()
     {
+        errorMessage = null;
         model = await Http.GetFromJsonAsync<OrderDetailsResponse>($"/api/orders/{Id}");
     }
 
@@ -153,13 +161,13 @@
             case "Submit":
             case "Cancel":
             case "Finish":
-                return userRole == "ProductionManager";
+                return IsProductionManager();
             case "DirectorApprove":
             case "DirectorReject":
-                return userRole == "Admin";
+                return IsDirector();
             case "QaMachines":
             case "QaMaterial":
-                return userRole == "QA";
+                return IsQa();
             default:
                 return false;
         }
@@ -173,27 +181,55 @@
     private bool CanQaMachines() => model?.order?.Status == ProductionOrderStatus.PendingQACheckMachines;
     private bool CanQaMaterial() => model?.order?.Status == ProductionOrderStatus.PendingQACheckMaterial;
 
-    private async Task Submit() { await Http.PostAsync($"/api/orders/{Id}/submit", null); await Load(); }
-    private async Task Cancel() { await Http.PostAsync($"/api/orders/{Id}/cancel", null); await Load(); }
+    private bool HasRole(string role) => string.Equals(userRole, role, StringComparison.OrdinalIgnoreCase);
+    private bool IsProductionManager() => HasRole("ProductionManager") || HasRole("Production Manager");
+    private bool IsDirector() => HasRole("Admin") || HasRole("Director");
+    private bool IsQa() => HasRole("QA") || HasRole("Qa");
+
+    private async Task ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
+    {
+        try
+        {
+            var response = await action();
+            if (response.IsSuccessStatusCode)
+            {
+                errorMessage = null;
+                await Load();
+            }
+            else
+            {
+                var detail = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Action failed: {response.StatusCode} - {detail}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Task Submit() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/submit", null));
+    private Task Cancel() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/cancel", null));
     private bool showFinishConfirm = false;
     private void ConfirmFinish() { showFinishConfirm = true; StateHasChanged(); }
     private void CancelFinishConfirm() { showFinishConfirm = false; StateHasChanged(); }
-    private async Task Finish() 
-    { 
+    private Task FinishConfirmed()
+    {
         showFinishConfirm = false;
-        await Http.PostAsync($"/api/orders/{Id}/finish", null); 
-        await Load(); 
+        StateHasChanged();
+        return ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/finish", null));
     }
-    
+
     private string GetProgress(ItemDto item)
     {
         if (item.TotalStages == 0) return "0/0";
         return $"{item.CompletedStages}/{item.TotalStages}";
     }
-    private async Task DirectorApprove() { await Http.PostAsync($"/api/orders/{Id}/director/approve", null); await Load(); }
-    private async Task DirectorReject() { await Http.PostAsync($"/api/orders/{Id}/director/reject", null); await Load(); }
-    private async Task QaMachines() { await Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null); await Load(); }
-    private async Task QaMaterial() { await Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null); await Load(); }
+    private Task DirectorApprove() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/approve", null));
+    private Task DirectorReject() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/reject", null));
+    private Task QaMachines() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null));
+    private Task QaMaterial() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null));
 
     private class OrderDetailsResponse
     {
@@ -228,7 +264,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelFinishConfirm">Cancel</button>
-                    <button type="button" class="btn btn-success" @onclick="Finish">Confirm</button>
+                    <button type="button" class="btn btn-success" @onclick="FinishConfirmed">Confirm</button>
                 </div>
             </div>
         </div>

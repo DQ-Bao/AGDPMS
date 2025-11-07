@@ -15,7 +15,7 @@ public static class ProductionOrdersEndpoints
         group.MapGet("/test", () => Results.Ok(new { message = "Endpoint is accessible" }))
             .AllowAnonymous();
         
-        group = group.RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager,QA,Admin" });
+        group = group.RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
 
         group.MapPost("", async (ProductionOrderService svc, ProductionOrderCreateDto dto, HttpContext ctx) =>
         {
@@ -29,7 +29,7 @@ public static class ProductionOrdersEndpoints
             var id = await svc.CreateOrderAsync(spec, userId);
             return Results.Created($"/api/orders/{id}", new { id });
         })
-        .RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager" })
+        .RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" })
         .WithName("CreateProductionOrder")
         .WithTags("ProductionOrders");
 
@@ -101,43 +101,43 @@ public static class ProductionOrdersEndpoints
         {
             await svc.SubmitAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
         group.MapPost("/{id:int}/cancel", async (int id, ProductionOrderService svc) =>
         {
             await svc.CancelAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
         group.MapPost("/{id:int}/director/approve", async (int id, ProductionOrderService svc) =>
         {
             await svc.DirectorApproveAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Director" });
 
         group.MapPost("/{id:int}/director/reject", async (int id, ProductionOrderService svc) =>
         {
             await svc.DirectorRejectAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Admin" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Director" });
 
         group.MapPost("/{id:int}/qa/machines-approve", async (int id, ProductionOrderService svc) =>
         {
             await svc.QaMachinesApproveAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
 
         group.MapPost("/{id:int}/qa/material-approve", async (int id, ProductionOrderService svc) =>
         {
             await svc.QaMaterialApproveAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
 
         group.MapPost("/{id:int}/finish", async (int id, ProductionOrderService svc) =>
         {
             await svc.FinishAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "ProductionManager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
         return app;
     }

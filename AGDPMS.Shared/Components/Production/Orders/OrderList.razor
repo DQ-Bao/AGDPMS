@@ -2,6 +2,7 @@
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Models.DTOs
 @using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http
 @using System.Security.Claims
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -22,7 +23,7 @@
                 <option value="@p.Id" selected="@(p.Id == projectId)">@p.Name</option>
             }
         </select>
-        @if (userRole == "ProductionManager")
+        @if (IsProductionManager())
         {
             <button class="btn btn-primary" @onclick="Create">Create</button>
         }
@@ -208,13 +209,13 @@
             case "Submit":
             case "Cancel":
             case "Finish":
-                return userRole == "ProductionManager";
+                return IsProductionManager();
             case "DirectorApprove":
             case "DirectorReject":
-                return userRole == "Admin";
+                return IsDirector();
             case "QaMachines":
             case "QaMaterial":
-                return userRole == "QA";
+                return IsQa();
             default:
                 return false;
         }
@@ -228,13 +229,40 @@
     private bool CanQaMachines(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingQACheckMachines;
     private bool CanQaMaterial(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingQACheckMaterial;
 
-    private async Task SubmitOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/submit", null); await LoadOrders(); }
-    private async Task CancelOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/cancel", null); await LoadOrders(); }
-    private async Task FinishOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/finish", null); await LoadOrders(); }
-    private async Task DirectorApproveOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/director/approve", null); await LoadOrders(); }
-    private async Task DirectorRejectOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/director/reject", null); await LoadOrders(); }
-    private async Task QaMachinesOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/qa/machines-approve", null); await LoadOrders(); }
-    private async Task QaMaterialOrder(int orderId) { await Http.PostAsync($"/api/orders/{orderId}/qa/material-approve", null); await LoadOrders(); }
+    private bool HasRole(string role) => string.Equals(userRole, role, StringComparison.OrdinalIgnoreCase);
+    private bool IsProductionManager() => HasRole("Production Manager");
+    private bool IsDirector() => HasRole("Director");
+    private bool IsQa() => HasRole("Qa");
+
+    private async Task ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
+    {
+        try
+        {
+            var response = await action();
+            if (response.IsSuccessStatusCode)
+            {
+                errorMessage = null;
+                await LoadOrders();
+            }
+            else
+            {
+                var detail = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Action failed: {response.StatusCode} - {detail}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private Task SubmitOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/submit", null));
+    private Task CancelOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/cancel", null));
+    private Task FinishOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/finish", null));
+    private Task DirectorApproveOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/director/approve", null));
+    private Task DirectorRejectOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/director/reject", null));
+    private Task QaMachinesOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/qa/machines-approve", null));
+    private Task QaMaterialOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/qa/material-approve", null));
 
     private record Lookup(int Id, string? Name);
 }
