@@ -19,17 +19,18 @@ public class CavityDataAccess(IDbConnection conn)
         Cavity? cavity = null;
         List<CavityBOM> boms = [];
         await conn.QueryAsync<Cavity, CavityBOM, Material, MaterialType, Cavity>(@"
-            select cav.id as Id, cav.code as Code, cav.project_id as ProjectId, cav.description as Description, 
+            select distinct on (bom.id)
+                   cav.id as Id, cav.code as Code, cav.project_id as ProjectId, cav.description as Description, 
                    cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.aluminum_vendor as AluminumVendor,
 
                    bom.id as Id, bom.cavity_id as CavityId, bom.quantity as Quantity, bom.length as Length, bom.width as Width,
                    bom.color as Color, bom.unit as Unit,
 
-                   m.id as Id, m.name as Name, m.stock as Stock, m.weight as Weight, m.thickness as Thickness,
+                   m.id as Id, m.code as Code, m.name as Name, m.stock as Stock, m.weight as Weight, m.thickness as Thickness,
                    mt.id as Id, mt.name as Name
             from cavities as cav
             left join cavity_boms as bom on cav.id = bom.cavity_id
-            left join materials as m on bom.material_id = m.id
+            left join materials as m on bom.material_code = m.code
             left join material_type as mt on m.type = mt.id
             where cav.id = @CavityId",
             (cav, bom, material, materialType) =>
@@ -107,28 +108,30 @@ public class CavityDataAccess(IDbConnection conn)
         foreach (var bom in boms)
         {
             var existingMat = await conn.QueryFirstOrDefaultAsync<int>(
-                "select count(1) from materials where id = @Id", new { bom.Material.Id }, tran);
+                "select count(1) from materials where code = @Code", new { bom.Material.Code }, tran);
             if (existingMat == 0)
             {
                 // Add the material if didn't exist
                 await conn.ExecuteAsync(@"
-                    insert into materials(id, name, type)
-                    values (@Id, @Name, @Type)",
+                    insert into materials(code, name, type, stock_length, vendor)
+                    values (@Code, @Name, @Type, @StockLength, @Vendor)",
                     new
                     {
-                        bom.Material.Id,
+                        bom.Material.Code,
                         bom.Material.Name,
-                        Type = bom.Material.Type?.Id
+                        Type = bom.Material.Type?.Id,
+                        bom.Material.StockLength,
+                        bom.Material.Vendor
                     }, tran);
             }
         }
         await conn.ExecuteAsync(@"
-            insert into cavity_boms(cavity_id, material_id, quantity, length, width, color, unit)
-            values (@CavityId, @MaterialId, @Quantity, @Length, @Width, @Color, @Unit)",
+            insert into cavity_boms(cavity_id, material_code, quantity, length, width, color, unit)
+            values (@CavityId, @MaterialCode, @Quantity, @Length, @Width, @Color, @Unit)",
             boms.Select(b => new
             {
                 b.CavityId,
-                MaterialId = b.Material.Id,
+                MaterialCode = b.Material.Code,
                 b.Quantity,
                 b.Length,
                 b.Width,
@@ -139,6 +142,38 @@ public class CavityDataAccess(IDbConnection conn)
 
     public Task DeleteAllBOMsAsync(int cavityId, IDbTransaction? tran = null) =>
         conn.ExecuteAsync("delete from cavity_boms where cavity_id = @CavityId", new { CavityId = cavityId }, tran);
+
+    public Task<IEnumerable<CavityBOM>> GetBOMsOfTypeAsync(int projectId, MaterialType type, IDbTransaction? tran = null) =>
+        conn.QueryAsync<CavityBOM, Material, MaterialType, CavityBOM>(@"
+            select distinct on (bom.id)
+                    bom.id as Id, bom.cavity_id as CavityId, bom.quantity as Quantity, bom.length as Length, bom.width as Width,
+                   bom.color as Color, bom.unit as Unit,
+                   m.id as Id, m.code as Code, m.name as Name, m.stock as Stock, m.weight as Weight, m.thickness as Thickness,
+                   mt.id as Id, mt.name as Name
+            from cavity_boms as bom
+            join cavities as cav on bom.cavity_id = cav.id and cav.project_id = @ProjectId
+            join materials as m on bom.material_code = m.code
+            join material_type as mt on m.type = mt.id and mt.name = @Type
+            order by bom.id, m.id",
+            (bom, material, materialType) =>
+            {
+                material.Type = materialType;
+                bom.Material = material;
+                return bom;
+            },
+            new { ProjectId = projectId, Type = type.Name }, tran);
+    public async Task<Dictionary<int, decimal>> GetAveragePricesAsync(IDbTransaction? tran = null) =>
+        (await conn.QueryAsync<(int MaterialId, decimal AvgPrice)>(@"
+            select material_id as MaterialId, avg(cast(price as numeric)) as AvgPrice
+            from stock_import
+            group by material_id", transaction: tran)).ToDictionary(x => x.MaterialId, x => x.AvgPrice);
+    // Temporary
+    public async Task<Dictionary<string, decimal>> GetAveragePricesGroupByCodeAsync(IDbTransaction? tran = null) =>
+        (await conn.QueryAsync<(string MaterialCode, decimal AvgPrice)>(@"
+            select m.code as MaterialCode, avg(cast(price as numeric)) as AvgPrice
+            from stock_import as si
+            left join materials as m on si.material_id = m.id
+            group by m.code", transaction: tran)).ToDictionary(x => x.MaterialCode, x => x.AvgPrice);
 
     public async Task<string?> AddOrUpdateBatchAsync(IEnumerable<Cavity> cavities)
     {

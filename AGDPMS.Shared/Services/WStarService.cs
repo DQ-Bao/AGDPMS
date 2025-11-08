@@ -18,13 +18,14 @@ public class WStarService
             string query = @"
             select p.Code, p.CreateDate,
             cav.Code, cav.Description, wintyp.Description as WindowType, cav.Quantity, cav.Location, cav.Width, cav.Height,
-            bom.Code, mat.Description, mat.Symbol, matyp.Description as MatType, bom.Num, bom.Length, bom.Width, color.ClrDescription as Color, mat.Unit
-            from (((((wsProject as p
+            bom.Code, mat.Description, mat.Symbol, matyp.Description as MatType, matven.Description as MatVendor, bom.Num, bom.Length, bom.Width, color.ClrDescription as Color, mat.Unit
+            from ((((((wsProject as p
             left join wsCavity as cav on p.Code = cav.ProjectCode)
             left join wsWindowType as wintyp on cav.WindowType = wintyp.Code)
             left join wsBOMAccessory as bom on cav.Code = bom.CavityCode)
             left join wsMaterial as mat on bom.Code = mat.Code)
             left join wsMaterialType as matyp on mat.MaterialType = matyp.Code)
+            left join wsVendor as matven on mat.VendorCode = matven.Code)
             left join wsColor as color on mat.ClrRGB = color.ClrRGB";
             var projectDictionary = new Dictionary<string, WStarProject>();
             var result = await conn.QueryAsync<WStarProject, WStarCavity, WStarBOMAccessory, WStarProject>(
