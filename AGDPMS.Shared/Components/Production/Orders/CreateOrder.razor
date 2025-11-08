@@ -10,16 +10,16 @@
             <li class="breadcrumb-item active">Create</li>
         </ol>
     </nav>
-    <h4>Create Production Order</h4>
+    <h4>Tạo lệnh sản xuất</h4>
 
     <div class="mb-3" style="max-width:480px;">
-        <label class="form-label">Order Code <span class="text-danger">*</span></label>
-        <input class="form-control" placeholder="Enter order code..." @bind-value="orderCode" required />
+        <label class="form-label">Mã lệnh <span class="text-danger">*</span></label>
+        <input class="form-control" placeholder="Nhập mã lệnh..." @bind-value="orderCode" required />
     </div>
 
     <div class="mb-3" style="max-width:480px;">
-        <label class="form-label">Project</label>
-        <input class="form-control mb-2" placeholder="Search project..." @bind-value="projectSearch" @bind-value:event="oninput" @bind-value:after="LoadProjects" />
+        <label class="form-label">Dự án</label>
+        <input class="form-control mb-2" placeholder="Tìm dự án..." @bind-value="projectSearch" @bind-value:event="oninput" @bind-value:after="LoadProjects" />
         <div class="list-group" style="max-height:200px; overflow:auto;">
             @foreach (var p in projects)
             {
@@ -31,14 +31,14 @@
     @if (projectId is not null)
     {
         <div class="mb-3">
-            <label class="form-label">Products</label>
-            <input class="form-control mb-2" placeholder="Search product..." @bind-value="productSearch" @bind-value:event="oninput" @bind-value:after="LoadProducts" />
+            <label class="form-label">Sản phẩm</label>
+            <input class="form-control mb-2" placeholder="Tìm sản phẩm..." @bind-value="productSearch" @bind-value:event="oninput" @bind-value:after="LoadProducts" />
             <div class="table-responsive" style="max-height:40vh; overflow:auto;">
                 <table class="table table-sm align-middle">
                     <thead class="table-light">
                         <tr>
                             <th style="width:48px;"></th>
-                            <th>Product</th>
+                            <th>Tên sản phẩm</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -65,7 +65,7 @@
                 {
                     <span class="spinner-border spinner-border-sm me-2" role="status"></span>
                 }
-                Create
+                Tạo lệnh
             </button>
         </div>
     }
@@ -143,13 +143,13 @@
         errorMessage = null;
         if (string.IsNullOrWhiteSpace(orderCode))
         {
-            errorMessage = "Please enter an order code.";
+            errorMessage = "Vui lòng nhập mã lệnh.";
             StateHasChanged();
             return;
         }
         if (projectId is null || !selected.Any())
         {
-            errorMessage = "Please select a project and at least one product.";
+            errorMessage = "Vui lòng chọn dự án và ít nhất một sản phẩm.";
             StateHasChanged();
             return;
         }
@@ -174,7 +174,7 @@
                 }
                 else
                 {
-                    errorMessage = "Failed to create order: Invalid response";
+                    errorMessage = "Tạo lệnh thất bại: Phản hồi không hợp lệ.";
                     isSubmitting = false;
                     StateHasChanged();
                 }
@@ -184,16 +184,16 @@
                 var errorText = await res.Content.ReadAsStringAsync();
                 if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized || res.StatusCode == System.Net.HttpStatusCode.Forbidden)
                 {
-                    errorMessage = $"Authorization failed. Please ensure you are logged in with the Production Manager role. Status: {res.StatusCode}";
+                    errorMessage = $"Không có quyền. Hãy đăng nhập bằng tài khoản Trưởng bộ phận sản xuất. Mã trạng thái: {res.StatusCode}";
                 }
                 else if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     var content = await res.Content.ReadAsStringAsync();
-                    errorMessage = $"Endpoint not found (404). URL: {url}. Response: {content}. Please check if the API is running and the route is correct. Ensure you are logged in with the Production Manager role.";
+                    errorMessage = $"Không tìm thấy API (404). URL: {url}. Phản hồi: {content}. Vui lòng kiểm tra dịch vụ backend và quyền Trưởng bộ phận sản xuất.";
                 }
                 else
                 {
-                    errorMessage = $"Error: {res.StatusCode} - {errorText}";
+                    errorMessage = $"Lỗi: {res.StatusCode} - {errorText}";
                 }
                 isSubmitting = false;
                 StateHasChanged();
@@ -201,7 +201,7 @@
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error: {ex.Message}";
+            errorMessage = $"Lỗi: {ex.Message}";
             isSubmitting = false;
             StateHasChanged();
         }

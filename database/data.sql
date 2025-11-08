@@ -7,8 +7,8 @@ values
 ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1),
 ('Nguyễn Bảo Khánh', '0966699704', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 1),
 ('Nguyễn Bảo Khánh', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3),
-('QA Tester', '0900000000', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 5),
-('Production Manager', '0900000000', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 6);
+('QA Tester', '0900000000', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5),
+('Production Manager', '0900000001', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 6);
 
 insert into material_type ("name")
 values
@@ -355,25 +355,6 @@ values
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
 
--- Products dummy, linked to projects
-insert into products ("name", "project_id") values
-('Window Frame', 1),
-('Door Leaf', 1),
-('Glass Panel', 2),
-('Corner Bracket', 2);
-
--- Seed default stage types (if not exists)
-insert into stage_types ("code", "name", "display_order", "is_active", "is_default")
-select v.code, v.name, v.display_order, true, true
-from (
-    values
-        ('CUT_AL', 'Cắt nhôm', 1),
-        ('MILL_LOCK', 'Phay ổ khóa', 2),
-        ('DOOR_CORNER_CUT', 'Cắt góc cửa', 3),
-        ('GLASS_INSTALL', 'Lắp kính', 4)
-) as v(code, name, display_order)
-where not exists (select 1 from stage_types s where s."code" = v.code);
-
 -- QA user for testing assign QA (uses seeded role 'QA')
 insert into users ("fullname", "phone", "password_hash", "role_id")
 select 'QA Tester', '0900000000', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', r.id
@@ -398,6 +379,25 @@ VALUES
 -- ==========================
 -- Dummy Production Orders
 -- ==========================
+
+-- Products dummy, linked to projects
+insert into products ("name", "project_id") values
+('Window Frame', 1),
+('Door Leaf', 1),
+('Glass Panel', 2),
+('Corner Bracket', 2);
+
+-- Seed default stage types (if not exists)
+insert into stage_types ("code", "name", "display_order", "is_active", "is_default")
+select v.code, v.name, v.display_order, true, true
+from (
+    values
+        ('CUT_AL', 'Cắt nhôm', 1),
+        ('MILL_LOCK', 'Phay ổ khóa', 2),
+        ('DOOR_CORNER_CUT', 'Cắt góc cửa', 3),
+        ('GLASS_INSTALL', 'Lắp kính', 4)
+) as v(code, name, display_order)
+where not exists (select 1 from stage_types s where s."code" = v.code);
 
 -- Orders
 insert into production_orders ("project_id", "code", "status", "is_cancelled", "created_at")

@@ -93,13 +93,6 @@ create table if not exists stock_import (
     constraint "fk_stock_import_material" foreign key ("material_id") references material("id")
 );
 
--- minimal projects/products (id only for now)
-create table if not exists projects (
-    "id" serial,
-    "name" varchar(250),
-    constraint "pk_projects" primary key ("id")
-);
-
 create table if not exists products (
     "id" serial,
     "name" varchar(250),
@@ -159,6 +152,7 @@ create table if not exists production_order_items (
     "qr_image" bytea null,
     "is_completed" boolean not null default false,
     "completed_at" timestamp null,
+    "is_canceled" boolean not null default false,
     "created_at" timestamp null default now(),
     "updated_at" timestamp null,
     constraint "pk_production_order_items" primary key ("id"),

@@ -11,8 +11,8 @@
 <div class="container py-3">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/production/orders">Production Orders</a></li>
-            <li class="breadcrumb-item active">@(model?.order?.Code ?? "Details")</li>
+            <li class="breadcrumb-item"><a href="/production/orders">Lệnh sản xuất</a></li>
+            <li class="breadcrumb-item active">@(model?.order?.Code ?? "Chi tiết")</li>
         </ol>
     </nav>
     @if (model is null)
@@ -23,37 +23,37 @@
     {
         <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
-                <h5 class="mb-1">Order @model.order?.Code</h5>
-                <div class="text-secondary">Project: @model.order?.ProjectId | Status: @model.order?.Status</div>
+                <h5 class="mb-1">Lệnh sản xuất @model.order?.Code</h5>
+                <div class="text-secondary">Dự án: @model.order?.ProjectId | Trạng thái: @GetOrderStatusDisplay()</div>
             </div>
             <div class="d-flex gap-2">
                 @if (ShouldShowButton("Submit"))
                 {
-                    <button class="btn btn-outline-primary btn-sm" disabled="@(!CanSubmit())" @onclick="Submit">Submit</button>
+                    <button class="btn btn-outline-primary btn-sm" @onclick="Submit">Gửi duyệt</button>
                 }
                 @if (ShouldShowButton("Cancel"))
                 {
-                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanCancel())" @onclick="Cancel">Cancel</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="OpenCancelModal">Hủy lệnh</button>
                 }
                 @if (ShouldShowButton("Finish"))
                 {
-                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanFinish())" @onclick="ConfirmFinish">Finish</button>
+                    <button class="btn btn-outline-success btn-sm" @onclick="ConfirmFinish">Hoàn tất</button>
                 }
                 @if (ShouldShowButton("DirectorApprove"))
                 {
-                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanDirectorApprove())" @onclick="DirectorApprove">Director Approve</button>
+                    <button class="btn btn-outline-success btn-sm" @onclick="DirectorApprove">Duyệt</button>
                 }
                 @if (ShouldShowButton("DirectorReject"))
                 {
-                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanDirectorReject())" @onclick="DirectorReject">Director Reject</button>
+                    <button class="btn btn-outline-danger btn-sm" @onclick="DirectorReject">Từ chối</button>
                 }
                 @if (ShouldShowButton("QaMachines"))
                 {
-                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMachines())" @onclick="QaMachines">QA Machines OK</button>
+                    <button class="btn btn-outline-success btn-sm" @onclick="QaMachines">Xác nhận máy</button>
                 }
                 @if (ShouldShowButton("QaMaterial"))
                 {
-                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMaterial())" @onclick="QaMaterial">QA Material OK</button>
+                    <button class="btn btn-outline-success btn-sm" @onclick="QaMaterial">Xác nhận vật tư</button>
                 }
             </div>
         </div>
@@ -67,55 +67,31 @@
             <table class="table table-sm align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th><th>Product</th><th>QR</th><th>Progress</th><th>Completed</th><th>Actions</th><th></th>
+                        <th>#</th><th>Sản phẩm</th><th>QR</th><th>Tiến độ</th><th>Hoàn thành</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var it in model.items)
                     {
                         var expanded = expandedItemId == it.Id;
-                        <tr>
+                        var rowClass = (it.NeedsQa && IsQa()) ? "table-warning" : string.Empty;
+                        <tr class="@rowClass" style="cursor:pointer;" @onclick='@(() => Toggle(it.Id))'>
                             <td>@it.LineNo</td>
-                            <td>@(string.IsNullOrWhiteSpace(it.ProductName) ? $"Product {it.ProductId}" : it.ProductName)</td>
+                            <td>@(string.IsNullOrWhiteSpace(it.ProductName) ? $"Sản phẩm {it.ProductId}" : it.ProductName)</td>
                             <td>
                                 @if (!string.IsNullOrWhiteSpace(it.QRCode))
                                 {
-                                    <a href="@it.QRCode" target="_blank">Link</a>
+                                    <a href="@it.QRCode" target="_blank" @onclick:stopPropagation="true">Xem</a>
                                 }
                             </td>
                             <td>@GetProgress(it)</td>
-                            <td>@(it.IsCompleted ? "Yes" : "No")</td>
-                            <td class="text-nowrap">
-                                @if (ShouldShowButton("Finish"))
-                                {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanFinish())" @onclick="ConfirmFinish" title="Finish Order">Finish</button>
-                                }
-                                @if (ShouldShowButton("DirectorApprove"))
-                                {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanDirectorApprove())" @onclick="DirectorApprove" title="Director Approve">Approve</button>
-                                }
-                                @if (ShouldShowButton("DirectorReject"))
-                                {
-                                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanDirectorReject())" @onclick="DirectorReject" title="Director Reject">Reject</button>
-                                }
-                                @if (ShouldShowButton("QaMachines"))
-                                {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMachines())" @onclick="QaMachines" title="QA Machines Check">QA Machines</button>
-                                }
-                                @if (ShouldShowButton("QaMaterial"))
-                                {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMaterial())" @onclick="QaMaterial" title="QA Material Check">QA Material</button>
-                                }
-                            </td>
-                            <td class="text-nowrap">
-                                <button class="btn btn-link btn-sm" @onclick='@(() => Toggle(it.Id))'>@(expanded?"Hide stages":"Show stages")</button>
-                            </td>
+                            <td>@(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")</td>
                         </tr>
                         @if (expanded)
                         {
                             <tr>
-                                <td colspan="6">
-                                    <ItemStages ItemId="@it.Id" />
+                                <td colspan="5">
+                                    <ItemStages ItemId="@it.Id" OrderStatus="@model.order.Status" OnChanged="OnStagesChanged" />
                                 </td>
                             </tr>
                         }
@@ -133,6 +109,8 @@
     private int? expandedItemId;
     private string? userRole;
     private string? errorMessage;
+    private bool showCancelConfirm;
+    private string? cancelConfirmInput;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -154,24 +132,17 @@
 
     private void Toggle(int id) => expandedItemId = expandedItemId == id ? null : id;
 
-    private bool ShouldShowButton(string buttonName)
+    private bool ShouldShowButton(string buttonName) => buttonName switch
     {
-        switch (buttonName)
-        {
-            case "Submit":
-            case "Cancel":
-            case "Finish":
-                return IsProductionManager();
-            case "DirectorApprove":
-            case "DirectorReject":
-                return IsDirector();
-            case "QaMachines":
-            case "QaMaterial":
-                return IsQa();
-            default:
-                return false;
-        }
-    }
+        "Submit" => IsProductionManager() && CanSubmit(),
+        "Cancel" => IsProductionManager() && CanCancel(),
+        "Finish" => IsProductionManager() && CanFinish(),
+        "DirectorApprove" => IsDirector() && CanDirectorApprove(),
+        "DirectorReject" => IsDirector() && CanDirectorReject(),
+        "QaMachines" => IsQa() && CanQaMachines(),
+        "QaMaterial" => IsQa() && CanQaMaterial(),
+        _ => false
+    };
 
     private bool CanSubmit() => model?.order?.Status == ProductionOrderStatus.Draft;
     private bool CanCancel() => model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
@@ -186,7 +157,43 @@
     private bool IsDirector() => HasRole("Admin") || HasRole("Director");
     private bool IsQa() => HasRole("QA") || HasRole("Qa");
 
-    private async Task ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
+    private string GetOrderStatusDisplay()
+    {
+        if (model?.order is null) return string.Empty;
+        var label = GetStatusLabel(model.order.Status);
+        var date = GetStatusDate(model.order);
+        return date.HasValue ? $"{label} ({FormatDate(date)})" : label;
+    }
+
+    private DateTime? GetStatusDate(ProductionOrder order) => order.Status switch
+    {
+        ProductionOrderStatus.Draft => order.CreatedAt,
+        ProductionOrderStatus.PendingDirectorApproval => order.SubmittedAt ?? order.CreatedAt,
+        ProductionOrderStatus.DirectorRejected => order.DirectorDecisionAt,
+        ProductionOrderStatus.PendingQACheckMachines => order.DirectorDecisionAt,
+        ProductionOrderStatus.PendingQACheckMaterial => order.QAMachinesCheckedAt,
+        ProductionOrderStatus.InProduction => order.StartedAt ?? order.QAMaterialCheckedAt,
+        ProductionOrderStatus.Finished => order.FinishedAt,
+        ProductionOrderStatus.Cancelled => order.UpdatedAt ?? order.FinishedAt ?? order.StartedAt ?? order.CreatedAt,
+        _ => null
+    };
+
+    private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-";
+
+    private string GetStatusLabel(ProductionOrderStatus status) => status switch
+    {
+        ProductionOrderStatus.Draft => "Nháp",
+        ProductionOrderStatus.PendingDirectorApproval => "Chờ giám đốc duyệt",
+        ProductionOrderStatus.DirectorRejected => "Bị từ chối",
+        ProductionOrderStatus.PendingQACheckMachines => "Chờ QA kiểm tra máy",
+        ProductionOrderStatus.PendingQACheckMaterial => "Chờ QA kiểm tra vật tư",
+        ProductionOrderStatus.InProduction => "Đang sản xuất",
+        ProductionOrderStatus.Finished => "Hoàn thành",
+        ProductionOrderStatus.Cancelled => "Đã hủy",
+        _ => status.ToString()
+    };
+
+    private async Task<bool> ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
     {
         try
         {
@@ -195,41 +202,80 @@
             {
                 errorMessage = null;
                 await Load();
+                return true;
             }
             else
             {
                 var detail = await response.Content.ReadAsStringAsync();
-                errorMessage = $"Action failed: {response.StatusCode} - {detail}";
+                errorMessage = $"Thao tác thất bại: {response.StatusCode} - {detail}";
+                return false;
             }
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
+            errorMessage = $"Lỗi: {ex.Message}";
+            return false;
         }
-        await InvokeAsync(StateHasChanged);
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
     }
 
-    private Task Submit() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/submit", null));
-    private Task Cancel() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/cancel", null));
+    private void OpenCancelModal()
+    {
+        cancelConfirmInput = string.Empty;
+        showCancelConfirm = true;
+        StateHasChanged();
+    }
+
+    private void CloseCancelModal()
+    {
+        showCancelConfirm = false;
+        cancelConfirmInput = null;
+        StateHasChanged();
+    }
+
+    private bool CanConfirmCancel =>
+        showCancelConfirm && !string.IsNullOrWhiteSpace(model?.order?.Code) &&
+        string.Equals(cancelConfirmInput?.Trim(), model!.order!.Code, StringComparison.OrdinalIgnoreCase);
+
+    private async Task CancelConfirmed()
+    {
+        var success = await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/cancel", null));
+        if (success)
+        {
+            showCancelConfirm = false;
+            cancelConfirmInput = null;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnStagesChanged()
+    {
+        await Load();
+        StateHasChanged();
+    }
+
+    private async Task Submit() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/submit", null));
     private bool showFinishConfirm = false;
     private void ConfirmFinish() { showFinishConfirm = true; StateHasChanged(); }
     private void CancelFinishConfirm() { showFinishConfirm = false; StateHasChanged(); }
-    private Task FinishConfirmed()
+    private async Task FinishConfirmed()
     {
-        showFinishConfirm = false;
-        StateHasChanged();
-        return ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/finish", null));
+        var success = await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/finish", null));
+        if (success)
+        {
+            showFinishConfirm = false;
+            StateHasChanged();
+        }
     }
 
-    private string GetProgress(ItemDto item)
-    {
-        if (item.TotalStages == 0) return "0/0";
-        return $"{item.CompletedStages}/{item.TotalStages}";
-    }
-    private Task DirectorApprove() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/approve", null));
-    private Task DirectorReject() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/reject", null));
-    private Task QaMachines() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null));
-    private Task QaMaterial() => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null));
+    private string GetProgress(ItemDto item) => item.TotalStages == 0 ? "0/0" : $"{item.CompletedStages}/{item.TotalStages}";
+    private async Task DirectorApprove() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/approve", null));
+    private async Task DirectorReject() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/reject", null));
+    private async Task QaMachines() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null));
+    private async Task QaMaterial() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null));
 
     private class OrderDetailsResponse
     {
@@ -244,6 +290,7 @@
         public int LineNo { get; set; }
         public string? QRCode { get; set; }
         public bool IsCompleted { get; set; }
+        public bool NeedsQa { get; set; }
         public int CompletedStages { get; set; }
         public int TotalStages { get; set; }
     }
@@ -256,15 +303,38 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Confirm Finish Order</h5>
+                    <h5 class="modal-title">Xác nhận hoàn tất</h5>
                     <button type="button" class="btn-close" @onclick="CancelFinishConfirm"></button>
                 </div>
                 <div class="modal-body">
-                    <p>Are you sure you want to finish this production order?</p>
+                    <p>Bạn có chắc chắn muốn hoàn tất lệnh sản xuất này?</p>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CancelFinishConfirm">Cancel</button>
-                    <button type="button" class="btn btn-success" @onclick="FinishConfirmed">Confirm</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CancelFinishConfirm">Hủy</button>
+                    <button type="button" class="btn btn-success" @onclick="FinishConfirmed">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Cancel Confirmation Modal *@
+@if (showCancelConfirm && model?.order is not null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận hủy lệnh</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCancelModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Nhập chính xác mã lệnh <strong>@model.order.Code</strong> để xác nhận hủy.</p>
+                    <input class="form-control" placeholder="Nhập mã lệnh" @bind="cancelConfirmInput" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCancelModal">Thoát</button>
+                    <button type="button" class="btn btn-danger" disabled="@(!CanConfirmCancel)" @onclick="CancelConfirmed">Hủy lệnh</button>
                 </div>
             </div>
         </div>
