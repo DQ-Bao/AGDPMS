@@ -25,6 +25,7 @@ public sealed class WStarBOMAccessory
     public required string Description { get; set; }
     public required string Symbol { get; set; }
     public required string MatType { get; set; }
+    public required string MatVendor { get; set; }
     public required int Num { get; set; }
     public required double Length { get; set; }
     public required double Width { get; set; }

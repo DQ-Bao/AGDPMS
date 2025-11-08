@@ -3,6 +3,7 @@
 
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
 
 @inject WStarService WStarService
 @inject IProductService ProductService
@@ -42,13 +43,7 @@
 <div class="tab-content" id="dtlTabsContent">
     <div class="tab-pane fade show active" id="pane-cavity" role="tabpanel" aria-labelledby="tab-cavity">
         <div class="mt-3">
-            @if (!string.IsNullOrEmpty(StatusMessage))
-            {
-                <div class="alert alert-danger alert-dismissible fade show mb-2" role="alert">
-                    @StatusMessage
-                    <button type="button" class="btn-close" @onclick="() => StatusMessage = null"></button>
-                </div>
-            }
+            <StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
             <div class="mb-3 d-flex align-items-center">
                 <div class="input-group w-auto me-2">
                     <label class="input-group-text fw-semibold">Nhập thiết kế Wstar</label>
@@ -100,8 +95,79 @@
     </div>
     <div class="tab-pane fade" id="pane-materials" role="tabpanel" aria-labelledby="tab-materials">
         <div class="mt-3">
-            <h5>Nhôm</h5>
-            <p class="text-muted">Nội dung thông tin về nhôm sẽ được hiển thị ở đây.</p>
+            <StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingProfile">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProfile"
+                            aria-expanded="true" aria-controls="collapseProfile">
+                        Profile
+                    </button>
+                </h2>
+                <div id="collapseProfile" class="accordion-collapse collapse show" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <table class="table table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã profile</th>
+                                    <th>Tên profile</th>
+                                    <th>Chiều dài cây (mm)</th>
+                                    <th>Số cây dùng</th>
+                                    <th>Số cây tồn</th>
+                                    <th>Cần thêm</th>
+                                    <th>Trọng lượng (kg)</th>
+                                    <th>Đơn giá</th>
+                                    <th>Thành tiền</th>
+                                    <th>Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var profile in Profiles)
+                                {
+                                    var barGroups = profile.BarsUsedByStockLength.Keys.ToList();
+                                    var rowSpan = barGroups.Count;
+                                    for (var i = 0; i < rowSpan; i++)
+                                    {
+                                        var stockLength = barGroups[i];
+                                        profile.BarsUsedByStockLength.TryGetValue(stockLength, out var used);
+                                        profile.BarsInStockByStockLength.TryGetValue(stockLength, out var stock);
+                                        profile.BarsNeedByStockLength.TryGetValue(stockLength, out var need);
+                                        profile.UnitPriceByStockLength.TryGetValue(stockLength, out var price);
+                                        <tr>
+                                            @if (i == 0)
+                                            {
+                                                <td rowspan="@rowSpan">@profile.Code</td>
+                                                <td rowspan="@rowSpan">@profile.Name</td>
+                                            }
+                                            <td>@stockLength</td>
+                                            <td>@used</td>
+                                            <td>@stock</td>
+                                            <td>@need</td>
+                                            @if (i == 0)
+                                            {
+                                                <td rowspan="@rowSpan">@profile.TotalWeight.ToString("N2")</td>
+                                                <td rowspan="@rowSpan">@price.ToString("C")</td>
+                                                <td rowspan="@rowSpan">@profile.TotalPrice.ToString("C")</td>
+                                                <td rowspan="@rowSpan">
+                                                    <button @onclick="() => ShowCuts(profile)" type="button"
+                                                            class="btn btn-sm btn-outline-primary me-1"
+                                                            data-bs-toggle="modal" data-bs-target="#profileCutsModal">
+                                                        Kích thước cắt
+                                                    </button>
+                                                    <button @onclick="() => ShowSolutions(profile)" type="button"
+                                                            class="btn btn-sm btn-outline-success"
+                                                            data-bs-toggle="modal" data-bs-target="#profileCutSolutionsModal">
+                                                        Tối ưu cắt
+                                                    </button>
+                                                </td>
+                                            }
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -125,14 +191,114 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="profileCutsModal" tabindex="-1" aria-labelledby="profileCutsModal" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Kích thước cắt - @SelectedProfile?.Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" @onclick="CloseModals"></button>
+            </div>
+            <div class="modal-body">
+                @if (SelectedCuts is not null)
+                {
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Chiều dài (mm)</th>
+                                <th>Số lượng</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var cut in SelectedCuts)
+                            {
+                                <tr>
+                                    <td>@cut.CutLength</td>
+                                    <td>@cut.Quantity</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted text-center">Không có dữ liệu.</p>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" @onclick="CloseModals">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="profileCutSolutionsModal" tabindex="-1" aria-labelledby="profileCutSolutionsModal" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">Tối ưu cắt - @SelectedProfile?.Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" @onclick="CloseModals"></button>
+            </div>
+            <div class="modal-body">
+                @if (SelectedSolutions is not null)
+                {
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Chiều dài cây (mm)</th>
+                                <th>Số cây</th>
+                                <th>Giải pháp</th>
+                                <th>Đoạn thừa (mm)</th>
+                                <th>Hiệu suất (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var sol in SelectedSolutions)
+                            {
+                                <tr>
+                                    <td>@sol.StockLength</td>
+                                    <td>@sol.Quantity</td>
+                                    <td>
+                                        @foreach (var p in sol.Pattern)
+                                        {
+                                            <span class="badge bg-light text-dark border me-1">
+                                                @p.CutLength × @p.Quantity
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>@sol.Waste</td>
+                                    <td>@sol.Efficiency</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+                else
+                {
+                    <p class="text-muted text-center">Không có dữ liệu.</p>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal" @onclick="CloseModals">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     [Parameter] public int ProjectId { get; set; }
 
-    private string? StatusMessage;
+    [SupplyParameterFromForm]
+    private SummarizeAluminumModel Input { get; set; } = new();
+
+    private StatusMessage? StatusMessage { get; set; }
     private string? UploadedFilePath;
     private IEnumerable<WStarProject> WStarProjects = [];
     private IEnumerable<Cavity> Cavities = [];
+    // private IEnumerable<AluminumSummary> Aluminums = [];
+    private IEnumerable<CavityProfileSummary> Profiles = [];
+    private CavityProfileSummary? SelectedProfile;
+    private List<CavityProfileSummary.ProfileCut>? SelectedCuts;
+    private List<CavityProfileSummary.CutSolution>? SelectedSolutions;
+
     private SelectWStarCavitiesModal? SelectModal;
     private Cavity? CavityToDelete;
 
@@ -144,8 +310,19 @@
     private async Task LoadProjectCavities()
     {
         var result = await ProductService.GetProjectCavitiesAsync(ProjectId);
-        if (result.Success) Cavities = result.Cavities;
-        else StatusMessage = result.ErrorMessage;
+        if (result.Success)
+        {
+            Cavities = result.Cavities;
+            await LoadProfileSummaries();
+        }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private async Task LoadProfileSummaries()
+    {
+        var result = await ProductService.GetCavityProfileSummariesAsync(ProjectId);
+        if (result.Success) Profiles = result.Summaries;
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
     private async Task OnInputFileChange(InputFileChangeEventArgs e)
@@ -154,7 +331,7 @@
         if (file is null || !file.Name.EndsWith(".mdb", StringComparison.OrdinalIgnoreCase))
         {
             UploadedFilePath = null;
-            StatusMessage = "File không tồn tại hoặc không đúng định dạng";
+            StatusMessage = StatusMessage.Error("File không tồn tại hoặc không đúng định dạng");
             return;
         }
         var tempFile = Path.Combine(Path.GetTempPath(), file.Name);
@@ -168,7 +345,7 @@
         if (SelectModal is not null) SelectModal.SetLoading(true);
         var result = await WStarService.GetAllProjectAsync(UploadedFilePath);
         if (result.Success) WStarProjects = result.Projects;
-        else StatusMessage = result.ErrorMessage;
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
         if (SelectModal is not null) SelectModal.SetLoading(false);
     }
 
@@ -177,10 +354,10 @@
         var result = await ProductService.AddCavitiesFromWStarDesignAsync(ProjectId, selectedCavities);
         if (result.Success)
         {
-            StatusMessage = "Thêm cửa thành công";
+            StatusMessage = StatusMessage.Success("Thêm cửa thành công");
             await LoadProjectCavities();
         }
-        else StatusMessage = result.ErrorMessage ?? "Unexpected Error";
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
     private async Task ConfirmDeleteAsync()
@@ -189,11 +366,32 @@
         var result = await ProductService.DeleteCavityAsync(CavityToDelete.Id);
         if (result.Success)
         {
-            StatusMessage = $"Đã xóa cửa {CavityToDelete.Code}";
+            StatusMessage = StatusMessage.Success($"Đã xóa cửa {CavityToDelete.Code}");
             await LoadProjectCavities();
         }
-        else StatusMessage = result.ErrorMessage ?? "Unexpected Error";
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
         CavityToDelete = null;
+    }
+
+    private void ShowCuts(CavityProfileSummary profile)
+    {
+        SelectedProfile = profile;
+        SelectedCuts = profile.Cuts;
+        SelectedSolutions = null;
+    }
+
+    private void ShowSolutions(CavityProfileSummary profile)
+    {
+        SelectedProfile = profile;
+        SelectedSolutions = profile.CutSolutions;
+        SelectedCuts = null;
+    }
+
+    private void CloseModals()
+    {
+        SelectedCuts = null;
+        SelectedSolutions = null;
+        SelectedProfile = null;
     }
 
     public void Dispose()
@@ -207,5 +405,12 @@
             }
         }
         catch {}
+    }
+
+    private sealed class SummarizeAluminumModel
+    {
+        [Required]
+        [Range(1, int.MaxValue, ErrorMessage = "Độ dài lõi thép phải lớn hơn 0")]
+        public int StockLength { get; set; } = 5800;
     }
 }
