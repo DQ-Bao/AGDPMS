@@ -11,13 +11,13 @@
 <div class="container py-3">
     <nav aria-label="breadcrumb" class="mb-3">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item active">Production Orders</li>
+            <li class="breadcrumb-item active">Lệnh sản xuất</li>
         </ol>
     </nav>
     <div class="d-flex align-items-center gap-2 mb-3">
-        <input class="form-control" style="max-width:320px" placeholder="Search..." @bind-value="search" @bind-value:event="oninput" />
+        <input class="form-control" style="max-width:320px" placeholder="Tìm kiếm..." @bind-value="search" @bind-value:event="oninput" @bind-value:after="OnSearchChanged" />
         <select class="form-select" style="max-width:320px" @onchange="OnProjectChanged">
-            <option value="">All projects</option>
+            <option value="">Tất cả dự án</option>
             @foreach (var p in projects)
             {
                 <option value="@p.Id" selected="@(p.Id == projectId)">@p.Name</option>
@@ -25,7 +25,7 @@
         </select>
         @if (IsProductionManager())
         {
-            <button class="btn btn-primary" @onclick="Create">Create</button>
+            <button class="btn btn-primary" @onclick="Create">Tạo mới</button>
         }
     </div>
 
@@ -33,60 +33,57 @@
         <table class="table table-sm align-middle">
             <thead class="table-light">
                 <tr>
-                    <th role="button" @onclick='@(() => SortBy("code"))'>Code @SortIcon("code")</th>
-                    <th>Project</th>
-                    <th>Status</th>
-                    <th role="button" @onclick='@(() => SortBy("created_at"))'>Created @SortIcon("created_at")</th>
-                    <th>Actions</th>
+                    <th role="button" @onclick='@(() => SortBy("code"))'>Mã lệnh @SortIcon("code")</th>
+                    <th>Dự án</th>
+                    <th>Trạng thái</th>
+                    <th role="button" @onclick='@(() => SortBy("created_at"))'>Ngày tạo @SortIcon("created_at")</th>
+                    <th>Thao tác</th>
                 </tr>
             </thead>
             <tbody>
                 @if (orders is null)
                 {
-                    <tr><td colspan="5">Loading...</td></tr>
+                    <tr><td colspan="5">Đang tải...</td></tr>
                 }
                 else if (!orders.Any())
                 {
-                    <tr><td colspan="5">No data found. @errorMessage</td></tr>
+                    <tr><td colspan="5">Không có dữ liệu. @errorMessage</td></tr>
                 }
                 else
                 {
                     @foreach (var o in orders)
                     {
                         var projectName = GetProjectName(o.ProjectId);
-                        <tr>
+                        var rowClass = (IsQa() && o.HasPendingQa) ? "table-warning" : string.Empty;
+                        <tr class="@rowClass">
                             <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@o.Code</td>
                             <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@projectName</td>
-                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@o.Status</td>
-                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@o.CreatedAt</td>
+                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@GetStatusDisplay(o)</td>
+                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@FormatDate(o.CreatedAt)</td>
                             <td class="text-nowrap" @onclick:stopPropagation="true">
                                 @if (ShouldShowButton("Submit", o))
                                 {
-                                    <button class="btn btn-outline-primary btn-sm" disabled="@(!CanSubmit(o))" @onclick='@(() => SubmitOrder(o.Id))' title="Submit Order">Submit</button>
-                                }
-                                @if (ShouldShowButton("Cancel", o))
-                                {
-                                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanCancel(o))" @onclick='@(() => CancelOrder(o.Id))' title="Cancel Order">Cancel</button>
+                                    <button class="btn btn-outline-primary btn-sm" @onclick='@(() => SubmitOrder(o.Id))' title="Gửi giám đốc duyệt">Gửi duyệt</button>
                                 }
                                 @if (ShouldShowButton("Finish", o))
                                 {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanFinish(o))" @onclick='@(() => FinishOrder(o.Id))' title="Finish Order">Finish</button>
+                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => OpenFinishConfirm(o.Id))' title="Hoàn tất lệnh">Hoàn tất</button>
                                 }
                                 @if (ShouldShowButton("DirectorApprove", o))
                                 {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanDirectorApprove(o))" @onclick='@(() => DirectorApproveOrder(o.Id))' title="Director Approve">Approve</button>
+                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => DirectorApproveOrder(o.Id))' title="Giám đốc phê duyệt">Duyệt Lệnh</button>
                                 }
                                 @if (ShouldShowButton("DirectorReject", o))
                                 {
-                                    <button class="btn btn-outline-danger btn-sm" disabled="@(!CanDirectorReject(o))" @onclick='@(() => DirectorRejectOrder(o.Id))' title="Director Reject">Reject</button>
+                                    <button class="btn btn-outline-danger btn-sm" @onclick='@(() => DirectorRejectOrder(o.Id))' title="Giám đốc từ chối">Từ chối Lệnh</button>
                                 }
                                 @if (ShouldShowButton("QaMachines", o))
                                 {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMachines(o))" @onclick='@(() => QaMachinesOrder(o.Id))' title="QA Machines Check">QA Machines</button>
+                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => QaMachinesOrder(o.Id))' title="QA xác nhận máy móc">Xác nhận đã kiểm tramáy</button>
                                 }
                                 @if (ShouldShowButton("QaMaterial", o))
                                 {
-                                    <button class="btn btn-outline-success btn-sm" disabled="@(!CanQaMaterial(o))" @onclick='@(() => QaMaterialOrder(o.Id))' title="QA Material Check">QA Material</button>
+                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => QaMaterialOrder(o.Id))' title="QA xác nhận vật tư">Xác nhận đã kiểm tra vật tư</button>
                                 }
                             </td>
                         </tr>
@@ -97,9 +94,31 @@
     </div>
 </div>
 
+@* Finish Confirmation Modal *@
+@if (showFinishConfirm)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận hoàn tất</h5>
+                    <button type="button" class="btn-close" @onclick="CloseFinishConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc chắn muốn hoàn tất lệnh sản xuất này?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseFinishConfirm">Hủy</button>
+                    <button type="button" class="btn btn-success" @onclick="ConfirmFinish">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<Lookup> projects = new();
-    private List<ProductionOrder>? orders;
+    private List<OrderRow>? orders;
     private int? projectId;
     private string? search;
     private string sort = "created_at";
@@ -150,17 +169,17 @@
             var response = await Http.GetAsync(url);
             if (response.IsSuccessStatusCode)
             {
-                orders = await response.Content.ReadFromJsonAsync<List<ProductionOrder>>() ?? new();
+                orders = await response.Content.ReadFromJsonAsync<List<OrderRow>>() ?? new();
             }
             else
             {
-                errorMessage = $"Error: {response.StatusCode}";
+                errorMessage = $"Lỗi: {response.StatusCode}";
                 orders = new();
             }
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
+            errorMessage = $"Lỗi: {ex.Message}";
             orders = new();
         }
     }
@@ -190,6 +209,11 @@
         await LoadOrders();
     }
 
+    private async Task OnSearchChanged()
+    {
+        await LoadOrders();
+    }
+
     private MarkupString SortIcon(string column)
     {
         if (sort != column) return (MarkupString)"";
@@ -202,37 +226,67 @@
         return projects.FirstOrDefault(p => p.Id == projectId)?.Name ?? projectId.ToString();
     }
 
-    private bool ShouldShowButton(string buttonName, ProductionOrder order)
+    private bool ShouldShowButton(string buttonName, OrderRow order)
     {
-        switch (buttonName)
+        return buttonName switch
         {
-            case "Submit":
-            case "Cancel":
-            case "Finish":
-                return IsProductionManager();
-            case "DirectorApprove":
-            case "DirectorReject":
-                return IsDirector();
-            case "QaMachines":
-            case "QaMaterial":
-                return IsQa();
-            default:
-                return false;
-        }
+            "Submit" => IsProductionManager() && CanSubmit(order),
+            "Finish" => IsProductionManager() && CanFinish(order),
+            "DirectorApprove" => IsDirector() && CanDirectorApprove(order),
+            "DirectorReject" => IsDirector() && CanDirectorReject(order),
+            "QaMachines" => IsQa() && CanQaMachines(order),
+            "QaMaterial" => IsQa() && CanQaMaterial(order),
+            _ => false
+        };
     }
 
-    private bool CanSubmit(ProductionOrder order) => order.Status == ProductionOrderStatus.Draft;
-    private bool CanCancel(ProductionOrder order) => order.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
-    private bool CanFinish(ProductionOrder order) => order.Status == ProductionOrderStatus.InProduction;
-    private bool CanDirectorApprove(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
-    private bool CanDirectorReject(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
-    private bool CanQaMachines(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingQACheckMachines;
-    private bool CanQaMaterial(ProductionOrder order) => order.Status == ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanSubmit(OrderRow order) => order.Status == ProductionOrderStatus.Draft;
+    private bool CanCancel(OrderRow order) => order.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanFinish(OrderRow order) => order.Status == ProductionOrderStatus.InProduction;
+    private bool CanDirectorApprove(OrderRow order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanDirectorReject(OrderRow order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanQaMachines(OrderRow order) => order.Status == ProductionOrderStatus.PendingQACheckMachines;
+    private bool CanQaMaterial(OrderRow order) => order.Status == ProductionOrderStatus.PendingQACheckMaterial;
 
     private bool HasRole(string role) => string.Equals(userRole, role, StringComparison.OrdinalIgnoreCase);
-    private bool IsProductionManager() => HasRole("Production Manager");
-    private bool IsDirector() => HasRole("Director");
-    private bool IsQa() => HasRole("Qa");
+    private bool IsProductionManager() => HasRole("ProductionManager") || HasRole("Production Manager");
+    private bool IsDirector() => HasRole("Admin") || HasRole("Director");
+    private bool IsQa() => HasRole("QA") || HasRole("Qa");
+
+    private string GetStatusLabel(ProductionOrderStatus status) => status switch
+    {
+        ProductionOrderStatus.Draft => "Nháp",
+        ProductionOrderStatus.PendingDirectorApproval => "Chờ giám đốc duyệt",
+        ProductionOrderStatus.DirectorRejected => "Giám đốc từ chối",
+        ProductionOrderStatus.PendingQACheckMachines => "Chờ QA kiểm tra máy",
+        ProductionOrderStatus.PendingQACheckMaterial => "Chờ QA kiểm tra vật tư",
+        ProductionOrderStatus.InProduction => "Đang sản xuất",
+        ProductionOrderStatus.Finished => "Hoàn thành",
+        ProductionOrderStatus.Cancelled => "Đã hủy",
+        _ => status.ToString()
+    };
+
+    private string GetStatusDisplay(OrderRow order)
+    {
+        var label = GetStatusLabel(order.Status);
+        var date = GetStatusDate(order);
+        return date.HasValue ? $"{label} ({FormatDate(date)})" : label;
+    }
+
+    private DateTime? GetStatusDate(OrderRow order) => order.Status switch
+    {
+        ProductionOrderStatus.Draft => order.CreatedAt,
+        ProductionOrderStatus.PendingDirectorApproval => order.SubmittedAt ?? order.CreatedAt,
+        ProductionOrderStatus.DirectorRejected => order.DirectorDecisionAt,
+        ProductionOrderStatus.PendingQACheckMachines => order.DirectorDecisionAt,
+        ProductionOrderStatus.PendingQACheckMaterial => order.QAMachinesCheckedAt,
+        ProductionOrderStatus.InProduction => order.StartedAt ?? order.QAMaterialCheckedAt,
+        ProductionOrderStatus.Finished => order.FinishedAt,
+        ProductionOrderStatus.Cancelled => order.UpdatedAt ?? order.FinishedAt ?? order.StartedAt ?? order.CreatedAt,
+        _ => null
+    };
+
+    private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-";
 
     private async Task ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
     {
@@ -247,17 +301,40 @@
             else
             {
                 var detail = await response.Content.ReadAsStringAsync();
-                errorMessage = $"Action failed: {response.StatusCode} - {detail}";
+                errorMessage = $"Thao tác thất bại: {response.StatusCode} - {detail}";
             }
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
+            errorMessage = $"Lỗi: {ex.Message}";
         }
     }
 
     private Task SubmitOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/submit", null));
     private Task CancelOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/cancel", null));
+    
+    private bool showFinishConfirm = false;
+    private int? pendingFinishOrderId;
+    private void OpenFinishConfirm(int orderId)
+    {
+        pendingFinishOrderId = orderId;
+        showFinishConfirm = true;
+        StateHasChanged();
+    }
+    private void CloseFinishConfirm()
+    {
+        showFinishConfirm = false;
+        pendingFinishOrderId = null;
+        StateHasChanged();
+    }
+    private async Task ConfirmFinish()
+    {
+        if (pendingFinishOrderId.HasValue)
+        {
+            await FinishOrder(pendingFinishOrderId.Value);
+            CloseFinishConfirm();
+        }
+    }
     private Task FinishOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/finish", null));
     private Task DirectorApproveOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/director/approve", null));
     private Task DirectorRejectOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/director/reject", null));
@@ -265,6 +342,22 @@
     private Task QaMaterialOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/qa/material-approve", null));
 
     private record Lookup(int Id, string? Name);
+    private class OrderRow
+    {
+        public int Id { get; set; }
+        public int ProjectId { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public ProductionOrderStatus Status { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public DateTime? SubmittedAt { get; set; }
+        public DateTime? DirectorDecisionAt { get; set; }
+        public DateTime? QAMachinesCheckedAt { get; set; }
+        public DateTime? QAMaterialCheckedAt { get; set; }
+        public DateTime? StartedAt { get; set; }
+        public DateTime? FinishedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+        public bool HasPendingQa { get; set; }
+    }
 }
 
 

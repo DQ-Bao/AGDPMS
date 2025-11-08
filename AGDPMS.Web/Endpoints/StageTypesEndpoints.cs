@@ -29,7 +29,7 @@ public static class StageTypesEndpoints
                 IsDefault = dto.IsDefault
             };
             var id = await access.CreateAsync(model);
-            return Results.Created($"/api/stage-types/{id}", new { id });
+            return Results.Created($"/api/stage-types/{id}", new { Id = id });
         });
 
         group.MapPut("/{id:int}", async (int id, StageTypeDataAccess access, StageTypeDto dto) =>

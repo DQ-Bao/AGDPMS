@@ -33,13 +33,53 @@ public static class ProductionOrdersEndpoints
         .WithName("CreateProductionOrder")
         .WithTags("ProductionOrders");
 
-        group.MapGet("", async (string? projectId, string? q, string? sort, string? dir, ProductionOrderDataAccess orderAccess) =>
+        group.MapGet("", async (
+            string? projectId,
+            string? q,
+            string? sort,
+            string? dir,
+            ProductionOrderDataAccess orderAccess,
+            ProductionItemDataAccess itemAccess,
+            ProductionItemStageDataAccess stageAccess) =>
         {
             int? pid = null;
             if (!string.IsNullOrWhiteSpace(projectId) && int.TryParse(projectId, out var parsedId))
                 pid = parsedId;
-            var orders = await orderAccess.ListAsync(pid, q, sort ?? "created_at", dir ?? "desc");
-            return Results.Ok(orders);
+            var orders = (await orderAccess.ListAsync(pid, q, sort ?? "created_at", dir ?? "desc")).ToList();
+
+            // compute hasPendingQa per order: any stage assigned and not completed
+            var result = new List<object>();
+            foreach (var o in orders)
+            {
+                var items = await itemAccess.ListByOrderAsync(o.Id);
+                var hasPendingQa = false;
+                foreach (var it in items)
+                {
+                    var stages = await stageAccess.ListByItemAsync(it.Id);
+                    if (stages.Any(s => s.AssignedQaUserId.HasValue && !s.IsCompleted))
+                    {
+                        hasPendingQa = true;
+                        break;
+                    }
+                }
+                result.Add(new
+                {
+                    o.Id,
+                    o.ProjectId,
+                    o.Code,
+                    o.Status,
+                    o.CreatedAt,
+                    o.SubmittedAt,
+                    o.DirectorDecisionAt,
+                    o.QAMachinesCheckedAt,
+                    o.QAMaterialCheckedAt,
+                    o.StartedAt,
+                    o.FinishedAt,
+                    o.UpdatedAt,
+                    HasPendingQa = hasPendingQa
+                });
+            }
+            return Results.Ok(result);
         });
 
         group.MapGet("/{id:int}", async (
@@ -80,6 +120,7 @@ public static class ProductionOrdersEndpoints
                     }).ToList();
                 var completedStages = stageDtos.Count(s => s.IsCompleted);
                 var totalStages = stageDtos.Count;
+                var needsQa = stageDtos.Any(s => s.AssignedQaUserId != null && !s.IsCompleted);
                 itemsWithStages.Add(new
                 {
                     it.Id,
@@ -89,6 +130,7 @@ public static class ProductionOrdersEndpoints
                     it.QRCode,
                     it.IsCompleted,
                     it.CompletedAt,
+                    NeedsQa = needsQa,
                     CompletedStages = completedStages,
                     TotalStages = totalStages,
                     Stages = stageDtos

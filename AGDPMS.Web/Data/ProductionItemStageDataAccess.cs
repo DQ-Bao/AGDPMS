@@ -46,6 +46,11 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
         set assigned_qa_user_id = null, rejection_count = rejection_count + 1, updated_at = now()
         where id = @Id",
         new { Id = stageId });
+
+    public Task CancelAsync(int stageId) => conn.ExecuteAsync(@"
+        delete from production_item_stages
+        where id = @Id and is_completed = false",
+        new { Id = stageId });
 }
 
 

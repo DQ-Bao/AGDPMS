@@ -11,6 +11,7 @@ public class ProductionItemDataAccess(IDbConnection conn)
                line_no as LineNo,
                qr_code as QRCode, qr_image as QRImage,
                is_completed as IsCompleted, completed_at as CompletedAt,
+               is_canceled as IsCanceled,
                created_at as CreatedAt, updated_at as UpdatedAt
         from production_order_items
         where id = @Id",
@@ -31,6 +32,7 @@ public class ProductionItemDataAccess(IDbConnection conn)
                line_no as LineNo,
                qr_code as QRCode, qr_image as QRImage,
                is_completed as IsCompleted, completed_at as CompletedAt,
+               is_canceled as IsCanceled,
                created_at as CreatedAt, updated_at as UpdatedAt
         from production_order_items
         where production_order_id = @OrderId
@@ -48,6 +50,12 @@ public class ProductionItemDataAccess(IDbConnection conn)
         set qr_code = @Url, qr_image = @Image, updated_at = now()
         where id = @Id",
         new { Id = itemId, Url = url, Image = imageBytes });
+
+    public Task SetCanceledAsync(int itemId) => conn.ExecuteAsync(@"
+        update production_order_items
+        set is_canceled = true, updated_at = now()
+        where id = @Id",
+        new { Id = itemId });
 }
 
 

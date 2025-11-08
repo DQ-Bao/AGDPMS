@@ -36,14 +36,13 @@ public class StageService(
         var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
         if (stage.IsCompleted) return;
 
-        await EnsureSequentialReadyAsync(stage.ProductionOrderItemId, stage.StageTypeId);
         await stageAccess.ApproveAsync(stageId);
 
         // After stage complete, check if all stages completed -> mark item completed
         await TryAutoCompleteItemAsync(stage.ProductionOrderItemId);
     }
 
-    public async Task RejectAsync(int stageId, int rejectedByUserId, string reason, ProductionRejectReportDataAccess rejectAccess)
+    public async Task RejectAsync(int stageId, string reason, int rejectedByUserId, ProductionRejectReportDataAccess rejectAccess)
     {
         var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
         if (stage.IsCompleted) throw new InvalidOperationException("Cannot reject a completed stage");
@@ -61,7 +60,6 @@ public class StageService(
     {
         var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
         if (stage.IsCompleted) return;
-        await EnsureSequentialReadyAsync(stage.ProductionOrderItemId, stage.StageTypeId);
         await stageAccess.ApproveAsync(stageId);
         await TryAutoCompleteItemAsync(stage.ProductionOrderItemId);
     }
@@ -78,19 +76,11 @@ public class StageService(
         return id;
     }
 
-    private async Task EnsureSequentialReadyAsync(int itemId, int currentStageTypeId)
+    public async Task CancelStageAsync(int stageId)
     {
-        var stages = (await stageAccess.ListByItemAsync(itemId)).ToList();
-        var types = (await stageTypeAccess.GetAllAsync()).ToDictionary(t => t.Id, t => t.DisplayOrder);
-        var currentOrder = types[currentStageTypeId];
-        foreach (var s in stages)
-        {
-            if (types.TryGetValue(s.StageTypeId, out var order) && order < currentOrder)
-            {
-                if (!s.IsCompleted)
-                    throw new InvalidOperationException("Previous stages must be completed first");
-            }
-        }
+        var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
+        if (stage.IsCompleted) throw new InvalidOperationException("Cannot cancel a completed stage");
+        await stageAccess.CancelAsync(stageId);
     }
 
     private async Task TryAutoCompleteItemAsync(int itemId)
