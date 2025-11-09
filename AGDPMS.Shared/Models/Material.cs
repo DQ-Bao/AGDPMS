@@ -6,12 +6,9 @@ public class Material
     public required string Code { set; get; }
     public required string Name { set; get; }
     public required MaterialType? Type { set; get; }
-    public int Stock { set; get; }
-    public double StockLength { set; get; }
-    public double StockWidth { set; get; }
     public double Weight { set; get; }
-    public double Thickness { set; get; }
     public string? Vendor { set; get; }
+    public IEnumerable<MaterialStock> Stock { set; get; } = new List<MaterialStock>();
 }
 
 public class MaterialType
@@ -27,6 +24,19 @@ public class MaterialType
     public static IEnumerable<MaterialType> All => [Aluminum, Glass, Accessory, Gasket, Auxiliary];
 
     public static MaterialType? FromId(int id) => All.FirstOrDefault(m => m.Id == id);
-    public static MaterialType? FromName(string name) => All.FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
+
+    public static MaterialType? FromName(string name) =>
+        All.FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
+
     public override string ToString() => Name;
 }
+
+public class MaterialStock
+{
+    double Length { set; get; }
+    double Width { set; get; }
+
+    //double Weight { set; get; }
+    int Stock { set; get; }
+}
+

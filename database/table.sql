@@ -38,6 +38,13 @@ create table if not exists material_type (
 	"name" varchar(250) not null,
     constraint "uq_material_type_name" unique("name")
 );
+
+create table if not exists materials (
+    "id" varchar(250) primary key,
+    "name" varchar(250) not null,
+    "type" integer,
+	constraint "fk_material_type" foreign key ("type") references material_type("id")
+);
 insert into material_type ("name")
 values
     ('aluminum'),
@@ -45,6 +52,15 @@ values
     ('accessory'),
     ('gasket'),
     ('auxiliary');
+
+create table if not exists material_stock (
+	"id" serial primary key,
+	"material_id" varchar(250),
+	"length" numeric(10,3),
+	"width" numeric(10,3),
+	"stock" int not null default 0,
+	constraint "fk_material_type" foreign key ("material_id") references material("id")
+);
 
 create table if not exists clients ( 
   "id" serial,
@@ -72,22 +88,6 @@ CREATE TABLE IF NOT EXISTS projects (
   CONSTRAINT "fk_projects_client_id" FOREIGN KEY ("client_id") REFERENCES clients ("id")
 );
 
-create table if not exists materials (
-    "id" serial primary key,
-    "code" varchar(250) not null,
-    "name" varchar(250) not null,
-    "type" integer,
-    "stock" int not null default 0,
-    "stock_length" numeric(10,2) not null default 0, -- lưu độ dài lõi nhôm, độ dài gioăng, độ dài kính
-    "stock_width" numeric(10,2) not null default 0, -- lưu độ rộng kính
-    "weight" numeric(10,3), -- lưu tỉ trọng profile nhôm (kg/m)
-    "thickness" numeric(10,3), -- lưu độ dày kính
-    "vendor" varchar(250),
-	constraint "fk_material_type" foreign key ("type") references material_type("id")
-);
-create unique index if not exists uq_materials_aluminum on materials("code", "stock_length") where "type" = 1;
-create unique index if not exists uq_materials_glass on materials("code", "stock_length", "stock_width") where "type" = 2;
-
 create table if not exists cavities (
     "id" serial primary key,
     "code" varchar(250) not null,
@@ -98,7 +98,13 @@ create table if not exists cavities (
     "description" varchar(250),
     "width" numeric(10,2) not null,
     "height" numeric(10,2) not null,
-    constraint "fk_cavities_project_id" foreign key ("project_id") references projects("id")
+    constraint "fk_cavities_project_id" foreign key ("project_id") references projects("id"),
+  constraint "fk_projects_client_id" foreign key ("client_id") references clients ("id")
+);
+
+create table if not exists machine_types (
+  "id" serial primary key,
+  "name" varchar(250) not null
 );
 
 create table if not exists cavity_boms (
@@ -114,22 +120,6 @@ create table if not exists cavity_boms (
 );
 create index idx_cavity_boms_material_code on cavity_boms("material_code");
 
-create table if not exists stock_import (
-    "id" serial primary key,
-    "material_id" integer not null,
-    "quantity_change" int not null,
-    "quantity_after" int not null,
-    "price" money not null,
-    "date" date default now(),
-    constraint "fk_stock_import_material" foreign key ("material_id") references materials("id")
-);
-
-CREATE TABLE if not exists machine_types (
-  "id" SERIAL PRIMARY KEY,
-  "name" VARCHAR(250) NOT NULL
- 
-);
-
 CREATE TABLE if not exists  machines (
   "id" SERIAL,
   "name" VARCHAR(250) NOT NULL,
@@ -142,4 +132,26 @@ CREATE TABLE if not exists  machines (
   "capacity_unit" VARCHAR(50),     -- <<  đơn vị (sản phẩm/phút, kg/giờ, mm/phút)
   CONSTRAINT "machines_pkey" PRIMARY KEY ("id"),
   CONSTRAINT "fk_machines_type_id" FOREIGN KEY ("machine_type_id") REFERENCES machine_types("id")
+);
+create table if not exists material_plannings (
+	"id" serial,
+	"made_by" integer not null,
+	"project_id" integer not null,
+	"status" varchar(250) not null,
+	"created_at" timestamp null default now(),
+	constraint "pk_material_planning" primary key ("id"),
+	constraint "fk_material_planning_made_by" foreign key ("made_by") references users("id"),
+	constraint "fk_material_planning_project_id" foreign key ("project_id") references projects("id")
+);
+
+create table if not exists material_planning_details (
+	"id" serial,
+	"planning_id" integer not null,
+	"material_id" varchar(250) not null,
+	"quantity" integer not null,
+	"unit" varchar(250) null,
+	"note" text null,
+	constraint "pk_material_planning_details" primary key ("id"),
+	constraint "fk_material_planning_material_id" foreign key ("material_id") references material("id"),
+	constraint "fk_material_planning_planning_id" foreign key ("planning_id") references material_plannings("id")
 );
