@@ -2,8 +2,7 @@
 
 public class Material
 {
-    public int Id { set; get; }
-    public required string Code { set; get; }
+    public required string Id { set; get; }
     public required string Name { set; get; }
     public required MaterialType? Type { set; get; }
     public double Weight { set; get; }
@@ -33,10 +32,7 @@ public class MaterialType
 
 public class MaterialStock
 {
-    double Length { set; get; }
-    double Width { set; get; }
-
-    //double Weight { set; get; }
-    int Stock { set; get; }
+    public double Length { set; get; }
+    public double Width { set; get; }
+    public int Stock { set; get; }
 }
-
