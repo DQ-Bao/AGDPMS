@@ -11,7 +11,7 @@ public class MobileUserService(HttpClient http) : IUserService
     {
         try
         {
-            var response = await http.GetAsync("users/me");
+            var response = await http.GetAsync("api/users/me");
             if (!response.IsSuccessStatusCode)
                 return new GetCurrentUserResult
                 {
@@ -46,7 +46,7 @@ public class MobileUserService(HttpClient http) : IUserService
                 Email = user.Email,
                 DateOfBirth = user.DateOfBirth
             };
-            var response = await http.PutAsJsonAsync("users/me", request);
+            var response = await http.PutAsJsonAsync("api/users/me", request);
             if (!response.IsSuccessStatusCode)
                 return new UpdateUserProfileResult
                 {
@@ -68,7 +68,7 @@ public class MobileUserService(HttpClient http) : IUserService
         try
         {
             var request = new ChangeCurrentUserPasswordRequest { CurrentPassword = currentPassword, NewPassword = newPassword };
-            var response = await http.PutAsJsonAsync("users/me/password", request);
+            var response = await http.PutAsJsonAsync("api/users/me/password", request);
             if (!response.IsSuccessStatusCode)
                 return new ChangePasswordResult
                 {

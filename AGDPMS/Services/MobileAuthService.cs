@@ -14,7 +14,7 @@ internal class MobileAuthService(HttpClient http, CustomAuthenticationStateProvi
         try
         {
             var request = new LoginRequest { PhoneNumber = phoneNumber, Password = password };
-            var response = await http.PostAsJsonAsync("auth/login", request);
+            var response = await http.PostAsJsonAsync("api/auth/login", request);
             if (!response.IsSuccessStatusCode)
                 return new LoginResult
                 {
@@ -46,7 +46,7 @@ internal class MobileAuthService(HttpClient http, CustomAuthenticationStateProvi
         try
         {
             var request = new ResetCurrentUserPasswordRequest { Password = password };
-            var response = await http.PostAsJsonAsync("users/me/password", request);
+            var response = await http.PostAsJsonAsync("api/users/me/password", request);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -65,7 +65,7 @@ internal class MobileAuthService(HttpClient http, CustomAuthenticationStateProvi
         try
         {
             var request = new ForgotPasswordRequest { Phone = phoneNumber };
-            var response = await http.PostAsJsonAsync("auth/forgot-password", request);
+            var response = await http.PostAsJsonAsync("api/auth/forgot-password", request);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -92,7 +92,7 @@ internal class MobileAuthService(HttpClient http, CustomAuthenticationStateProvi
         try
         {
             var request = new VerifyOtpRequest { UserId = userId, Otp = otp };
-            var response = await http.PostAsJsonAsync("auth/verify-otp", request);
+            var response = await http.PostAsJsonAsync("api/auth/verify-otp", request);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
@@ -117,7 +117,7 @@ internal class MobileAuthService(HttpClient http, CustomAuthenticationStateProvi
         try
         {
             var request = new ResetPasswordWithTokenRequest { Token = token, Password = password };
-            var response = await http.PostAsJsonAsync("auth/reset-password", request);
+            var response = await http.PostAsJsonAsync("api/auth/reset-password", request);
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();

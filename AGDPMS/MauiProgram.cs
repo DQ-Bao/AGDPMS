@@ -32,7 +32,7 @@ public static class MauiProgram
         builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ApiClient"));
         builder.Services.AddHttpClient("ApiClient", client =>
         {
-            client.BaseAddress = new Uri("https://widespread-florist-april-checklist.trycloudflare.com/api/");
+            client.BaseAddress = new Uri("https://widespread-florist-april-checklist.trycloudflare.com/");
             client.Timeout = TimeSpan.FromSeconds(30);
         })
         .AddHttpMessageHandler<AuthHeaderHandler>()
