@@ -46,14 +46,15 @@ create table if not exists materials (
     "id" varchar(250) primary key,
     "name" varchar(250) not null,
     "type" integer,
+	"weight" numeric(10,3),
 	constraint "fk_material_type" foreign key ("type") references material_type("id")
 );
 
 create table if not exists material_stock (
 	"id" serial primary key,
-	"material_id" varchar(250),
-	"length" numeric(10,3),
-	"width" numeric(10,3),
+	"material_id" varchar(250) not null,
+	"length" numeric(10,3) default 0,
+	"width" numeric(10,3) default 0,
 	"stock" int not null default 0,
 	constraint "fk_material_type" foreign key ("material_id") references material("id")
 );
