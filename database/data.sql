@@ -10,8 +10,8 @@ values
 ('aluminum'),
 ('glass'),
 ('accessory'),
-('auxiliary'),
-('gasket');
+('gasket'),
+('auxiliary');
 
 insert into material ("id", "name", "weight", "type")
 values
@@ -37,7 +37,7 @@ values
 ('C3291', N'Nẹp kính', 0.206, 1),
 ('C3225', N'Nẹp kính', 0.211, 1),
 ('C3296', N'Nẹp kính', 0.237, 1),
-('F347', N'Ke góc', 4.957, 1),
+('F347', N'Ke góc', 4.957, 5),
 
 ('C3246', N'Nẹp kính', 0.216, 1),
 ('C3286', N'Nẹp kính', 0.223, 1),
@@ -74,9 +74,9 @@ values
 
 ('C3317', N'Pát liên kết (đố cố định với Fix)', 1.105, 1),
 ('C3207', N'Pát liên kết (đố cố định với Fix)', 1.154, 1),
-('C1687', N'Ke góc', 3.134, 1),
-('C4137', N'Ke góc', 1.879, 1),
-('C1697', N'Ke góc', 2.436, 1),
+('C1687', N'Ke góc', 3.134, 5),
+('C4137', N'Ke góc', 1.879, 5),
+('C1697', N'Ke góc', 2.436, 5),
 
 --MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
 ('C38019', 'Khung cửa đi bản 100', 2.057, 1),
@@ -90,9 +90,9 @@ values
 ('C48980', 'Nối khung 90 độ bản 100', 2.090, 1),
 
 ('C48945', 'Nẹp phụ bản 100', 0.346, 1),
---('F347', 'Ke góc', 4.957, 1), --duplicate
---('C1687', 'Ke góc', 3.134, 1), --duplicate
---('C4137', 'Ke góc', 1.879, 1), --duplicate
+--('F347', 'Ke góc', 4.957, 5), --duplicate
+--('C1687', 'Ke góc', 3.134, 5), --duplicate
+--('C4137', 'Ke góc', 1.879, 5), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA ĐI MỞ QUAY
 ('CX283', 'Khung cửa đi', 1.533, 1),
@@ -107,7 +107,7 @@ values
 --('C459', 'Thanh truyền khóa', 0.139, 1), --duplicate
 --('B507', 'Nan dán trang trí', 0.150, 1), --duplicate
 
---('F347', 'Ke góc', 4.957, 1), --duplicate
+--('F347', 'Ke góc', 4.957, 5), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ QUAY
 ('CX267', 'Khung cửa sổ, vách kính', 1.057, 1),
@@ -126,10 +126,10 @@ values
 --('C3206', 'Nẹp kính', 0.257, 1), --duplicate
 --('C3295', 'Nẹp kính', 0.271, 1), --duplicate
 
---('C1687', 'Ke góc', 3.134, 1), --duplicate
---('C4137', 'Ke góc', 1.879, 1), --duplicate
---('C1697', 'Ke góc', 2.436, 1), --duplicate
-('C1757', 'Ke góc', 2.167, 1),
+--('C1687', 'Ke góc', 3.134, 5), --duplicate
+--('C4137', 'Ke góc', 1.879, 5), --duplicate
+--('C1697', 'Ke góc', 2.436, 5), --duplicate
+('C1757', 'Ke góc', 2.167, 5),
 
 --MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
 ('C40988', 'Khung cửa đi và cửa sổ', 0.862, 1),
@@ -168,10 +168,10 @@ values
 ('F6029', 'Nẹp kính', 0.276, 1),
 ('F521', 'Nẹp kính', 0.222, 1),
 
-('F608', 'Ke liên kết khung đứng với ngang trên', 1.440, 1),
-('F609', 'Ke liên kết khung đứng với ngang dưới', 1.377, 1),
-('F417', 'Ke góc', 5.228, 1),
---('F347', 'Ke góc', 4.957, 1), --duplicate
+('F608', 'Ke liên kết khung đứng với ngang trên', 1.440, 5),
+('F609', 'Ke liên kết khung đứng với ngang dưới', 1.377, 5),
+('F417', 'Ke góc', 5.228, 5),
+--('F347', 'Ke góc', 4.957, 5), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ LÙA
 ('D23151', 'Khung cửa lùa', 0.949, 1),
@@ -285,7 +285,7 @@ values
 
 ('GK1365', 'Cánh cửa sổ', 0.801, 1),
 ('GK505', 'Thanh đố kính cho cánh cửa sổ', 0.959, 1),
-('GK1215', 'Ke cửa sổ', 0.959, 1),
+('GK1215', 'Ke cửa sổ', 0.959, 5),
 
 --THANH NHÔM MẶT DỰNG GIẤU ĐỐ
 ('GK001', 'Thanh đố đứng', 1.923, 1),
@@ -318,7 +318,7 @@ values
 ('GK534', 'Thanh đỡ kính cho cánh cửa sổ', 0.195, 1),
 ('GK454', 'Máng che cánh cửa sổ', 0.288, 1),
 
---('GK1215', 'Ke cửa sổ', 0.959, 1), --duplicate
+--('GK1215', 'Ke cửa sổ', 0.959, 5), --duplicate
 
 --MẶT CẮT PROFILE LAN CAN KÍNH
 ('E1214', 'Khung bao ngang trên', 1.795, 1),
