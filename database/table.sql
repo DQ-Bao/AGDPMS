@@ -43,7 +43,7 @@ create table if not exists clients (
   "id" serial,
   "name" varchar(250) not null,
   "address" varchar(250),
-  "phone" varchar(250),
+  "phone" varchar(250) unique,
   "email" varchar(250),
   "sales_in_charge_id" integer,
   constraint "pk_clients" primary key ("id"),
