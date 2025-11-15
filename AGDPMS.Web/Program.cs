@@ -33,7 +33,7 @@ builder.Services.AddScoped<ISaleServices, SaleService>();
 builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
-
+builder.Services.AddScoped<IReportService, ReportSerivce>();
 
 builder.Services.AddScoped<WStarService>();
 builder.Services.AddScoped<IProductService, WebProductService>();
