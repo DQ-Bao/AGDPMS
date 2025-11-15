@@ -67,7 +67,6 @@ public interface ICutOptimizationService
         solution.total_waste = totalWaste;
         solution.wastes = wastes;
         solution.used = used;
-
         solution.pattern_quantity = new double[solution.patterns.Count];
         for (int i = 0, j = 0; i < finalX.Length; i++)
         {
@@ -77,19 +76,6 @@ public interface ICutOptimizationService
                 j++;
             }
         }
-
-        //// === Demand Satisfaction ===
-        //double[] satisfied = new double[n];
-        //for (int i = 0; i < n; i++)
-        //{
-        //    for (int j = 0; j < patterns.Count; j++)
-        //        satisfied[i] += patterns[j][i] * finalX[j];
-        //}
-
-        //for (int i = 0; i < n; i++)
-        //{
-        //    Console.WriteLine($"Item {i + 1} (len {lengths[i]}): demand = {demands[i]}, produced = {satisfied[i]:F0}");
-        //}
 
         return solution;
     }
