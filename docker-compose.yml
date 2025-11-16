@@ -1,0 +1,42 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: agdpms
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./.docker/setup.sql:/docker-entrypoint-initdb.d/setup.sql
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d agdpms"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+  app:
+    build:
+      context: .
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_URLS: "http://+:7034"
+      ConnectionStrings__Default: Host=db;Port=5432;Database=agdpms;Username=postgres;Password=postgres
+      Logging__LogLevel__Default: Information
+    ports:
+      - "7034:7034"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
