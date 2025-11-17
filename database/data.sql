@@ -7,13 +7,13 @@ values ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ij
 
 insert into material_type ("name")
 values
-('aluminum'),
-('glass'),
-('accessory'),
-('gasket'),
-('auxiliary');
+('Nhôm'),
+('Kính'),
+('Phụ kiện'),
+('Roăng'),
+('Vật tư phụ');
 
-insert into material ("id", "name", "weight", "type")
+insert into materials ("id", "name", "weight", "type")
 values
 -- Cửa đi mở quay
 ('C3328', N'Khung cửa đi', 1.257, 1),
@@ -55,10 +55,10 @@ values
 ('C22922', N'Cánh cửa sổ mở ngoài (không gân & bo cạnh', 1.118, 1),
 ('C3033', N'Đố động cửa sổ', 0.825, 1),
 --('C22903', N'Đố động cửa đi và cửa sổ', 0.891, 1), --duplicate
-('C3313', N'Đố cố định trên khung', 1.126, 1),
-('C3209', N'Khung vách kính', 0.876, 1),
+('C3313', N'Đố cố định trên khung', 1.010, 1),
+('C3209', N'Khung vách kính', 0.802, 1),
 
-('C3203', N'Đố cố định (có lỗ vít)', 0.314, 1),
+('C3203', N'Đố cố định (có lỗ vít)', 0.950, 1),
 ('F077', N'Pano', 0.664, 1),
 ('E1283', N'Khung lá sách', 0.290, 1),
 ('E192', N'Lá sách', 0.317, 1),
@@ -350,6 +350,43 @@ values
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
 
+insert into material_stock("material_id", "length", "base_price")
+values
+('C3209', 6000, 88000),
+('C3295', 6000, 88000),
+('C3313', 6000, 88000),
+('C3328', 6000, 88000),
+('C22903', 6000, 88000),
+('C3303', 6000, 88000),
+('C3329', 6000, 88000),
+('C3296', 6000, 88000),
+('C3203', 6000, 88000),
+('C3318', 6000, 88000),
+('C3202', 6000, 88000),
+('C3300', 6000, 88000),
+('C3304', 6000, 88000),
+--('C3208', 6000, 88000),
+('D1543A', 6000, 88000),
+('D1555A', 6000, 88000),
+('D1544A', 6000, 88000),
+('D1546A', 6000, 88000),
+('D1547A', 6000, 88000),
+('D1942', 6000, 88000),
+('D1541A', 6000, 88000),
+('D23156', 6000, 88000),
+('D23157', 6000, 88000),
+('D23151', 6000, 88000),
+('C3236', 6000, 88000),
+('F606', 6000, 88000),
+('F605', 6000, 88000),
+('F523', 6000, 88000),
+('F560', 6000, 88000),
+('F607', 6000, 88000),
+('F2435', 6000, 88000),
+('F520', 6000, 88000),
+('F521', 6000, 88000);
+--('F431', 6000, 88000);
+
 INSERT INTO clients ("name", "address", "phone", "email", "sales_in_charge_id")
 VALUES
 ('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com', NULL),
@@ -375,6 +412,6 @@ VALUES
 INSERT INTO machines 
 ("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
 VALUES
-('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, 'mm/phút', NULL),
+('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, NULL,'mm/phút', NULL),
 ('Máy Cắt Góc', 1, 'Operational', '2025-02-20', NULL, 5, 'mm', NULL),
 ('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);

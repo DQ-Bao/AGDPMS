@@ -1,3 +1,5 @@
+set client_encoding to 'utf8';
+
 drop table if exists stock_import;
 drop table if exists material_planning_details;
 drop table if exists material_plannings;
@@ -148,7 +150,7 @@ insert into users ("fullname", "phone", "password_hash", "role_id")
 values ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1);
 
 insert into material_type ("name")
-values ('aluminum'), ('glass'), ('accessory'), ('gasket'), ('auxiliary');
+values ('Nhôm'), ('Kính'), ('Phụ kiện'), ('Roăng'), ('Vật tư phụ');
 
 insert into materials ("id", "name", "weight", "type")
 values
@@ -485,6 +487,43 @@ values
 ('B3731', 'Đố đứng', 0.920, 1),
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
+
+insert into material_stock("material_id", "length", "base_price")
+values
+('C3209', 6000, 88000),
+('C3295', 6000, 88000),
+('C3313', 6000, 88000),
+('C3328', 6000, 88000),
+('C22903', 6000, 88000),
+('C3303', 6000, 88000),
+('C3329', 6000, 88000),
+('C3296', 6000, 88000),
+('C3203', 6000, 88000),
+('C3318', 6000, 88000),
+('C3202', 6000, 88000),
+('C3300', 6000, 88000),
+('C3304', 6000, 88000),
+--('C3208', 6000, 88000),
+('D1543A', 6000, 88000),
+('D1555A', 6000, 88000),
+('D1544A', 6000, 88000),
+('D1546A', 6000, 88000),
+('D1547A', 6000, 88000),
+('D1942', 6000, 88000),
+('D1541A', 6000, 88000),
+('D23156', 6000, 88000),
+('D23157', 6000, 88000),
+('D23151', 6000, 88000),
+('C3236', 6000, 88000),
+('F606', 6000, 88000),
+('F605', 6000, 88000),
+('F523', 6000, 88000),
+('F560', 6000, 88000),
+('F607', 6000, 88000),
+('F2435', 6000, 88000),
+('F520', 6000, 88000),
+('F521', 6000, 88000);
+--('F431', 6000, 88000);
 
 insert into clients ("name", "address", "phone", "email", "sales_in_charge_id")
 values

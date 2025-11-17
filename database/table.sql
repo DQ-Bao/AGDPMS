@@ -56,7 +56,8 @@ create table if not exists material_stock (
 	"length" numeric(10,3) default 0,
 	"width" numeric(10,3) default 0,
 	"stock" int not null default 0,
-	constraint "fk_material_type" foreign key ("material_id") references material("id")
+	"base_price" numeric(20,0) not null default 0
+	constraint "fk_material_type" foreign key ("material_id") references materials("id")
 );
 
 create table if not exists clients ( 
@@ -111,7 +112,7 @@ create table if not exists stock_import (
     "quantity_after" int not null,
     "price" numeric not null,
     "date" date default now(),
-    constraint "fk_stock_import_material" foreign key ("material_id") references material("id")
+    constraint "fk_stock_import_material" foreign key ("material_id") references materials("id")
 );
 
 create table if not exists stock_export (
@@ -121,7 +122,7 @@ create table if not exists stock_export (
     "quantity_after" int not null,
     "price" numeric not null,
     "date" date default now(),
-    constraint "fk_stock_export_material" foreign key ("material_id") references material("id")
+    constraint "fk_stock_export_material" foreign key ("material_id") references materials("id")
 );
 
 create table if not exists material_plannings (
@@ -143,6 +144,6 @@ create table if not exists material_planning_details (
 	"unit" varchar(250) null,
 	"note" text null,
 	constraint "pk_material_planning_details" primary key ("id"),
-	constraint "fk_material_planning_material_id" foreign key ("material_id") references material("id"),
+	constraint "fk_material_planning_material_id" foreign key ("material_id") references materials("id"),
 	constraint "fk_material_planning_planning_id" foreign key ("planning_id") references material_plannings("id")
 );
