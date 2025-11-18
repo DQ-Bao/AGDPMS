@@ -16,12 +16,16 @@
     </nav>
     <div class="d-flex align-items-center gap-2 mb-3">
         <input class="form-control" style="max-width:320px" placeholder="Tìm kiếm..." @bind-value="search" @bind-value:event="oninput" @bind-value:after="OnSearchChanged" />
-        <select class="form-select" style="max-width:320px" @onchange="OnProjectChanged">
-            <option value="">Tất cả dự án</option>
-            @foreach (var p in projects)
-            {
-                <option value="@p.Id" selected="@(p.Id == projectId)">@p.Name</option>
-            }
+        <select class="form-select" style="max-width:320px" @onchange="OnStageStatusChanged">
+            <option value="">Tất cả trạng thái</option>
+            <option value="0" selected="@(stageStatusFilter == 0)">Nháp</option>
+            <option value="1" selected="@(stageStatusFilter == 1)">Chờ giám đốc duyệt</option>
+            <option value="2" selected="@(stageStatusFilter == 2)">Giám đốc từ chối</option>
+            <option value="3" selected="@(stageStatusFilter == 3)">Chờ QA kiểm tra máy</option>
+            <option value="4" selected="@(stageStatusFilter == 4)">Chờ QA kiểm tra vật tư</option>
+            <option value="5" selected="@(stageStatusFilter == 5)">Đang sản xuất</option>
+            <option value="6" selected="@(stageStatusFilter == 6)">Hoàn thành</option>
+            <option value="9" selected="@(stageStatusFilter == 9)">Đã hủy</option>
         </select>
         @if (IsProductionManager())
         {
@@ -36,6 +40,7 @@
                     <th role="button" @onclick='@(() => SortBy("code"))'>Mã lệnh @SortIcon("code")</th>
                     <th>Dự án</th>
                     <th>Trạng thái</th>
+                    <th>Kế hoạch</th>
                     <th role="button" @onclick='@(() => SortBy("created_at"))'>Ngày tạo @SortIcon("created_at")</th>
                     <th>Thao tác</th>
                 </tr>
@@ -43,11 +48,11 @@
             <tbody>
                 @if (orders is null)
                 {
-                    <tr><td colspan="5">Đang tải...</td></tr>
+                    <tr><td colspan="6">Đang tải...</td></tr>
                 }
                 else if (!orders.Any())
                 {
-                    <tr><td colspan="5">Không có dữ liệu. @errorMessage</td></tr>
+                    <tr><td colspan="6">Không có dữ liệu. @errorMessage</td></tr>
                 }
                 else
                 {
@@ -59,11 +64,34 @@
                             <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@o.Code</td>
                             <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@projectName</td>
                             <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@GetStatusDisplay(o)</td>
+                            <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">
+                                @if (o.PlannedStartDate.HasValue || o.PlannedFinishDate.HasValue)
+                                {
+                                    <small>
+                                        @if (o.PlannedStartDate.HasValue)
+                                        {
+                                            <div>Bắt đầu: @FormatDate(o.PlannedStartDate)</div>
+                                        }
+                                        @if (o.PlannedFinishDate.HasValue)
+                                        {
+                                            <div>Kết thúc: @FormatDate(o.PlannedFinishDate)</div>
+                                        }
+                                    </small>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">-</span>
+                                }
+                            </td>
                             <td @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))' style="cursor:pointer;">@FormatDate(o.CreatedAt)</td>
                             <td class="text-nowrap" @onclick:stopPropagation="true">
                                 @if (ShouldShowButton("Submit", o))
                                 {
                                     <button class="btn btn-outline-primary btn-sm" @onclick='@(() => SubmitOrder(o.Id))' title="Gửi giám đốc duyệt">Gửi duyệt</button>
+                                }
+                                @if (ShouldShowButton("RevertToDraft", o))
+                                {
+                                    <button class="btn btn-outline-secondary btn-sm" @onclick='@(() => RevertToDraftOrder(o.Id))' title="Hủy yêu cầu duyệt, quay lại nháp">Hủy xin duyệt</button>
                                 }
                                 @if (ShouldShowButton("Finish", o))
                                 {
@@ -79,7 +107,7 @@
                                 }
                                 @if (ShouldShowButton("QaMachines", o))
                                 {
-                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => QaMachinesOrder(o.Id))' title="QA xác nhận máy móc">Xác nhận đã kiểm tramáy</button>
+                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => QaMachinesOrder(o.Id))' title="QA xác nhận máy móc">Xác nhận đã kiểm tra máy</button>
                                 }
                                 @if (ShouldShowButton("QaMaterial", o))
                                 {
@@ -117,9 +145,8 @@
 }
 
 @code {
-    private List<Lookup> projects = new();
     private List<OrderRow>? orders;
-    private int? projectId;
+    private int? stageStatusFilter;
     private string? search;
     private string sort = "created_at";
     private string dir = "desc";
@@ -129,7 +156,6 @@
     protected override async Task OnInitializedAsync()
     {
         await LoadUserRole();
-        await LoadProjects();
         await LoadOrders();
     }
 
@@ -139,32 +165,18 @@
         userRole = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
     }
 
-    private async Task LoadProjects()
-    {
-        try
-        {
-            var res = await Http.GetFromJsonAsync<List<Lookup>>("/api/lookup/projects");
-            projects = res ?? new();
-        }
-        catch
-        {
-            // Log or show error
-            projects = new();
-        }
-    }
-
     private async Task LoadOrders()
     {
         errorMessage = null;
         try
         {
             var queryParams = new List<string>();
-            if (projectId.HasValue)
-                queryParams.Add($"projectId={projectId.Value}");
             if (!string.IsNullOrWhiteSpace(search))
                 queryParams.Add($"q={Uri.EscapeDataString(search)}");
             queryParams.Add($"sort={sort}");
             queryParams.Add($"dir={dir}");
+            if (stageStatusFilter.HasValue)
+                queryParams.Add($"status={stageStatusFilter.Value}");
             var url = "/api/orders" + (queryParams.Any() ? "?" + string.Join("&", queryParams) : "");
             var response = await Http.GetAsync(url);
             if (response.IsSuccessStatusCode)
@@ -184,10 +196,10 @@
         }
     }
 
-    private async Task OnProjectChanged(ChangeEventArgs e)
+    private async Task OnStageStatusChanged(ChangeEventArgs e)
     {
         var val = e.Value?.ToString();
-        projectId = int.TryParse(val, out var pid) ? pid : null;
+        stageStatusFilter = int.TryParse(val, out var status) ? status : null;
         await LoadOrders();
     }
 
@@ -223,7 +235,8 @@
 
     private string GetProjectName(int projectId)
     {
-        return projects.FirstOrDefault(p => p.Id == projectId)?.Name ?? projectId.ToString();
+        // Project name will be loaded from API response if needed
+        return $"Dự án {projectId}";
     }
 
     private bool ShouldShowButton(string buttonName, OrderRow order)
@@ -231,6 +244,7 @@
         return buttonName switch
         {
             "Submit" => IsProductionManager() && CanSubmit(order),
+            "RevertToDraft" => IsProductionManager() && CanRevertToDraft(order),
             "Finish" => IsProductionManager() && CanFinish(order),
             "DirectorApprove" => IsDirector() && CanDirectorApprove(order),
             "DirectorReject" => IsDirector() && CanDirectorReject(order),
@@ -241,7 +255,7 @@
     }
 
     private bool CanSubmit(OrderRow order) => order.Status == ProductionOrderStatus.Draft;
-    private bool CanCancel(OrderRow order) => order.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanRevertToDraft(OrderRow order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
     private bool CanFinish(OrderRow order) => order.Status == ProductionOrderStatus.InProduction;
     private bool CanDirectorApprove(OrderRow order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
     private bool CanDirectorReject(OrderRow order) => order.Status == ProductionOrderStatus.PendingDirectorApproval;
@@ -286,7 +300,7 @@
         _ => null
     };
 
-    private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-";
+    private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToString("dd/MM/yyyy HH:mm") : "-";
 
     private async Task ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
     {
@@ -311,7 +325,7 @@
     }
 
     private Task SubmitOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/submit", null));
-    private Task CancelOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/cancel", null));
+    private Task RevertToDraftOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/revert-to-draft", null));
     
     private bool showFinishConfirm = false;
     private int? pendingFinishOrderId;
@@ -341,13 +355,14 @@
     private Task QaMachinesOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/qa/machines-approve", null));
     private Task QaMaterialOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/qa/material-approve", null));
 
-    private record Lookup(int Id, string? Name);
     private class OrderRow
     {
         public int Id { get; set; }
         public int ProjectId { get; set; }
         public string Code { get; set; } = string.Empty;
         public ProductionOrderStatus Status { get; set; }
+        public DateTime? PlannedStartDate { get; set; }
+        public DateTime? PlannedFinishDate { get; set; }
         public DateTime? CreatedAt { get; set; }
         public DateTime? SubmittedAt { get; set; }
         public DateTime? DirectorDecisionAt { get; set; }

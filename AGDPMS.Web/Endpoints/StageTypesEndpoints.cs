@@ -24,7 +24,6 @@ public static class StageTypesEndpoints
             {
                 Code = dto.Code,
                 Name = dto.Name,
-                DisplayOrder = dto.DisplayOrder,
                 IsActive = dto.IsActive,
                 IsDefault = dto.IsDefault
             };
@@ -39,7 +38,6 @@ public static class StageTypesEndpoints
                 Id = id,
                 Code = dto.Code,
                 Name = dto.Name,
-                DisplayOrder = dto.DisplayOrder,
                 IsActive = dto.IsActive,
                 IsDefault = dto.IsDefault
             };

@@ -19,6 +19,27 @@ public enum ProductionOrderStatus : short
     Cancelled = 9
 }
 
+public enum StageStatus : short
+{
+    NotStarted = 0,
+    InProgress = 1,
+    Completed = 2
+}
+
+public enum IssueStatus : short
+{
+    Open = 0,
+    Resolved = 1
+}
+
+public enum IssuePriority : short
+{
+    Low = 0,
+    Medium = 1,
+    High = 2,
+    Critical = 3
+}
+
 public enum ProjectRFQStatus { Pending, Scheduled, Active, Completed }
 
 public enum MachineStatus

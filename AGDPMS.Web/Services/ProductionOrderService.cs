@@ -12,9 +12,10 @@ public class ProductionOrderService(
 {
     public async Task<int> CreateOrderAsync(ProductionOrderCreateSpec spec, int createdBy)
     {
+        var code = await orders.GenerateNextCodeAsync();
         var order = new ProductionOrder
         {
-            Code = spec.Code,
+            Code = code,
             ProjectId = spec.ProjectId,
             Status = ProductionOrderStatus.Draft,
             CreatedBy = createdBy
@@ -92,11 +93,24 @@ public class ProductionOrderService(
             throw new InvalidOperationException("Only orders in production can be finished");
         await orders.MarkFinishedAsync(orderId);
     }
+
+    public async Task UpdateOrderPlanAsync(int orderId, DateTime? plannedStartDate, DateTime? plannedFinishDate)
+    {
+        var order = await orders.GetByIdAsync(orderId) ?? throw new InvalidOperationException("Order not found");
+        await orders.UpdatePlanAsync(orderId, plannedStartDate, plannedFinishDate);
+    }
+
+    public async Task RevertToDraftAsync(int orderId)
+    {
+        var order = await orders.GetByIdAsync(orderId) ?? throw new InvalidOperationException("Order not found");
+        if (order.Status != ProductionOrderStatus.PendingDirectorApproval)
+            throw new InvalidOperationException("Only orders pending director approval can be reverted to draft");
+        await orders.RevertToDraftAsync(orderId);
+    }
 }
 
 public class ProductionOrderCreateSpec
 {
-    public string Code { get; set; } = string.Empty;
     public int ProjectId { get; set; }
     public List<ProductionOrderCreateSpecItem> Items { get; set; } = new();
 }

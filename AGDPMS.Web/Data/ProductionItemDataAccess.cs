@@ -8,7 +8,9 @@ public class ProductionItemDataAccess(IDbConnection conn)
 {
     public Task<ProductionOrderItem?> GetByIdAsync(int id) => conn.QueryFirstOrDefaultAsync<ProductionOrderItem>(@"
         select id as Id, production_order_id as ProductionOrderId, product_id as ProductId,
-               line_no as LineNo,
+               line_no as LineNo, status as Status,
+               planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
+               actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                qr_code as QRCode, qr_image as QRImage,
                is_completed as IsCompleted, completed_at as CompletedAt,
                is_canceled as IsCanceled,
@@ -29,7 +31,9 @@ public class ProductionItemDataAccess(IDbConnection conn)
 
     public Task<IEnumerable<ProductionOrderItem>> ListByOrderAsync(int orderId) => conn.QueryAsync<ProductionOrderItem>(@"
         select id as Id, production_order_id as ProductionOrderId, product_id as ProductId,
-               line_no as LineNo,
+               line_no as LineNo, status as Status,
+               planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
+               actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                qr_code as QRCode, qr_image as QRImage,
                is_completed as IsCompleted, completed_at as CompletedAt,
                is_canceled as IsCanceled,
@@ -56,6 +60,30 @@ public class ProductionItemDataAccess(IDbConnection conn)
         set is_canceled = true, updated_at = now()
         where id = @Id",
         new { Id = itemId });
+
+    public Task UpdatePlanAsync(int itemId, DateTime? plannedStartDate, DateTime? plannedFinishDate) => conn.ExecuteAsync(@"
+        update production_order_items
+        set planned_start_date = @PlannedStartDate,
+            planned_finish_date = @PlannedFinishDate,
+            updated_at = now()
+        where id = @Id",
+        new { Id = itemId, PlannedStartDate = plannedStartDate, PlannedFinishDate = plannedFinishDate });
+
+    public Task UpdateActualsAsync(int itemId, DateTime? actualStartDate, DateTime? actualFinishDate) => conn.ExecuteAsync(@"
+        update production_order_items
+        set actual_start_date = @ActualStartDate,
+            actual_finish_date = @ActualFinishDate,
+            updated_at = now()
+        where id = @Id",
+        new { Id = itemId, ActualStartDate = actualStartDate, ActualFinishDate = actualFinishDate });
+
+    public Task SetCompletionStatusAsync(int itemId, bool isCompleted) => conn.ExecuteAsync(@"
+        update production_order_items
+        set is_completed = @IsCompleted,
+            completed_at = case when @IsCompleted then now() else null end,
+            updated_at = now()
+        where id = @Id",
+        new { Id = itemId, IsCompleted = isCompleted });
 }
 
 

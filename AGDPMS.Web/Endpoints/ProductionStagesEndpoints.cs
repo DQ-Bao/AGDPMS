@@ -1,3 +1,4 @@
+using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Models.DTOs;
 using AGDPMS.Web.Data;
 using AGDPMS.Web.Services;
@@ -11,78 +12,75 @@ public static class ProductionStagesEndpoints
     public static IEndpointRouteBuilder MapProductionStages(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/stages")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa" });
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
 
-        group.MapPost("/{stageId:int}/assign-qa", async (int stageId, AssignStageQaDto dto, StageService svc) =>
+        group.MapPut("/{stageId:int}/assign-qa", async (int stageId, AssignStageQaDto dto, StageService svc) =>
         {
             await svc.AssignQaAsync(stageId, dto.QaUserId);
             return Results.Ok();
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
-        group.MapPost("/{stageId:int}/approve", async (int stageId, StageService svc) =>
-        {
-            await svc.ApproveAsync(stageId);
-            return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
-
-        // PM can mark a stage completed without QA
+        // PM can mark a stage completed
         group.MapPost("/{stageId:int}/pm-complete", async (int stageId, StageService svc) =>
         {
-            await svc.CompleteStageByPmAsync(stageId);
+            await svc.CompleteByPmAsync(stageId);
             return Results.Ok();
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
-        group.MapPost("/{stageId:int}/reject", async (int stageId, StageDecisionDto dto, StageService svc, ProductionRejectReportDataAccess rejectAccess, HttpContext httpContext) =>
+        // Issue management
+        group.MapPost("/{stageId:int}/issues", async (int stageId, CreateIssueReportDto dto, ProductionIssueReportDataAccess issueAccess, HttpContext httpContext) =>
         {
             var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var rejectedByUserId))
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var createdByUserId))
             {
                 return Results.BadRequest("Invalid user");
             }
-            await svc.RejectAsync(stageId, dto.Reason ?? string.Empty, rejectedByUserId, rejectAccess);
-            return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
+            var id = await issueAccess.CreateAsync(stageId, createdByUserId, dto.Priority, dto.Reason);
+            return Results.Created($"/api/stages/{stageId}/issues/{id}", new { id });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa,Director" });
 
-        group.MapPost("/{stageId:int}/cancel", async (int stageId, StageService svc) =>
+        group.MapGet("/{stageId:int}/issues", async (int stageId, ProductionIssueReportDataAccess issueAccess) =>
         {
-            await svc.CancelStageAsync(stageId);
+            var issues = await issueAccess.GetByStageIdAsync(stageId);
+            return Results.Ok(issues);
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
+
+        group.MapPut("/issues/{issueId:int}/resolve", async (int issueId, ProductionIssueReportDataAccess issueAccess, HttpContext httpContext) =>
+        {
+            var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var resolvedByUserId))
+            {
+                return Results.BadRequest("Invalid user");
+            }
+            await issueAccess.ResolveIssueAsync(issueId, resolvedByUserId);
             return Results.Ok();
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
-        group.MapGet("/{stageId:int}/latest-reject-reason", async (int stageId, ProductionRejectReportDataAccess rejectAccess) =>
+        // Progress and planning
+        group.MapPut("/{stageId:int}/plan", async (int stageId, UpdateStagePlanDto dto, StageService svc) =>
         {
-            var report = await rejectAccess.GetLatestByStageIdAsync(stageId);
-            if (report is null)
+            try
             {
-                return Results.NotFound();
+                await svc.UpdatePlanAsync(stageId, dto.PlannedStartDate, dto.PlannedFinishDate, dto.PlannedTimeHours);
+                return Results.Ok();
             }
-            return Results.Ok(new { Id = report.Id, Reason = report.Reason, CreatedAt = report.CreatedAt, RejectedByUserId = report.RejectedByUserId });
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa" });
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
-        group.MapPut("/reject-reports/{reportId:int}", async (int reportId, UpdateRejectReasonDto dto, ProductionRejectReportDataAccess rejectAccess, HttpContext httpContext) =>
+        group.MapPut("/{stageId:int}/dates", async (int stageId, UpdateStageDatesDto dto, StageService svc) =>
         {
-            var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
-            if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var currentUserId))
-            {
-                return Results.BadRequest("Invalid user");
-            }
-            
-            // Get the report to check ownership
-            var report = await rejectAccess.GetByIdAsync(reportId);
-            if (report is null)
-            {
-                return Results.NotFound();
-            }
-            
-            // Only the author can edit
-            if (report.RejectedByUserId != currentUserId)
-            {
-                return Results.Forbid();
-            }
-            
-            await rejectAccess.UpdateReasonAsync(reportId, dto.Reason);
+            await svc.UpdateActualDatesAsync(stageId, dto.ActualStartDate, dto.ActualFinishDate, dto.ActualTimeHours);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
+
+        group.MapPut("/{stageId:int}/status", async (int stageId, UpdateStageStatusDto dto, StageService svc) =>
+        {
+            await svc.UpdateStatusAsync(stageId, (StageStatus)dto.Status);
+            return Results.Ok();
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
         var itemGroup = app.MapGroup("/api/items").RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
         itemGroup.MapPost("/{itemId:int}/complete", async (int itemId, StageService svc) =>
@@ -98,16 +96,48 @@ public static class ProductionStagesEndpoints
             return Results.Ok(it?.ProductionOrderId ?? 0);
         });
 
-        itemGroup.MapPost("/{itemId:int}/stages", async (int itemId, int? stageTypeId, StageService svc) =>
+        itemGroup.MapPost("/{itemId:int}/assign-qa-bulk", async (int itemId, AssignItemQaDto dto, StageService svc) =>
         {
-            if (stageTypeId.HasValue)
+            await svc.BulkAssignQaToItemAsync(itemId, dto.QaUserId);
+            return Results.Ok();
+        });
+
+        itemGroup.MapPut("/{itemId:int}/plan", async (int itemId, UpdateItemPlanDto dto, StageService svc) =>
+        {
+            try
             {
-                var id = await svc.AddStageToItemAsync(itemId, stageTypeId.Value);
-                return Results.Created($"/api/stages/{id}", new { id });
+                await svc.UpdateItemPlanAsync(itemId, dto.PlannedStartDate, dto.PlannedFinishDate);
+                return Results.Ok();
             }
-            else
+            catch (InvalidOperationException ex)
             {
-                return Results.BadRequest("stageTypeId is required");
+                return Results.BadRequest(ex.Message);
+            }
+        });
+
+        itemGroup.MapPut("/{itemId:int}/actuals", async (int itemId, UpdateItemActualDto dto, StageService svc) =>
+        {
+            try
+            {
+                await svc.UpdateItemActualsAsync(itemId, dto.ActualStartDate, dto.ActualFinishDate);
+                return Results.Ok();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(ex.Message);
+            }
+        });
+
+        itemGroup.MapPut("/{itemId:int}/completion", async (int itemId, UpdateItemCompletionDto dto, StageService svc) =>
+        {
+            try
+            {
+                await svc.SetItemCompletionStatusAsync(itemId, dto.IsCompleted);
+                return Results.Ok();
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.BadRequest(ex.Message);
             }
         });
 

@@ -12,10 +12,25 @@ public class StageService(
     public async Task InitializeDefaultStagesForItemAsync(int itemId)
     {
         var defaults = await stageTypeAccess.GetAllAsync();
-        var activeDefaults = defaults.Where(s => s.IsActive && s.IsDefault).OrderBy(s => s.DisplayOrder).ToList();
+        var activeDefaults = defaults.Where(s => s.IsActive && s.IsDefault).OrderBy(s => s.Id).ToList();
         var existing = await stageAccess.ListByItemAsync(itemId);
         var existingTypeIds = existing.Select(e => e.StageTypeId).ToHashSet();
         foreach (var st in activeDefaults)
+        {
+            if (!existingTypeIds.Contains(st.Id))
+            {
+                await stageAccess.CreateAsync(itemId, st.Id);
+            }
+        }
+    }
+
+    public async Task AutoCreateStagesForItemAsync(int itemId)
+    {
+        var allActive = await stageTypeAccess.GetAllAsync();
+        var activeStages = allActive.Where(s => s.IsActive).OrderBy(s => s.Id).ToList();
+        var existing = await stageAccess.ListByItemAsync(itemId);
+        var existingTypeIds = existing.Select(e => e.StageTypeId).ToHashSet();
+        foreach (var st in activeStages)
         {
             if (!existingTypeIds.Contains(st.Id))
             {
@@ -31,40 +46,30 @@ public class StageService(
         await stageAccess.AssignQaAsync(stageId, qaUserId);
     }
 
-    public async Task ApproveAsync(int stageId)
+    public async Task CompleteByPmAsync(int stageId)
     {
         var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
         if (stage.IsCompleted) return;
-
-        await stageAccess.ApproveAsync(stageId);
-
-        // After stage complete, check if all stages completed -> mark item completed
-        await TryAutoCompleteItemAsync(stage.ProductionOrderItemId);
-    }
-
-    public async Task RejectAsync(int stageId, string reason, int rejectedByUserId, ProductionRejectReportDataAccess rejectAccess)
-    {
-        var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
-        if (stage.IsCompleted) throw new InvalidOperationException("Cannot reject a completed stage");
-
-        await rejectAccess.CreateAsync(new ProductionRejectReport
-        {
-            ProductionItemStageId = stageId,
-            RejectedByUserId = rejectedByUserId,
-            Reason = reason
-        });
-        await stageAccess.RejectAsync(stageId);
-    }
-
-    public async Task CompleteStageByPmAsync(int stageId)
-    {
-        var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
-        if (stage.IsCompleted) return;
-        await stageAccess.ApproveAsync(stageId);
+        await stageAccess.CompleteByPmAsync(stageId);
         await TryAutoCompleteItemAsync(stage.ProductionOrderItemId);
     }
 
     public Task ForceCompleteItemAsync(int itemId) => itemAccess.SetCompletedAsync(itemId);
+
+    public async Task SetItemCompletionStatusAsync(int itemId, bool isCompleted)
+    {
+        var item = await itemAccess.GetByIdAsync(itemId) ?? throw new InvalidOperationException("Item not found");
+        var order = await orderAccess.GetByIdAsync(item.ProductionOrderId) ?? throw new InvalidOperationException("Order not found");
+        if (order.Status == ProductionOrderStatus.Cancelled)
+        {
+            throw new InvalidOperationException("Không thể cập nhật trạng thái hoàn thành khi lệnh đã hủy");
+        }
+        if (order.Status != ProductionOrderStatus.InProduction)
+        {
+            throw new InvalidOperationException("Chỉ có thể đánh dấu hoàn thành khi lệnh đang sản xuất (InProduction)");
+        }
+        await itemAccess.SetCompletionStatusAsync(itemId, isCompleted);
+    }
 
     public async Task<int> AddStageToItemAsync(int itemId, int stageTypeId)
     {
@@ -76,11 +81,56 @@ public class StageService(
         return id;
     }
 
-    public async Task CancelStageAsync(int stageId)
+    public async Task UpdatePlanAsync(int stageId, DateTime? plannedStartDate, DateTime? plannedFinishDate, decimal? plannedTimeHours)
     {
+        // Chỉ cho phép cập nhật kế hoạch khi order ở trạng thái Draft
         var stage = await stageAccess.GetByIdAsync(stageId) ?? throw new InvalidOperationException("Stage not found");
-        if (stage.IsCompleted) throw new InvalidOperationException("Cannot cancel a completed stage");
-        await stageAccess.CancelAsync(stageId);
+        var item = await itemAccess.GetByIdAsync(stage.ProductionOrderItemId) ?? throw new InvalidOperationException("Item not found");
+        var order = await orderAccess.GetByIdAsync(item.ProductionOrderId) ?? throw new InvalidOperationException("Order not found");
+        
+        if (order.Status != ProductionOrderStatus.Draft)
+        {
+            throw new InvalidOperationException("Chỉ có thể cập nhật kế hoạch khi order ở trạng thái Draft");
+        }
+        
+        await stageAccess.UpdatePlanAsync(stageId, plannedStartDate, plannedFinishDate, plannedTimeHours);
+    }
+
+    public Task UpdateActualDatesAsync(int stageId, DateTime? actualStartDate, DateTime? actualFinishDate, decimal? actualTimeHours)
+    {
+        return stageAccess.UpdateActualDatesAsync(stageId, actualStartDate, actualFinishDate, actualTimeHours);
+    }
+
+    public Task UpdateStatusAsync(int stageId, StageStatus status)
+    {
+        return stageAccess.UpdateStatusAsync(stageId, status);
+    }
+
+    public Task BulkAssignQaToItemAsync(int itemId, int qaUserId)
+    {
+        return stageAccess.BulkAssignQaAsync(itemId, qaUserId);
+    }
+
+    public async Task UpdateItemPlanAsync(int itemId, DateTime? plannedStartDate, DateTime? plannedFinishDate)
+    {
+        var item = await itemAccess.GetByIdAsync(itemId) ?? throw new InvalidOperationException("Item not found");
+        var order = await orderAccess.GetByIdAsync(item.ProductionOrderId) ?? throw new InvalidOperationException("Order not found");
+        if (order.Status != ProductionOrderStatus.Draft)
+        {
+            throw new InvalidOperationException("Chỉ có thể cập nhật kế hoạch khi order ở trạng thái Draft");
+        }
+        await itemAccess.UpdatePlanAsync(itemId, plannedStartDate, plannedFinishDate);
+    }
+
+    public async Task UpdateItemActualsAsync(int itemId, DateTime? actualStartDate, DateTime? actualFinishDate)
+    {
+        var item = await itemAccess.GetByIdAsync(itemId) ?? throw new InvalidOperationException("Item not found");
+        var order = await orderAccess.GetByIdAsync(item.ProductionOrderId) ?? throw new InvalidOperationException("Order not found");
+        if (order.Status != ProductionOrderStatus.InProduction)
+        {
+            throw new InvalidOperationException("Chỉ có thể cập nhật thông tin thực tế khi order đang sản xuất");
+        }
+        await itemAccess.UpdateActualsAsync(itemId, actualStartDate, actualFinishDate);
     }
 
     private async Task TryAutoCompleteItemAsync(int itemId)

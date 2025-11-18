@@ -8,6 +8,12 @@ public class ProductionOrderItem
 
     public int LineNo { get; set; }
 
+    public StageStatus Status { get; set; }
+    public DateTime? PlannedStartDate { get; set; }
+    public DateTime? PlannedFinishDate { get; set; }
+    public DateTime? ActualStartDate { get; set; }
+    public DateTime? ActualFinishDate { get; set; }
+
     public string? QRCode { get; set; }
     public byte[]? QRImage { get; set; }
 

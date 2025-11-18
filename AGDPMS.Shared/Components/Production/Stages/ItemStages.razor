@@ -4,9 +4,12 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 @using System.Linq
+@using System.Text.Json.Serialization
 @using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Models.DTOs
 @inject HttpClient Http
 @inject AuthenticationStateProvider AuthStateProvider
+@namespace AGDPMS.Shared.Components.Production.Stages
 
 <div>
     @if (stages is null)
@@ -15,7 +18,7 @@
     }
     else if (!stages.Any())
     {
-        <div>Không có giai đoạn</div>
+        <div class="text-muted">Không có giai đoạn</div>
     }
     else
     {
@@ -27,49 +30,174 @@
             <table class="table table-sm align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>Giai đoạn</th><th>QA phụ trách</th><th>Trạng thái</th><th>Số lần từ chối</th><th>Thao tác</th>
+                        <th>Giai đoạn</th>
+                        <th>QA phụ trách</th>
+                        <th>Trạng thái</th>
+                        <th>Kế hoạch (giờ)</th>
+                        <th>Thực tế (giờ)</th>
+                        <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var s in stages)
+                    @foreach (var s in stages.Where(st => ShouldShowStage(st)))
                     {
-                        var isPendingQa = s.AssignedQaUserId.HasValue && !s.IsCompleted;
+                        var editingStatusId = editingStatusStageId == s.Id;
                         <tr>
-                            <td>@s.StageName</td>
-                            <td>@(s.AssignedQaUserName ?? "Chưa phân công")</td>
-                            <td>@GetStageStatus(s)</td>
-                            <td>@s.RejectionCount</td>
-                            <td class="text-nowrap">
+                            <td>
+                                <div><strong>@s.StageName</strong></div>
+                            </td>
+                            <td>
                                 @if (ShouldShowButton("AssignQa", s))
                                 {
-                                    <button class="btn btn-outline-secondary btn-sm" @onclick='@(async () => await OpenQaSelector(s.Id))'>Giao QA</button>
+                                    <span style="cursor:pointer;"
+                                          @onclick='@(async () => await OpenQaSelector(s.Id))' 
+                                          @onclick:stopPropagation="true"
+                                          title="Click để giao QA">
+                                        @(s.AssignedQaUserName ?? "Chưa phân công")
+                                    </span>
                                 }
-                                @if (ShouldShowButton("Approve", s))
+                                else
                                 {
-                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => Approve(s.Id))'>Duyệt</button>
+                                    <span>@(s.AssignedQaUserName ?? "Chưa phân công")</span>
                                 }
-                                @if (ShouldShowButton("Reject", s))
+                            </td>
+                            <td>
+                                @if (editingStatusId && ShouldShowButton("UpdateStatus", s))
                                 {
-                                    <button class="btn btn-outline-danger btn-sm" @onclick='@(() => OpenRejectModal(s.Id))'>Từ chối</button>
+                                    <select class="form-select form-select-sm" style="width: auto; display: inline-block;" 
+                                            value="@editingStatus" @onchange='@(async (ChangeEventArgs e) => { editingStatus = short.Parse(e.Value?.ToString() ?? "0"); await SaveStatus(s.Id); })' @onclick:stopPropagation="true">
+                                        <option value="0">Chưa bắt đầu</option>
+                                        <option value="1">Đang thực hiện</option>
+                                        <option value="2">Hoàn thành</option>
+                                    </select>
                                 }
-                                @if (ShouldShowButton("Cancel", s))
+                                else if (ShouldShowButton("UpdateStatus", s))
                                 {
-                                    <button class="btn btn-outline-warning btn-sm" @onclick='@(() => Cancel(s.Id))'>Hủy giai đoạn</button>
+                                    <span style="cursor:pointer;"
+                                          @onclick='@(() => StartEditStatus(s.Id))' 
+                                          @onclick:stopPropagation="true"
+                                          title="Click để thay đổi trạng thái">
+                                        @GetStageStatus(s)
+                                    </span>
                                 }
-                                @if (s.RejectionCount > 0 && !s.IsCompleted && (IsProductionManager() || IsQa()))
+                                else
                                 {
-                                    <button class="btn btn-outline-info btn-sm" @onclick='@(() => ViewRejectReason(s.Id))'>Xem lý do từ chối</button>
+                                    <span>@GetStageStatus(s)</span>
+                                }
+                            </td>
+                            <td>
+                                @if (CanEditStagePlan() && editingPlanStageId == s.Id)
+                                {
+                                    <div class="d-flex flex-column gap-1" @onclick:stopPropagation="true">
+                                        <div class="d-flex gap-1 align-items-center">
+                                            <input type="number" class="form-control form-control-sm" style="width: 90px;" min="0" step="0.1" @bind="editingPlannedTimeHours" />
+                                            <span>h</span>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-success" @onclick='@(() => SaveStagePlan(s.Id))'>✓</button>
+                                            <button class="btn btn-sm btn-secondary" @onclick="CancelStagePlanEdit">✗</button>
+                                        </div>
+                                    </div>
+                                }
+                                else if (CanEditStagePlan())
+                                {
+                                    <div style="cursor:pointer;" class="text-primary text-decoration-underline"
+                                         @onclick='@(() => StartEditStagePlan(s))'
+                                         @onclick:stopPropagation="true"
+                                         title="Click để chỉnh giờ kế hoạch">
+                                        @FormatStageHours(s.PlannedTimeHours)
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div>@FormatStageHours(s.PlannedTimeHours)</div>
+                                }
+                            </td>
+                            <td>
+                                @if (CanEditStageActual() && editingActualStageId == s.Id)
+                                {
+                                    <div class="d-flex flex-column gap-1" @onclick:stopPropagation="true">
+                                        <div class="d-flex gap-1 align-items-center">
+                                            <input type="number" class="form-control form-control-sm" style="width: 90px;" min="0" step="0.1" @bind="editingActualTimeHours" />
+                                            <span>h</span>
+                                        </div>
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-success" @onclick='@(() => SaveStageActual(s.Id))'>✓</button>
+                                            <button class="btn btn-sm btn-secondary" @onclick="CancelStageActualEdit">✗</button>
+                                        </div>
+                                    </div>
+                                }
+                                else if (CanEditStageActual())
+                                {
+                                    <div style="cursor:pointer;" class="text-primary text-decoration-underline"
+                                         @onclick='@(() => StartEditStageActual(s))'
+                                         @onclick:stopPropagation="true"
+                                         title="Click để chỉnh giờ thực tế">
+                                        @FormatStageHours(s.ActualTimeHours)
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div>@FormatStageHours(s.ActualTimeHours)</div>
+                                }
+                            </td>
+                            <td class="text-nowrap">
+                                @if (ShouldShowButton("CreateIssue", s))
+                                {
+                                    <button class="btn btn-outline-warning btn-sm me-1" @onclick='@(() => OpenCreateIssueModal(s.Id))'>Tạo vấn đề</button>
+                                }
+                                @if (ShouldShowButton("ViewIssues", s))
+                                {
+                                    <button class="btn btn-outline-warning btn-sm" @onclick='@(() => ViewIssues(s.Id))'>Xem vấn đề</button>
                                 }
                             </td>
                         </tr>
+                        @if (expandedStageId == s.Id && stageIssues.ContainsKey(s.Id))
+                        {
+                            <tr>
+                                <td colspan="4">
+                                    <div class="p-3 bg-light">
+                                        <h6>Vấn đề:</h6>
+                                        @if (stageIssues[s.Id].Any())
+                                        {
+                                            @foreach (var issue in stageIssues[s.Id])
+                                            {
+                                                <div class="card mb-2">
+                                                    <div class="card-body">
+                                                        <div class="d-flex justify-content-between">
+                                                            <div>
+                                                                <strong>@GetPriorityLabel(issue.Priority)</strong>
+                                                                <span class="badge @(issue.Status == IssueStatus.Open ? "bg-warning" : "bg-success") ms-2">
+                                                                    @(issue.Status == IssueStatus.Open ? "Mở" : "Đã giải quyết")
+                                                                </span>
+                                                            </div>
+                                                            @if (issue.Status == IssueStatus.Open && IsProductionManager())
+                                                            {
+                                                                <button class="btn btn-sm btn-success" @onclick='@(() => ResolveIssue(issue.Id))'>Giải quyết</button>
+                                                            }
+                                                        </div>
+                                                        <p class="mb-0 mt-2">@issue.Reason</p>
+                                                        <small class="text-muted">Tạo lúc: @FormatDate(issue.CreatedAt)</small>
+                                                    </div>
+                                                </div>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <p class="text-muted">Không có vấn đề</p>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
                     }
                 </tbody>
             </table>
         </div>
-         @if (IsProductionManager() && OrderStatus == ProductionOrderStatus.InProduction)
+        @if (IsProductionManager() && (OrderStatus == ProductionOrderStatus.Draft || OrderStatus == ProductionOrderStatus.InProduction))
         {
-            <div>
-                <button class="btn btn-sm btn-outline-primary" @onclick="OpenStageModal">Thêm giai đoạn</button>
+            <div class="mt-2">
+                <button class="btn btn-sm btn-outline-primary" @onclick="OpenBulkQaModal">Giao QA nhanh cho toàn bộ</button>
             </div>
         }
     }
@@ -113,156 +241,79 @@
     </div>
 }
 
-@* View Reject Reason Modal *@
-@if (showViewRejectReasonModal)
+@* Bulk QA Assignment Modal *@
+@if (showBulkQaModal)
 {
     <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Lý do từ chối</h5>
-                    <button type="button" class="btn-close" @onclick="CloseViewRejectReasonModal"></button>
+                    <h5 class="modal-title">Giao QA nhanh cho toàn bộ giai đoạn</h5>
+                    <button type="button" class="btn-close" @onclick="CloseBulkQaModal"></button>
                 </div>
                 <div class="modal-body">
-                    @if (viewingRejectReason is null)
-                    {
-                        <div>Đang tải...</div>
-                    }
-                    else if (isEditingRejectReason)
-                    {
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Lý do từ chối:</label>
-                            <textarea class="form-control" rows="4" @bind="editingRejectReasonText"></textarea>
-                        </div>
-                        @if (viewingRejectReason.CreatedAt.HasValue)
+                    <input class="form-control mb-2" placeholder="Tìm QA..." @bind-value="qaSearch" @bind-value:event="oninput" @bind-value:after="LoadQaUsers" />
+                    <div class="list-group" style="max-height:300px; overflow:auto;">
+                        @if (qaUsers is null)
                         {
-                            <div class="text-muted small mb-3">
-                                Thời gian: @viewingRejectReason.CreatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                            </div>
+                            <div>Đang tải...</div>
                         }
-                    }
-                    else
-                    {
-                        <div class="mb-3">
-                            <label class="form-label fw-bold">Lý do từ chối:</label>
-                            <div class="p-3 bg-light rounded">@viewingRejectReason.Reason</div>
-                        </div>
-                        @if (viewingRejectReason.CreatedAt.HasValue)
+                        else if (!qaUsers.Any())
                         {
-                            <div class="text-muted small">
-                                Thời gian: @viewingRejectReason.CreatedAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm")
-                            </div>
+                            <div>Không tìm thấy nhân viên QA</div>
                         }
-                    }
-                </div>
-                <div class="modal-footer">
-                    @if (isEditingRejectReason)
-                    {
-                        <button type="button" class="btn btn-secondary" @onclick="CancelEditRejectReason">Hủy</button>
-                        <button type="button" class="btn btn-primary" disabled="@(!CanSaveRejectReason)" @onclick="SaveRejectReason">Lưu</button>
-                    }
-                    else
-                    {
-                        @if (canEditRejectReason)
+                        else
                         {
-                            <button type="button" class="btn btn-outline-primary" @onclick="StartEditRejectReason">Chỉnh sửa</button>
+                            @foreach (var qa in qaUsers)
+                            {
+                                <button type="button" class="list-group-item list-group-item-action" @onclick='@(() => SelectBulkQa(qa.Id))'>
+                                    <div><strong>@qa.Name</strong></div>
+                                    <small class="text-muted">@qa.Phone</small>
+                                </button>
+                            }
                         }
-                        <button type="button" class="btn btn-secondary" @onclick="CloseViewRejectReasonModal">Đóng</button>
-                    }
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 }
 
-@* Reject Reason Modal *@
-@if (showRejectModal)
+@* Create Issue Modal *@
+@if (showCreateIssueModal)
 {
     <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Từ chối giai đoạn</h5>
-                    <button type="button" class="btn-close" @onclick="CloseRejectModal"></button>
+                    <h5 class="modal-title">Tạo issue</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCreateIssueModal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
-                        <label class="form-label">Lý do từ chối <span class="text-danger">*</span></label>
-                        <textarea class="form-control" rows="4" placeholder="Nhập lý do từ chối..." @bind="rejectReason"></textarea>
+                        <label class="form-label">Mức độ ưu tiên <span class="text-danger">*</span></label>
+                        <select class="form-select" @bind="issuePriority">
+                            <option value="0">Thấp</option>
+                            <option value="1">Trung bình</option>
+                            <option value="2">Cao</option>
+                            <option value="3">Nghiêm trọng</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Lý do <span class="text-danger">*</span></label>
+                        <textarea class="form-control" rows="4" placeholder="Nhập lý do..." @bind="issueReason"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" @onclick="CloseRejectModal">Hủy</button>
-                    <button type="button" class="btn btn-danger" disabled="@(!CanConfirmReject)" @onclick="ConfirmReject">Xác nhận từ chối</button>
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCreateIssueModal">Hủy</button>
+                    <button type="button" class="btn btn-warning" disabled="@(!CanCreateIssue)" @onclick="ConfirmCreateIssue">Tạo issue</button>
                 </div>
             </div>
         </div>
     </div>
 }
 
-@* Stage Type Selection Modal *@
-@if (showStageTypeModal)
-{
-    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Thêm giai đoạn</h5>
-                    <button type="button" class="btn-close" @onclick="CloseStageModal"></button>
-                </div>
-                <div class="modal-body">
-                    <ul class="nav nav-tabs mb-3" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link @(showCreateCustomStage ? "" : "active")" @onclick='@(() => { showCreateCustomStage = false; StateHasChanged(); })'>Chọn giai đoạn</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link @(showCreateCustomStage ? "active" : "")" @onclick='@(() => { showCreateCustomStage = true; StateHasChanged(); })'>Tạo giai đoạn mới</button>
-                        </li>
-                    </ul>
-                    @if (!showCreateCustomStage)
-                    {
-                        <input class="form-control mb-2" placeholder="Tìm giai đoạn..." @bind-value="stageTypeSearch" @bind-value:event="oninput" />
-                        <div class="list-group" style="max-height:300px; overflow:auto;">
-                            @if (stageTypes is null)
-                            {
-                                <div>Đang tải...</div>
-                            }
-                            else
-                            {
-                                var options = GetAvailableStageTypes().ToList();
-                                if (!options.Any())
-                                {
-                                    <div>Không còn giai đoạn khả dụng.</div>
-                                }
-                                else
-                                {
-                                    @foreach (var st in options)
-                                    {
-                                        <button type="button" class="list-group-item list-group-item-action" @onclick='@(() => SelectStageType(st.Id))'>
-                                            <div><strong>@st.Name</strong></div>
-                                            <small class="text-muted">Mã: @st.Code</small>
-                                        </button>
-                                    }
-                                }
-                            }
-                        </div>
-                    }
-                    else
-                    {
-                        <div class="mb-3">
-                            <label class="form-label">Tên giai đoạn <span class="text-danger">*</span></label>
-                            <input class="form-control" placeholder="Nhập tên giai đoạn" @bind="customStageName" />
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-primary" disabled="@(!CanCreateCustomStage)" @onclick="CreateCustomStage">Tạo và thêm</button>
-                            <button type="button" class="btn btn-secondary" @onclick="CloseStageModal">Hủy</button>
-                        </div>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-}
+
 
 @code {
     [Parameter] public int ItemId { get; set; }
@@ -276,20 +327,22 @@
     private List<QaUser>? qaUsers;
     private string? qaSearch;
     private string? errorMessage;
-    private bool showStageTypeModal = false;
-    private List<StageTypeVm>? stageTypes;
-    private string? stageTypeSearch;
-    private bool showCreateCustomStage = false;
-    private string customStageName = string.Empty;
-    private bool showRejectModal = false;
-    private int? selectedStageIdForReject;
-    private string rejectReason = string.Empty;
-    private bool showViewRejectReasonModal = false;
-    private RejectReasonVm? viewingRejectReason;
-    private bool isEditingRejectReason = false;
-    private string editingRejectReasonText = string.Empty;
-    private bool canEditRejectReason = false;
-    private int? currentUserId;
+    private bool showBulkQaModal = false;
+    private bool showCreateIssueModal = false;
+    private int? selectedStageIdForIssue;
+    private IssuePriority issuePriority = IssuePriority.Medium;
+    private string issueReason = string.Empty;
+    private int? selectedStageIdForIssues;
+    private Dictionary<int, List<IssueVm>> stageIssues = new();
+    private int? expandedStageId;
+    
+    // Inline editing states
+    private int? editingStatusStageId;
+    private short editingStatus;
+    private int? editingPlanStageId;
+    private decimal? editingPlannedTimeHours;
+    private int? editingActualStageId;
+    private decimal? editingActualTimeHours;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -306,12 +359,58 @@
     private async Task Load()
     {
         errorMessage = null;
-        // stages come from order details; for simplicity reload the order and filter
-        var orderId = await Http.GetFromJsonAsync<int>($"/api/items/{ItemId}/order-id");
-        if (orderId == 0) { stages = new(); return; }
-        var detail = await Http.GetFromJsonAsync<DetailResp>($"/api/orders/{orderId}");
-        var item = detail?.items?.FirstOrDefault(i => i.Id == ItemId);
-        stages = item?.Stages ?? new();
+        try
+        {
+            // stages come from order details; for simplicity reload the order and filter
+            var orderId = await Http.GetFromJsonAsync<int>($"/api/items/{ItemId}/order-id");
+            if (orderId == 0) 
+            { 
+                stages = new(); 
+                StateHasChanged();
+                return; 
+            }
+            var detail = await Http.GetFromJsonAsync<DetailResp>($"/api/orders/{orderId}");
+            var item = detail?.items?.FirstOrDefault(i => i.Id == ItemId);
+            stages = item?.Stages ?? new();
+            
+            // Nếu StageName rỗng, thử load từ StageTypeId (fallback)
+            if (stages != null && stages.Any())
+            {
+                // Load stage types một lần
+                List<StageTypeInfo>? stageTypes = null;
+                try
+                {
+                    stageTypes = await Http.GetFromJsonAsync<List<StageTypeInfo>>("/api/stage-types");
+                }
+                catch
+                {
+                    // Ignore
+                }
+                
+                foreach (var stage in stages)
+                {
+                    if (string.IsNullOrEmpty(stage.StageName) && stage.StageTypeId > 0 && stageTypes != null)
+                    {
+                        var stageType = stageTypes.FirstOrDefault(st => st.Id == stage.StageTypeId);
+                        if (stageType != null)
+                        {
+                            stage.StageName = stageType.Name;
+                        }
+                    }
+                    else if (string.IsNullOrEmpty(stage.StageName))
+                    {
+                        // Fallback nếu không tìm thấy
+                        stage.StageName = $"Giai đoạn {stage.Id}";
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lỗi khi tải giai đoạn: {ex.Message}";
+            stages = new();
+        }
+        StateHasChanged();
     }
 
     private async Task OpenQaSelector(int stageId)
@@ -321,6 +420,7 @@
         qaSearch = null;
         qaUsers = null;
         await LoadQaUsers();
+        StateHasChanged();
     }
 
     private void CloseQaModal()
@@ -348,31 +448,45 @@
     {
         if (selectedStageIdForQa.HasValue)
         {
-            await ExecuteStageAction(() => Http.PostAsJsonAsync($"/api/stages/{selectedStageIdForQa.Value}/assign-qa", new { ItemStageId = selectedStageIdForQa.Value, QaUserId = qaUserId }));
+            await ExecuteStageAction(() => Http.PutAsJsonAsync($"/api/stages/{selectedStageIdForQa.Value}/assign-qa", new { QaUserId = qaUserId }));
         }
         CloseQaModal();
     }
 
+    private async Task OpenBulkQaModal()
+    {
+        showBulkQaModal = true;
+        qaSearch = null;
+        qaUsers = null;
+        await LoadQaUsers();
+    }
+
+    private void CloseBulkQaModal()
+    {
+        showBulkQaModal = false;
+        qaSearch = null;
+    }
+
+    private async Task SelectBulkQa(int qaUserId)
+    {
+        await ExecuteStageAction(() => Http.PostAsJsonAsync($"/api/items/{ItemId}/assign-qa-bulk", new { QaUserId = qaUserId }));
+        CloseBulkQaModal();
+    }
+
+    private bool ShouldShowStage(StageVm stage) => true;
+
     private bool ShouldShowButton(string buttonName, StageVm stage)
     {
-        if (OrderStatus != ProductionOrderStatus.InProduction)
-        {
-            return false;
-        }
-        var isPendingQa = stage.AssignedQaUserId.HasValue && !stage.IsCompleted;
-        
         switch (buttonName)
         {
             case "AssignQa":
-                // PM can assign QA, but not if already assigned (PendingQA) or completed
-                return IsProductionManager() && !isPendingQa && !stage.IsCompleted;
-            case "Approve":
-            case "Reject":
-                // Only QA can approve/reject, and only if assigned and pending
-                return IsQa() && isPendingQa;
-            case "Cancel":
-                // PM can cancel stages that are not completed
-                return IsProductionManager() && !stage.IsCompleted;
+                return IsProductionManager() && !stage.IsCompleted && (OrderStatus == ProductionOrderStatus.Draft || OrderStatus == ProductionOrderStatus.InProduction);
+            case "UpdateStatus":
+                return IsProductionManager() && OrderStatus == ProductionOrderStatus.InProduction;
+            case "CreateIssue":
+                return (IsQa() || IsDirector()) && OrderStatus == ProductionOrderStatus.InProduction;
+            case "ViewIssues":
+                return (IsProductionManager() || IsQa() || IsDirector()) && OrderStatus == ProductionOrderStatus.InProduction;
             default:
                 return false;
         }
@@ -381,13 +495,23 @@
     private bool HasRole(string role) => string.Equals(userRole, role, StringComparison.OrdinalIgnoreCase);
     private bool IsProductionManager() => HasRole("ProductionManager") || HasRole("Production Manager");
     private bool IsQa() => HasRole("QA") || HasRole("Qa");
+    private bool IsDirector() => HasRole("Admin") || HasRole("Director");
+
+    private bool CanEditStagePlan() => IsProductionManager() && (OrderStatus == ProductionOrderStatus.Draft);
+    private bool CanEditStageActual() => IsProductionManager() && (OrderStatus == ProductionOrderStatus.InProduction);
 
     private string GetStageStatus(StageVm stage)
     {
-        if (stage.IsCompleted) return "Đã hoàn thành";
-        if (!stage.AssignedQaUserId.HasValue) return "Chưa hoàn thành";
-        return "Đang chờ QA";
+        return stage.Status switch
+        {
+            StageStatus.NotStarted => "Chưa bắt đầu",
+            StageStatus.InProgress => "Đang thực hiện",
+            StageStatus.Completed => "Đã hoàn thành",
+            _ => "Chưa xác định"
+        };
     }
+
+    private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm") : "-";
 
     private async Task ExecuteStageAction(Func<Task<HttpResponseMessage>> action)
     {
@@ -416,263 +540,203 @@
         await InvokeAsync(StateHasChanged);
     }
 
-    private Task Approve(int stageId) => ExecuteStageAction(() => Http.PostAsync($"/api/stages/{stageId}/approve", null));
-
-    private void OpenRejectModal(int stageId)
+    private void OpenCreateIssueModal(int stageId)
     {
-        selectedStageIdForReject = stageId;
-        rejectReason = string.Empty;
-        showRejectModal = true;
+        selectedStageIdForIssue = stageId;
+        issueReason = string.Empty;
+        issuePriority = IssuePriority.Medium;
+        showCreateIssueModal = true;
         StateHasChanged();
     }
 
-    private void CloseRejectModal()
+    private void CloseCreateIssueModal()
     {
-        showRejectModal = false;
-        selectedStageIdForReject = null;
-        rejectReason = string.Empty;
+        showCreateIssueModal = false;
+        selectedStageIdForIssue = null;
+        issueReason = string.Empty;
         StateHasChanged();
     }
 
-    private bool CanConfirmReject => showRejectModal && !string.IsNullOrWhiteSpace(rejectReason) && selectedStageIdForReject.HasValue;
+    private bool CanCreateIssue => showCreateIssueModal && !string.IsNullOrWhiteSpace(issueReason) && selectedStageIdForIssue.HasValue;
 
-    private async Task ConfirmReject()
+    private async Task ConfirmCreateIssue()
     {
-        if (!CanConfirmReject || !selectedStageIdForReject.HasValue) return;
-        
-        await ExecuteStageAction(() => Http.PostAsJsonAsync($"/api/stages/{selectedStageIdForReject.Value}/reject", new { ItemStageId = selectedStageIdForReject.Value, Decision = "reject", Reason = rejectReason.Trim() }));
+        if (!CanCreateIssue || !selectedStageIdForIssue.HasValue) return;
+        await ExecuteStageAction(() => Http.PostAsJsonAsync($"/api/stages/{selectedStageIdForIssue.Value}/issues", new { Priority = (short)issuePriority, Reason = issueReason.Trim() }));
         if (string.IsNullOrWhiteSpace(errorMessage))
         {
-            CloseRejectModal();
+            CloseCreateIssueModal();
         }
     }
+    private async Task ViewIssues(int stageId)
+    {
+        selectedStageIdForIssues = stageId;
+        if (expandedStageId == stageId)
+        {
+            expandedStageId = null;
+        }
+        else
+        {
+            expandedStageId = stageId;
+            await LoadIssues(stageId);
+        }
+        StateHasChanged();
+    }
 
-    private Task Cancel(int stageId) => ExecuteStageAction(() => Http.PostAsync($"/api/stages/{stageId}/cancel", null));
-
-    private async Task ViewRejectReason(int stageId)
+    private async Task LoadIssues(int stageId)
     {
         try
         {
-            viewingRejectReason = null;
-            isEditingRejectReason = false;
-            canEditRejectReason = false;
-            showViewRejectReasonModal = true;
-            StateHasChanged();
-            
-            var response = await Http.GetAsync($"/api/stages/{stageId}/latest-reject-reason");
-            if (response.IsSuccessStatusCode)
-            {
-                viewingRejectReason = await response.Content.ReadFromJsonAsync<RejectReasonVm>();
-                if (viewingRejectReason is not null)
-                {
-                    editingRejectReasonText = viewingRejectReason.Reason;
-                    // Check if current user is the author and is QA
-                    canEditRejectReason = IsQa() && currentUserId.HasValue && viewingRejectReason.RejectedByUserId == currentUserId.Value;
-                }
-            }
-            else if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-            {
-                viewingRejectReason = new RejectReasonVm { Reason = "Không tìm thấy lý do từ chối" };
-            }
-            else
-            {
-                viewingRejectReason = new RejectReasonVm { Reason = "Lỗi khi tải lý do từ chối" };
-            }
-        }
-        catch (Exception ex)
-        {
-            viewingRejectReason = new RejectReasonVm { Reason = $"Lỗi: {ex.Message}" };
-        }
-        StateHasChanged();
-    }
-
-    private void StartEditRejectReason()
-    {
-        isEditingRejectReason = true;
-        StateHasChanged();
-    }
-
-    private void CancelEditRejectReason()
-    {
-        isEditingRejectReason = false;
-        if (viewingRejectReason is not null)
-        {
-            editingRejectReasonText = viewingRejectReason.Reason;
-        }
-        StateHasChanged();
-    }
-
-    private bool CanSaveRejectReason => isEditingRejectReason && !string.IsNullOrWhiteSpace(editingRejectReasonText);
-
-    private async Task SaveRejectReason()
-    {
-        if (!CanSaveRejectReason || viewingRejectReason?.Id == null) return;
-
-        try
-        {
-            var response = await Http.PutAsJsonAsync($"/api/stages/reject-reports/{viewingRejectReason.Id}", new { Reason = editingRejectReasonText.Trim() });
-            if (response.IsSuccessStatusCode)
-            {
-                if (viewingRejectReason is not null)
-                {
-                    viewingRejectReason.Reason = editingRejectReasonText.Trim();
-                }
-                isEditingRejectReason = false;
-                errorMessage = null;
-            }
-            else
-            {
-                var detail = await response.Content.ReadAsStringAsync();
-                errorMessage = $"Cập nhật thất bại: {response.StatusCode} - {detail}";
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = $"Lỗi: {ex.Message}";
-        }
-        StateHasChanged();
-    }
-
-    private void CloseViewRejectReasonModal()
-    {
-        showViewRejectReasonModal = false;
-        viewingRejectReason = null;
-        isEditingRejectReason = false;
-        editingRejectReasonText = string.Empty;
-        canEditRejectReason = false;
-        StateHasChanged();
-    }
-
-    private async Task OpenStageModal()
-    {
-        stageTypeSearch = null;
-        showStageTypeModal = true;
-        await LoadStageTypes();
-        StateHasChanged();
-    }
-
-    private void CloseStageModal()
-    {
-        showStageTypeModal = false;
-        stageTypeSearch = null;
-        stageTypes = null;
-        showCreateCustomStage = false;
-        customStageName = string.Empty;
-        StateHasChanged();
-    }
-
-    private async Task LoadStageTypes()
-    {
-        try
-        {
-            stageTypes = await Http.GetFromJsonAsync<List<StageTypeVm>>("/api/stage-types") ?? new();
+            var issues = await Http.GetFromJsonAsync<List<IssueVm>>($"/api/stages/{stageId}/issues") ?? new();
+            stageIssues[stageId] = issues;
         }
         catch
         {
-            stageTypes = new();
+            stageIssues[stageId] = new();
         }
     }
 
-    private IEnumerable<StageTypeVm> GetAvailableStageTypes()
+    private async Task ResolveIssue(int issueId)
     {
-        if (stageTypes is null) return Enumerable.Empty<StageTypeVm>();
-        var used = stages?.Select(s => s.StageTypeId).ToHashSet() ?? new HashSet<int>();
-        var keyword = stageTypeSearch?.Trim();
-        return stageTypes
-            .Where(st => st.IsActive && !used.Contains(st.Id))
-            .Where(st => string.IsNullOrWhiteSpace(keyword)
-                || st.Name.Contains(keyword, StringComparison.OrdinalIgnoreCase)
-                || st.Code.Contains(keyword, StringComparison.OrdinalIgnoreCase))
-            .OrderBy(st => st.DisplayOrder)
-            .ThenBy(st => st.Name);
+        await ExecuteStageAction(() => Http.PutAsync($"/api/stages/issues/{issueId}/resolve", null));
+        if (selectedStageIdForIssues.HasValue)
+        {
+            await LoadIssues(selectedStageIdForIssues.Value);
+        }
     }
 
-    private async Task SelectStageType(int stageTypeId)
+    private string GetPriorityLabel(IssuePriority priority) => priority switch
     {
-        await ExecuteStageAction(() => Http.PostAsync($"/api/items/{ItemId}/stages?stageTypeId={stageTypeId}", null));
+        IssuePriority.Low => "Thấp",
+        IssuePriority.Medium => "Trung bình",
+        IssuePriority.High => "Cao",
+        IssuePriority.Critical => "Nghiêm trọng",
+        _ => "Không xác định"
+    };
+
+    // Inline editing methods
+    private void StartEditStatus(int stageId)
+    {
+        var stage = stages?.FirstOrDefault(s => s.Id == stageId);
+        if (stage != null)
+        {
+            editingStatusStageId = stageId;
+            editingStatus = (short)stage.Status;
+        }
+        StateHasChanged();
+    }
+
+    private async Task SaveStatus(int stageId)
+    {
+        await ExecuteStageAction(() => Http.PutAsJsonAsync($"/api/stages/{stageId}/status", new { Status = editingStatus }));
         if (string.IsNullOrWhiteSpace(errorMessage))
         {
-            CloseStageModal();
+            editingStatusStageId = null;
         }
-        await InvokeAsync(StateHasChanged);
     }
 
-    private bool CanCreateCustomStage => !string.IsNullOrWhiteSpace(customStageName);
-
-    private async Task CreateCustomStage()
+    private void StartEditStagePlan(StageVm stage)
     {
-        if (!CanCreateCustomStage) return;
+        editingPlanStageId = stage.Id;
+        editingPlannedTimeHours = stage.PlannedTimeHours;
+        StateHasChanged();
+    }
 
-        try
+    private void CancelStagePlanEdit()
+    {
+        editingPlanStageId = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveStagePlan(int stageId)
+    {
+        var dto = new UpdateStagePlanDto
         {
-            // Tự động tạo code từ tên (chuyển sang tiếng Anh không dấu, viết hoa chữ cái đầu)
-            var name = customStageName.Trim();
-            var code = GenerateCodeFromName(name);
-            var dto = new { Code = code, Name = name, DisplayOrder = 0, IsActive = true, IsDefault = false };
-            var response = await Http.PostAsJsonAsync("/api/stage-types", dto);
-            if (response.IsSuccessStatusCode)
-            {
-                var result = await response.Content.ReadFromJsonAsync<CreateStageTypeResponse>();
-                var stageTypeId = result?.Id ?? 0;
-                if (stageTypeId > 0)
-                {
-                    // Reload stage types and select the newly created one
-                    await LoadStageTypes();
-                    await SelectStageType(stageTypeId);
-                }
-                else
-                {
-                    errorMessage = "Không thể lấy ID của giai đoạn vừa tạo";
-                }
-            }
-            else
-            {
-                var detail = await response.Content.ReadAsStringAsync();
-                errorMessage = $"Tạo giai đoạn thất bại: {response.StatusCode} - {detail}";
-            }
+            PlannedTimeHours = editingPlannedTimeHours
+        };
+        await ExecuteStageAction(() => Http.PutAsJsonAsync($"/api/stages/{stageId}/plan", dto));
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            editingPlanStageId = null;
         }
-        catch (Exception ex)
+    }
+
+    private void StartEditStageActual(StageVm stage)
+    {
+        editingActualStageId = stage.Id;
+        editingActualTimeHours = stage.ActualTimeHours;
+        StateHasChanged();
+    }
+
+    private void CancelStageActualEdit()
+    {
+        editingActualStageId = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveStageActual(int stageId)
+    {
+        var dto = new UpdateStageDatesDto
         {
-            errorMessage = $"Lỗi: {ex.Message}";
+            ActualTimeHours = editingActualTimeHours
+        };
+        await ExecuteStageAction(() => Http.PutAsJsonAsync($"/api/stages/{stageId}/dates", dto));
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            editingActualStageId = null;
         }
-        await InvokeAsync(StateHasChanged);
     }
 
-    private string GenerateCodeFromName(string name)
+    private string FormatStageHours(decimal? hours)
     {
-        if (string.IsNullOrWhiteSpace(name)) return "Stage";
-        
-        // Chuyển đổi tên thành code (PascalCase, loại bỏ ký tự đặc biệt)
-        var words = name.Split(new[] { ' ', '-', '_', '.', ',', ';', ':', '!', '?', '(', ')', '[', ']', '{', '}' }, StringSplitOptions.RemoveEmptyEntries);
-        if (words.Length == 0) return "Stage";
-        
-        var code = string.Join("", words.Select(w => 
+        if (!hours.HasValue)
         {
-            // Loại bỏ ký tự không phải chữ cái và số
-            var cleaned = new string(w.Where(c => char.IsLetterOrDigit(c)).ToArray());
-            if (cleaned.Length == 0) return string.Empty;
-            if (cleaned.Length == 1) return cleaned.ToUpperInvariant();
-            return char.ToUpperInvariant(cleaned[0]) + cleaned.Substring(1).ToLowerInvariant();
-        }));
-        return string.IsNullOrWhiteSpace(code) ? "Stage" : code;
+            return "-";
+        }
+        return $"{hours.Value:F1}h";
     }
 
-    private class CreateStageTypeResponse
-    {
-        public int Id { get; set; }
-    }
 
-    private class DetailResp { public List<ItemVm>? items { get; set; } }
-    private class ItemVm { public int Id { get; set; } public List<StageVm>? Stages { get; set; } }
+    private class DetailResp 
+    { 
+        [JsonPropertyName("items")]
+        public List<ItemVm>? items { get; set; } 
+    }
+    private class ItemVm 
+    { 
+        [JsonPropertyName("id")]
+        public int Id { get; set; } 
+        [JsonPropertyName("stages")]
+        public List<StageVm>? Stages { get; set; } 
+    }
     private class StageVm
     {
+        [JsonPropertyName("id")]
         public int Id { get; set; }
+        [JsonPropertyName("stageTypeId")]
         public int StageTypeId { get; set; }
+        [JsonPropertyName("stageName")]
         public string StageName { get; set; } = string.Empty;
+        [JsonPropertyName("status")]
+        public StageStatus Status { get; set; }
+        [JsonPropertyName("plannedStartDate")]
+        public DateTime? PlannedStartDate { get; set; }
+        [JsonPropertyName("plannedFinishDate")]
+        public DateTime? PlannedFinishDate { get; set; }
+        [JsonPropertyName("actualStartDate")]
+        public DateTime? ActualStartDate { get; set; }
+        [JsonPropertyName("actualFinishDate")]
+        public DateTime? ActualFinishDate { get; set; }
+        [JsonPropertyName("plannedTimeHours")]
+        public decimal? PlannedTimeHours { get; set; }
+        [JsonPropertyName("actualTimeHours")]
+        public decimal? ActualTimeHours { get; set; }
+        [JsonPropertyName("assignedQaUserId")]
         public int? AssignedQaUserId { get; set; }
+        [JsonPropertyName("assignedQaUserName")]
         public string? AssignedQaUserName { get; set; }
+        [JsonPropertyName("isCompleted")]
         public bool IsCompleted { get; set; }
-        public int RejectionCount { get; set; }
     }
     private class QaUser
     {
@@ -680,20 +744,28 @@
         public string? Name { get; set; }
         public string? Phone { get; set; }
     }
+    
+    private class StageTypeInfo
+    {
+        [JsonPropertyName("id")]
+        public int Id { get; set; }
+        [JsonPropertyName("name")]
+        public string Name { get; set; } = string.Empty;
+    }
     private class StageTypeVm
     {
         public int Id { get; set; }
         public string Code { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
-        public int DisplayOrder { get; set; }
         public bool IsActive { get; set; }
     }
-    private class RejectReasonVm
+    private class IssueVm
     {
-        public int? Id { get; set; }
+        public int Id { get; set; }
+        public IssueStatus Status { get; set; }
+        public IssuePriority Priority { get; set; }
         public string Reason { get; set; } = string.Empty;
         public DateTime? CreatedAt { get; set; }
-        public int? RejectedByUserId { get; set; }
     }
 }
 

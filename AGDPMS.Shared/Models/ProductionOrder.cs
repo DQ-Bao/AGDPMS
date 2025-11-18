@@ -10,6 +10,9 @@ public class ProductionOrder
     public ProductionOrderStatus Status { get; set; }
     public bool IsCancelled { get; set; }
 
+    public DateTime? PlannedStartDate { get; set; }
+    public DateTime? PlannedFinishDate { get; set; }
+
     public DateTime? SubmittedAt { get; set; }
     public DateTime? DirectorDecisionAt { get; set; }
     public DateTime? QAMachinesCheckedAt { get; set; }

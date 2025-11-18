@@ -1,8 +1,7 @@
 namespace AGDPMS.Shared.Models.DTOs;
 
-public class AssignStageQaDto
+public class AssignItemQaDto
 {
     public int QaUserId { get; set; }
 }
-
 

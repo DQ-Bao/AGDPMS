@@ -388,15 +388,15 @@ insert into products ("name", "project_id") values
 ('Corner Bracket', 2);
 
 -- Seed default stage types (if not exists)
-insert into stage_types ("code", "name", "display_order", "is_active", "is_default")
-select v.code, v.name, v.display_order, true, true
+insert into stage_types ("code", "name", "is_active", "is_default")
+select v.code, v.name, true, true
 from (
     values
-        ('CUT_AL', 'Cắt nhôm', 1),
-        ('MILL_LOCK', 'Phay ổ khóa', 2),
-        ('DOOR_CORNER_CUT', 'Cắt góc cửa', 3),
-        ('GLASS_INSTALL', 'Lắp kính', 4)
-) as v(code, name, display_order)
+        ('CUT_AL', 'Cắt nhôm'),
+        ('MILL_LOCK', 'Phay ổ khóa'),
+        ('DOOR_CORNER_CUT', 'Cắt góc cửa'),
+        ('GLASS_INSTALL', 'Lắp kính')
+) as v(code, name)
 where not exists (select 1 from stage_types s where s."code" = v.code);
 
 -- Orders

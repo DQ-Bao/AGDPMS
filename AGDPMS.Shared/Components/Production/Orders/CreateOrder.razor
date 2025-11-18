@@ -13,11 +13,6 @@
     <h4>Tạo lệnh sản xuất</h4>
 
     <div class="mb-3" style="max-width:480px;">
-        <label class="form-label">Mã lệnh <span class="text-danger">*</span></label>
-        <input class="form-control" placeholder="Nhập mã lệnh..." @bind-value="orderCode" required />
-    </div>
-
-    <div class="mb-3" style="max-width:480px;">
         <label class="form-label">Dự án</label>
         <input class="form-control mb-2" placeholder="Tìm dự án..." @bind-value="projectSearch" @bind-value:event="oninput" @bind-value:after="LoadProjects" />
         <div class="list-group" style="max-height:200px; overflow:auto;">
@@ -80,7 +75,6 @@
     private HashSet<int> selected = new();
     private string? errorMessage;
     private bool isSubmitting = false;
-    private string? orderCode;
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,12 +135,6 @@
     private async Task Submit()
     {
         errorMessage = null;
-        if (string.IsNullOrWhiteSpace(orderCode))
-        {
-            errorMessage = "Vui lòng nhập mã lệnh.";
-            StateHasChanged();
-            return;
-        }
         if (projectId is null || !selected.Any())
         {
             errorMessage = "Vui lòng chọn dự án và ít nhất một sản phẩm.";
@@ -159,7 +147,6 @@
         {
             var dto = new ProductionOrderCreateDto
             {
-                Code = orderCode.Trim(),
                 ProjectId = projectId.Value,
                 Items = selected.Select(id => new ProductionOrderCreateItemDto { ProductId = id }).ToList()
             };
