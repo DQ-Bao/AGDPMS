@@ -6,6 +6,18 @@ namespace AGDPMS.Web.Data;
 
 public class InventoryDataAccess(IDbConnection conn)
 {
+    public Task<IEnumerable<MaterialType>> GetMaterialTypeAsync()
+    {
+        string query = @"
+            select
+                mt.id as Id,
+                mt.Name as Name
+            from material_type mt;
+        ";
+
+        return conn.QueryAsync<MaterialType>(query);
+    }
+
     public async Task<IEnumerable<Material>> GetAllMaterialAsync()
     {
         string query_m = @"

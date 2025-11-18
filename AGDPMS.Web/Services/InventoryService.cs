@@ -6,6 +6,23 @@ namespace AGDPMS.Web.Services;
 
 public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInventoryService
 {
+
+    public async Task<GetMaterialTypeResult> GetMaterialType()
+    {
+        try
+        {
+            return new GetMaterialTypeResult
+            {
+                Success = true,
+                MaterialTypes = await _inventoryDataAccess.GetMaterialTypeAsync()
+            };
+
+        }
+        catch (Exception e)
+        {
+            return new GetMaterialTypeResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
     public async Task<GetMaterialResult> GetMaterial()
     {
         try

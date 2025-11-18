@@ -27,7 +27,13 @@
 
 <div class="mb-3">
     <input type="search" class="form-control" placeholder="Tìm kiếm theo mã hoặc tên"
-           value="@searchTerm" @oninput="DebounceSearch" />
+           value="@searchTerm" @oninput="Search" />
+    <select class="form-control" @oninput="Select">
+        @for (int i = 0; i < material_types.Count(); i++)
+        {
+            <option>@material_types.ElementAt(i).Name</option>
+        }
+    </select>
 </div>
 
 <div class="card">
@@ -44,7 +50,7 @@
         @if (loadError)
         {
             <div class="p-3">Lỗi tải dự án</div>
-            <div class="p-3">@result.ErrorMessage</div>
+            <div class="p-3">@m_res.ErrorMessage</div>
         }
         else
         {
@@ -88,11 +94,14 @@
 <hr />
 
 @code {
-    private GetMaterialResult result = null;
+    private GetMaterialResult m_res = null;
+    private GetMaterialTypeResult mt_res = null;
     private bool loadError = false;
     private bool isLoading = true;
     private string searchTerm = string.Empty;
+    private string select_value = string.Empty;
     private IEnumerable<Material> materials = new List<Material> { };
+    private IEnumerable<MaterialType> material_types = new List<MaterialType> { };
     private Material[] items = new Material[] { };
     private System.Threading.Timer? searchTimer;
     private int currentPage = 1;
@@ -102,10 +111,16 @@
     {
         isLoading = true;
 
-        result = await inventoryService.GetMaterial();
-        if (result.Success)
+        mt_res = await inventoryService.GetMaterialType();
+        if (mt_res.Success)
         {
-            materials = result.Materials;
+            material_types = mt_res.MaterialTypes;
+            // select_value = 
+        }
+        m_res = await inventoryService.GetMaterial();
+        if (m_res.Success)
+        {
+            materials = m_res.Materials;
             items = materials.ToArray();
         }
         else
@@ -116,17 +131,23 @@
         StateHasChanged();
     }
 
-    private void DebounceSearch(ChangeEventArgs e)
+    private void Search(ChangeEventArgs e)
     {
         searchTerm = e.Value?.ToString() ?? string.Empty;
         // searchTimer?.Dispose();
         searchTimer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
     }
 
+    private void Select(ChangeEventArgs e)
+    {
+        select_value = e.Value?.ToString();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
     void PerformSearch(object? state)
     {
         items = materials
-        .Where(m => m.Name.Contains(searchTerm) || m.Id.Contains(searchTerm))
+        .Where(m => (m.Name.Contains(searchTerm) || m.Id.Contains(searchTerm)) && m.Type.Name == select_value)
         .Skip((currentPage - 1) * pageSize)
         .Take(pageSize)
         .ToArray();
