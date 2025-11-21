@@ -124,7 +124,7 @@ internal class WebProductService(
     {
         try
         {
-            var boms = await cavityDataAccess.GetBOMsOfTypeAsync(projectId, MaterialType.Aluminum);
+            var boms = await cavityDataAccess.GetBOMsOfTypeAsync(projectId, [MaterialType.Aluminum]);
             var grouped = boms.GroupBy(b => b.BOM.Material);
             var summaries = grouped.Select(g =>
             {
@@ -186,7 +186,63 @@ internal class WebProductService(
     {
         try
         {
-            throw new NotImplementedException();
+            var glassBOMs = await cavityDataAccess.GetBOMsOfTypeAsync(projectId, [MaterialType.Glass]);
+            var glassGrouped = glassBOMs.GroupBy(b => b.BOM.Material);
+            var glassSummaries = new List<CavityGlassSummary>();
+            foreach (var g in glassGrouped)
+            {
+                var cuts = new List<CavityGlassSummary.GlassCut>();
+                foreach (var grp in g.GroupBy(b => (b.BOM.Width, b.BOM.Length)))
+                {
+                    var stock = grp.First().BOM.Material.Stocks
+                                   .FirstOrDefault(s => s.Width == grp.Key.Width && s.Length == grp.Key.Length);
+                    var cavityCodeArrays = await Task.WhenAll(grp.Select(b => cavityDataAccess.GetCodeByIdAsync(b.BOM.CavityId)));
+                    var cavityCodes = cavityCodeArrays.SelectMany(c => c).ToList();
+
+                    cuts.Add(new CavityGlassSummary.GlassCut
+                    {
+                        Width = grp.Key.Width,
+                        Length = grp.Key.Length,
+                        Quantity = grp.Sum(b => b.BOM.Quantity * b.CavityQuantity),
+                        StockId = stock?.Id ?? 0,
+                        Stock = stock?.Stock ?? 0,
+                        UnitPrice = stock?.BasePrice ?? 0m,
+                        Color = grp.First().BOM.Color,
+                        CavityCodes = cavityCodes
+                    });
+                }
+
+                glassSummaries.Add(new CavityGlassSummary(g.Key)
+                {
+                    Id = g.Key.Id,
+                    Name = g.Key.Name,
+                    Type = g.Key.Type,
+                    Cuts = cuts
+                });
+            }
+
+            var otherBOMs = await cavityDataAccess.GetBOMsOfTypeAsync(projectId, [MaterialType.Accessory, MaterialType.Gasket, MaterialType.Auxiliary]);
+            var otherGrouped = otherBOMs.GroupBy(b => b.BOM.Material);
+            var otherSummaries = otherGrouped.Select(g =>
+            {
+                var bom = g.First().BOM;
+                var stock = bom.Material.Stocks.FirstOrDefault();
+
+                return new CavityOtherMaterialSummary(g.Key)
+                {
+                    Id = g.Key.Id,
+                    Name = g.Key.Name,
+                    Type = bom.Material.Type,
+                    Stock = stock ?? new(),
+                    Quantity = g.Sum(b => b.BOM.Quantity * b.CavityQuantity),
+                    UnitPrice = stock?.BasePrice ?? 0,
+                    GasketLength = bom.Material.Type == MaterialType.Gasket ? bom.Length : null,
+                    Color = bom.Color,
+                    Unit = bom.Unit
+
+                };
+            }).ToList();
+            return new GetCavityGlassAndOtherMaterialSummariesResult { Success = true, Glasses = glassSummaries, Others = otherSummaries };
         }
         catch (Exception ex)
         {
@@ -218,6 +274,34 @@ internal class WebProductService(
         catch (Exception ex)
         {
             return new AddOrUpdateProfileMaterialBasePriceResult { Success  = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    public async Task<AddOrUpdateGlassMaterialBasePriceResult> AddOrUpdateGlassMaterialBasePriceAsync(string materialId, double stockWidth, double stockLength, int stockId, decimal price)
+    {
+        try
+        {
+            if (stockId == 0) await cavityDataAccess.AddMaterialStockAsync(materialId, new MaterialStock { Width = stockWidth, Length = stockLength, BasePrice = price });
+            else await cavityDataAccess.UpdateMaterialStockBasePriceAsync(stockId, price);
+            return new AddOrUpdateGlassMaterialBasePriceResult { Success = true };
+        }
+        catch (Exception ex)
+        {
+            return new AddOrUpdateGlassMaterialBasePriceResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    public async Task<AddOrUpdateOtherMaterialBasePriceResult> AddOrUpdateOtherMaterialBasePriceAsync(string materialId, int stockId, decimal price)
+    {
+        try
+        {
+            if (stockId == 0) await cavityDataAccess.AddMaterialStockAsync(materialId, new MaterialStock { BasePrice = price });
+            else await cavityDataAccess.UpdateMaterialStockBasePriceAsync(stockId, price);
+            return new AddOrUpdateOtherMaterialBasePriceResult { Success = true };
+        }
+        catch (Exception ex)
+        {
+            return new AddOrUpdateOtherMaterialBasePriceResult { Success = false, ErrorMessage = ex.Message };
         }
     }
 }

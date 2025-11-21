@@ -14,6 +14,8 @@ public interface IProductService
     Task<GetCavityGlassAndOtherMaterialSummariesResult> GetCavityGlassAndOtherMaterialSummariesAsync(int projectId);
     Task<UpdateProfileMaterialWeightResult> UpdateProfileMaterialWeightAsync(string materialId, double weight);
     Task<AddOrUpdateProfileMaterialBasePriceResult> AddOrUpdateProfileMaterialBasePriceAsync(string materialId, double stockLength, int stockId, decimal price);
+    Task<AddOrUpdateGlassMaterialBasePriceResult> AddOrUpdateGlassMaterialBasePriceAsync(string materialId, double stockWidth, double stockLength, int stockId, decimal price);
+    Task<AddOrUpdateOtherMaterialBasePriceResult> AddOrUpdateOtherMaterialBasePriceAsync(string materialId, int stockId, decimal price);
 }
 
 public sealed class GetAllProjectsResult
@@ -77,6 +79,18 @@ public sealed class UpdateProfileMaterialWeightResult
 }
 
 public sealed class AddOrUpdateProfileMaterialBasePriceResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class AddOrUpdateGlassMaterialBasePriceResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class AddOrUpdateOtherMaterialBasePriceResult
 {
     public required bool Success { get; set; }
     public string? ErrorMessage { get; set; }

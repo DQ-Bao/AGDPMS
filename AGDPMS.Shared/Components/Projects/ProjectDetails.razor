@@ -220,7 +220,7 @@
                                                     }
                                                     else
                                                     {
-                                                        <span @onclick="() => BeginEditPrice(profile.Id, row.StockLength, row.UnitPrice)">
+                                                        <span @onclick="() => BeginEditProfileStockPrice(profile.Id, row.StockLength, row.UnitPrice)">
                                                             @row.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))
                                                         </span>
                                                     }
@@ -293,24 +293,41 @@
                                         var rowSpan = glass.Cuts.Count;
                                         for (var i = 0; i < rowSpan; i++)
                                         {
+                                            var cut = glass.Cuts[i];
                                             <tr>
                                                 @if (i == 0)
                                                 {
-                                                    <td rowspan="@rowSpan">@glass.Code</td>
-                                                    <td rowspan="@rowSpan">@glass.Name</td>
+                                                    <td rowspan="@rowSpan" class="align-top">@glass.Id</td>
+                                                    <td rowspan="@rowSpan" class="align-top">@glass.Name</td>
                                                 }
-                                                <td>@glass.Cuts[i].Width x @glass.Cuts[i].Length</td>
-                                                <td>@glass.Cuts[i].Quantity</td>
-                                                <td>@glass.Cuts[i].Stock</td>
-                                                <td>@glass.Cuts[i].Need</td>
-                                                <td>@glass.Cuts[i].TotalPerimeter</td>
-                                                <td>@glass.Cuts[i].TotalSize</td>
-                                                <td>@glass.Cuts[i].Color</td>
-                                                <td>@string.Join(",", glass.Cuts[i].CavityCodes)</td>
+                                                <td>@cut.Width x @cut.Length</td>
+                                                <td>@cut.Quantity</td>
+                                                <td>@cut.Stock</td>
+                                                <td>@cut.Need</td>
+                                                <td>@((cut.TotalPerimeter / 1000).ToString("N3"))</td>
+                                                <td>@((cut.TotalSize / 1_000_000).ToString("N3"))</td>
+                                                <td>@cut.Color</td>
+                                                <td>@string.Join(",", cut.CavityCodes)</td>
+                                                <td>
+                                                    @if (EditingGlassStockPriceRow == (glass.Id, cut.Width, cut.Length))
+                                                    {
+                                                        <div class="input-group">
+                                                            <InputNumber @bind-Value="EditingGlassStockPrice"
+                                                                         @onblur="() => HandleUpdateGlassStockPrice(cut, EditingGlassStockPrice)"
+                                                                         class="form-control" />
+                                                            <span class="input-group-text">₫</span>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span @onclick="() => BeginEditGlassStockPrice(glass.Id, cut.Width, cut.Length, cut.UnitPrice)">
+                                                            @cut.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))
+                                                        </span>
+                                                    }
+                                                </td>
                                                 @if (i == 0)
                                                 {
-                                                    <td>@glass.UnitPrice</td>
-                                                    <td>@glass.TotalPrice</td>
+                                                    <td rowspan="@rowSpan" class="align-top">@glass.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
                                                     <td></td>
                                                 }
                                             </tr>
@@ -320,8 +337,8 @@
                                 <tfoot class="table-light fw-bold">
                                     <tr>
                                         <td colspan="6">Tổng cộng</td>
-                                        <td>@Glasses.Sum(g => g.TotalPerimeter)</td>
-                                        <td>@Glasses.Sum(g => g.TotalSize)</td>
+                                        <td>@((Glasses.Sum(g => g.TotalPerimeter) / 1000).ToString("N3"))</td>
+                                        <td>@((Glasses.Sum(g => g.TotalSize) / 1_000_000).ToString("N3"))</td>
                                         <td colspan="3"></td>
                                         <td>@Glasses.Sum(p => p.TotalPrice).ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
                                         <td></td>
@@ -362,35 +379,32 @@
                                     @foreach (var mat in OtherMaterials)
                                     {
                                         <tr>
-                                            <td>@mat.Code</td>
+                                            <td>@mat.Id</td>
                                             <td>@mat.Name</td>
-                                            @if (mat.Gasket is not null)
-                                            {
-                                                <td>@mat.Gasket.Length</td>
-                                                <td>@mat.Quantity</td>
-                                                <td>@mat.Unit</td>
-                                                <td>@mat.Gasket.StockLength</td>
-                                                <td>@mat.Gasket.NeedLength</td>
-                                            }
-                                            else
-                                            {
-                                                <td></td>
-                                                <td>@mat.Quantity</td>
-                                                <td>@mat.Unit</td>
-                                                <td>@mat.Stock</td>
-                                                <td>@mat.Need</td>
-                                            }
+                                            <td>@mat.GasketLength</td>
+                                            <td>@mat.Quantity</td>
+                                            <td>@mat.Unit</td>
+                                            <td>@(mat.GasketLength is null ? mat.Stock.Stock : mat.Stock.Length)</td>
+                                            <td>@(mat.GasketLength is null ? mat.Need : mat.NeedGasketLength)</td>
                                             <td>@mat.Color</td>
-                                            @if (mat.Gasket is not null)
-                                            {
-                                                <td>@mat.Gasket.PricePerMeter.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn")) / @mat.Unit</td>
-                                                <td>@mat.Gasket.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
-                                            }
-                                            else
-                                            {
-                                                <td>@mat.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
-                                                <td>@mat.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
-                                            }
+                                            <td>
+                                                @if (EditingOtherMaterialStockPriceRow == mat.Id)
+                                                {
+                                                    <div class="input-group">
+                                                        <InputNumber @bind-Value="EditingGlassStockPrice"
+                                                                     @onblur="() => HandleUpdateOtherMaterialStockPrice(mat, EditingGlassStockPrice)"
+                                                                     class="form-control" />
+                                                        <span class="input-group-text">₫</span>
+                                                    </div>
+                                                }
+                                                else
+                                                {
+                                                    <span @onclick="() => BeginEditOtherMaterialStockPrice(mat.Id, mat.UnitPrice)">
+                                                        @mat.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td>@mat.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
                                             <td></td>
                                         </tr>
                                     }
@@ -550,6 +564,12 @@
     private (string ProfileId, double StockLength)? EditingProfileStockPriceRow { get; set; }
     private decimal EditingProfileStockPrice { get; set; }
 
+    private (string GlassId, double StockWidth, double StockLength)? EditingGlassStockPriceRow { get; set; }
+    private decimal EditingGlassStockPrice { get; set; }
+
+    private string? EditingOtherMaterialStockPriceRow { get; set; }
+    private decimal EditingOtherMaterialStockPrice { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadProjectCavities();
@@ -562,6 +582,7 @@
         {
             Cavities = result.Cavities;
             // await LoadProfileSummaries();
+            await LoadGlassAndOtherMaterialSummaries();
         }
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
@@ -572,6 +593,17 @@
         var result = await ProductService.GetCavityProfileSummariesAsync(ProjectId, Input.StockLength);
         IsLoadingProfileSummaries = false;
         if (result.Success) Profiles = result.Summaries;
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private async Task LoadGlassAndOtherMaterialSummaries()
+    {
+        var result = await ProductService.GetCavityGlassAndOtherMaterialSummariesAsync(ProjectId);
+        if (result.Success)
+        {
+            Glasses = result.Glasses;
+            OtherMaterials = result.Others;
+        }
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
@@ -688,7 +720,7 @@
         }
     }
 
-    private void BeginEditPrice(string profileId, double stockLength, decimal price)
+    private void BeginEditProfileStockPrice(string profileId, double stockLength, decimal price)
     {
         EditingProfileStockPriceRow = (profileId, stockLength);
         EditingProfileStockPrice = price;
@@ -706,10 +738,50 @@
             stock.UnitPrice = newPrice;
             EditingProfileStockPriceRow = null;
         }
-        else
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private void BeginEditGlassStockPrice(string glassId, double stockWidth, double stockLength, decimal price)
+    {
+        EditingGlassStockPriceRow = (glassId, stockWidth, stockLength);
+        EditingGlassStockPrice = price;
+    }
+
+    private async Task HandleUpdateGlassStockPrice(CavityGlassSummary.GlassCut cut, decimal newPrice)
+    {
+        if (EditingGlassStockPriceRow is null) return;
+        var result = await ProductService.AddOrUpdateGlassMaterialBasePriceAsync(
+            EditingGlassStockPriceRow.Value.GlassId,
+            EditingGlassStockPriceRow.Value.StockWidth,
+            EditingGlassStockPriceRow.Value.StockLength,
+            cut.StockId, newPrice);
+        if (result.Success)
         {
-            StatusMessage = StatusMessage.Error(result.ErrorMessage);
+            cut.UnitPrice = newPrice;
+            EditingGlassStockPriceRow = null;
         }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private void BeginEditOtherMaterialStockPrice(string matId, decimal price)
+    {
+        EditingOtherMaterialStockPriceRow = matId;
+        EditingOtherMaterialStockPrice = price;
+    }
+
+    private async Task HandleUpdateOtherMaterialStockPrice(CavityOtherMaterialSummary mat, decimal newPrice)
+    {
+        if (EditingOtherMaterialStockPriceRow is null) return;
+        var result = await ProductService.AddOrUpdateOtherMaterialBasePriceAsync(
+            EditingOtherMaterialStockPriceRow,
+            mat.Stock.Id,
+            newPrice);
+        if (result.Success)
+        {
+            mat.UnitPrice = newPrice;
+            EditingOtherMaterialStockPriceRow = null;
+        }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
     private sealed class SummarizeAluminumModel

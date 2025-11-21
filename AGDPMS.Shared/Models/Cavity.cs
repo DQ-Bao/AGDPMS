@@ -37,11 +37,12 @@ public sealed class CavityProfileSummary : Material
         public double Waste => Math.Round(StockLength - Pattern.Sum(p => p.CutLength * p.Quantity), 2);
         public double Efficiency => Math.Round((StockLength - Waste) / StockLength * 100, 2);
     }
-    public sealed record StockUsage(MaterialStock Stock, int Used, int Need)
+    public sealed record StockUsage(MaterialStock Stock, int Used)
     {
         public int StockId => Stock.Id;
         public double StockLength => Stock.Length;
         public int InStock => Stock.Stock;
+        public int Need => Math.Max(Used - Stock.Stock, 0);
         public decimal UnitPrice
         {
             get => Stock.BasePrice;
@@ -73,53 +74,65 @@ public sealed class CavityProfileSummary : Material
         .Select(stock =>
         {
             BarsUsedByStockLength.TryGetValue(stock.Length, out var used);
-            var need = Math.Max(used - stock.Stock, 0);
-            return new StockUsage(stock, used, need);
+            return new StockUsage(stock, used);
         })];
     public decimal TotalPrice => StockUsages.Sum(su => su.Used * su.UnitPrice);
 }
 
-public sealed class CavityGlassSummary
+public sealed class CavityGlassSummary : Material
 {
     public sealed class GlassCut
     {
         public required double Width { get; set; }
         public required double Length { get; set; }
         public required int Quantity { get; set; }
-        public double TotalPerimeter => (Width + Length) * 2 * Quantity;
-        public double TotalSize => Width * Length * Quantity;
+        public int StockId { get; set; }
         public required int Stock { get; set; }
         public int Need => Math.Max(Quantity - Stock, 0);
+        public double TotalPerimeter => (Width + Length) * 2 * Quantity;
+        public double TotalSize => Width * Length * Quantity;
         public string? Color { get; set; }
         public List<string> CavityCodes { get; set; } = [];
+        public required decimal UnitPrice { get; set; }
     }
-    public List<GlassCut> Cuts { get; set; } = [];
-    public required string Code { get; set; }
-    public required string Name { get; set; }
+
+    public CavityGlassSummary(Material material)
+    {
+        if (material.Type != MaterialType.Glass)
+            throw new ArgumentException("CavityGlassSummary can only be created with an glass material.");
+        Id = material.Id;
+        Name = material.Name;
+        Type = material.Type;
+        Weight = material.Weight;
+        Stocks = material.Stocks;
+    }
+
+    public required List<GlassCut> Cuts { get; set; }
     public double TotalPerimeter => Cuts.Sum(c => c.TotalPerimeter);
     public double TotalSize => Cuts.Sum(c => c.TotalSize);
-    public required decimal UnitPrice { get; set; }
-    public decimal TotalPrice => UnitPrice * Cuts.Sum(c => c.Quantity);
+    public decimal TotalPrice =>  Cuts.Sum(c => c.UnitPrice * c.Quantity);
 }
 
-public sealed class CavityOtherMaterialSummary
+public sealed class CavityOtherMaterialSummary : Material
 {
-    public sealed class GasketInfo
+    public CavityOtherMaterialSummary(Material material)
     {
-        public required double Length { get; set; }
-        public required double StockLength { get; set; }
-        public double NeedLength => Math.Max(Length - StockLength, 0);
-        public required decimal PricePerMeter { get; set; }
-        public decimal TotalPrice => PricePerMeter * (decimal)Length;
+        if (material.Type != MaterialType.Gasket && material.Type != MaterialType.Accessory && material.Type != MaterialType.Auxiliary)
+            throw new ArgumentException("CavityGlassSummary can only be created with an material other than aluminum and glass.");
+        Id = material.Id;
+        Name = material.Name;
+        Type = material.Type;
+        Weight = material.Weight;
+        Stocks = material.Stocks;
     }
-    public required string Code { get; set; }
-    public required string Name { get; set; }
-    public GasketInfo? Gasket { get; set; }
+
+    public double? GasketLength {  get; set; }
+    public required MaterialStock Stock { get; set; }
     public int Quantity { get; set; }
-    public string Unit { get; set; } = string.Empty;
-    public string Color { get; set; } = string.Empty;
-    public int Stock { get; set; }
-    public int Need => Math.Max(Quantity - Stock, 0);
+    public string? Unit { get; set; }
+    public string? Color { get; set; }
+    public double NeedGasketLength => GasketLength is not null ? Math.Max(GasketLength.Value - Stock.Length, 0) : 0;
+    public int Need => Math.Max(Quantity - Stock.Stock, 0);
     public required decimal UnitPrice { get; set; }
-    public decimal TotalPrice => UnitPrice * Quantity;
+    public decimal TotalPrice => GasketLength is null ? UnitPrice * Quantity : UnitPrice * (decimal)GasketLength * Quantity;
 }

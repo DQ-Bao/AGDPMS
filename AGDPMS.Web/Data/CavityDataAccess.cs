@@ -14,6 +14,9 @@ public class CavityDataAccess(IDbConnection conn)
             where cav.project_id = @ProjectId",
             new { ProjectId = projectId });
 
+    public Task<IEnumerable<string>> GetCodeByIdAsync(int cavityId, IDbTransaction? tran = null) =>
+        conn.QueryAsync<string>(@"select code from cavities where id = @CavityId", new { CavityId = cavityId }, tran);
+
     public async Task<Cavity?> GetByIdWithBOMsAsync(int cavityId, IDbTransaction? tran = null)
     {
         Cavity? cavity = null;
@@ -140,9 +143,10 @@ public class CavityDataAccess(IDbConnection conn)
     public Task DeleteAllBOMsAsync(int cavityId, IDbTransaction? tran = null) =>
         conn.ExecuteAsync("delete from cavity_boms where cavity_id = @CavityId", new { CavityId = cavityId }, tran);
 
-    public async Task<IEnumerable<(CavityBOM BOM, int CavityQuantity)>> GetBOMsOfTypeAsync(int projectId, MaterialType type, IDbTransaction? tran = null)
+    public async Task<IEnumerable<(CavityBOM BOM, int CavityQuantity)>> GetBOMsOfTypeAsync(int projectId, IEnumerable<MaterialType> types, IDbTransaction? tran = null)
     {
         var lookup = new Dictionary<int, CavityBOM>();
+        var typeNames = types.Select(t => t.Name).ToArray();
         var result = await conn.QueryAsync<CavityBOM, Material, MaterialType, MaterialStock, int, (CavityBOM bom, int cavityQty)>(@"
             select bom.id as Id, bom.cavity_id as CavityId, bom.quantity as Quantity, bom.length as Length, bom.width as Width, bom.color as Color, bom.unit as Unit,
                    m.id as Id, m.name as Name, m.weight as Weight,
@@ -152,7 +156,7 @@ public class CavityDataAccess(IDbConnection conn)
             from cavity_boms as bom
             join cavities as cav on bom.cavity_id = cav.id and cav.project_id = @ProjectId
             join materials as m on bom.material_id = m.id
-            join material_type as mt on m.type = mt.id and mt.name = @Type
+            join material_type as mt on m.type = mt.id and mt.name = any(@TypeNames)
             left join material_stock as ms on m.id = ms.material_id
             order by bom.id, m.id",
             (bom, material, materialType, stock, cavityQuantity) =>
@@ -167,7 +171,7 @@ public class CavityDataAccess(IDbConnection conn)
                 if (stock != null) existing.Material.Stocks.Add(stock);
                 return (existing, cavityQuantity);
             },
-            new { ProjectId = projectId, Type = type.Name },
+            new { ProjectId = projectId, TypeNames = typeNames },
             tran,
             splitOn: "Id,CavityQuantity");
         return result;
