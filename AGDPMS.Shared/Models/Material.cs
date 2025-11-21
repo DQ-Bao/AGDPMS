@@ -6,8 +6,11 @@ public class Material
     public required string Name { set; get; }
     public required MaterialType? Type { set; get; }
     public double Weight { set; get; }
-    public string? Vendor { set; get; }
-    public IEnumerable<MaterialStock> Stock { set; get; } = new List<MaterialStock>();
+    public List<MaterialStock> Stocks { set; get; } = [];
+
+    public bool Equals(Material? other) => other is not null && Id == other.Id;
+    public override bool Equals(object? obj) => Equals(obj as Material);
+    public override int GetHashCode() => Id.GetHashCode();
 }
 
 public class MaterialType
@@ -27,12 +30,23 @@ public class MaterialType
     public static MaterialType? FromName(string name) =>
         All.FirstOrDefault(m => string.Equals(m.Name, name, StringComparison.OrdinalIgnoreCase));
 
+    public override bool Equals(object? obj) => obj is MaterialType other && Id == other.Id;
+    public override int GetHashCode() => Id;
     public override string ToString() => Name;
+    public static bool operator ==(MaterialType? left, MaterialType? right)
+    {
+        if (ReferenceEquals(left, right)) return true;
+        if (left is null || right is null) return false;
+        return left.Id == right.Id;
+    }
+    public static bool operator !=(MaterialType? left, MaterialType? right) => !(left == right);
 }
 
 public class MaterialStock
 {
+    public int Id { set; get; }
     public double Length { set; get; }
     public double Width { set; get; }
     public int Stock { set; get; }
+    public decimal BasePrice { set; get; }
 }

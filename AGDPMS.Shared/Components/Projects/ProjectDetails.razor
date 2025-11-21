@@ -4,6 +4,7 @@
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
 @using System.ComponentModel.DataAnnotations
+@using System.Globalization
 
 @inject WStarService WStarService
 @inject IProductService ProductService
@@ -48,49 +49,80 @@
                 <div class="input-group w-auto me-2">
                     <label class="input-group-text fw-semibold">Nhập thiết kế Wstar</label>
                     <InputFile OnChange="OnInputFileChange" accept=".mdb" class="form-control" />
-                    @if (UploadedFilePath is not null)
+                    @if (!IsWStarFileLoading && !IsAddingCavitiesFromWStar && UploadedFilePath is not null)
                     {
                         <button type="button" @onclick="LoadWStarProjects" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#projModal">
                             Chọn dự án
                         </button>
                     }
                 </div>
+                @if (IsWStarFileLoading)
+                {
+                    <div class="spinner-border spinner-border-sm text-primary mx-2" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                }
+                @if (IsAddingCavitiesFromWStar)
+                {
+                    <div class="d-flex align-items-center mx-2 text-primary">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span>Đang thêm cửa...</span>
+                    </div>
+                }
                 <button type="button" class="btn btn-primary">Báo giá</button>
             </div>
-            <table class="table table-striped table-bordered">
-                <thead class="table-light">
-                    <tr>
-                        <th>Mã cửa</th>
-                        <th>Mô tả</th>
-                        <th>Rộng</th>
-                        <th>Cao</th>
-                        <th>Số lượng</th>
-                        <th>Thao tác</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @if (Cavities.Any())
-                    {
-                        @foreach (var cav in Cavities)
-                        {
-                            <tr>
-                                <td>@cav.Code</td>
-                                <td>@cav.Description</td>
-                                <td>@cav.Width</td>
-                                <td>@cav.Height</td>
-                                <td>@cav.Quantity bộ</td>
-                                <td>
-                                    <a href="/cavities/@cav.Id" class="btn btn-primary">Chi tiết</a>
-                                    <button @onclick="() => CavityToDelete = cav" type="button" class="btn btn-danger"
-                                            data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
-                                        Xóa cửa
-                                    </button>
-                                </td>
-                            </tr>
-                        }
-                    }
-                </tbody>
-            </table>
+            <DataTable TItem="Cavity" TEdit="UpdateCavityModel" Items="Cavities" SearchBy="@(c => c.Description)"
+                       EnableEditing="true"
+                       EditModelFactory="@(c => new UpdateCavityModel { Code = c.Code, Description = c.Description, Location = c.Location })"
+                       OnItemSaved="SaveCavityChange">
+                <DataTemplate>
+                    <Column Header="Mã cửa">
+                        <CellTemplate><td>@context.Code</td></CellTemplate>
+                        <EditTemplate>
+                            <td>
+                                <InputText class="form-control" @bind-Value="context.Code" />
+                                <ValidationMessage For="() => context.Code" />
+                            </td>
+                        </EditTemplate>
+                    </Column>
+                    <Column Header="Mô tả">
+                        <CellTemplate><td>@context.Description</td></CellTemplate>
+                        <EditTemplate>
+                            <td>
+                                <InputText class="form-control" @bind-Value="context.Description" />
+                                <ValidationMessage For="() => context.Description" />
+                            </td>
+                        </EditTemplate>
+                    </Column>
+                    <Column Header="Vị trí">
+                        <CellTemplate><td>@context.Location</td></CellTemplate>
+                        <EditTemplate>
+                            <td>
+                                <InputText class="form-control" @bind-Value="context.Location" />
+                                <ValidationMessage For="() => context.Location" />
+                            </td>
+                        </EditTemplate>
+                    </Column>
+                    <Column Header="Rộng x Cao (mm)">
+                        <CellTemplate><td>@context.Width x @context.Height</td></CellTemplate>
+                    </Column>
+                    <Column Header="Kiểu cách">
+                        <CellTemplate><td>@context.WindowType</td></CellTemplate>
+                    </Column>
+                    <Column Header="Số lượng">
+                        <CellTemplate><td>@context.Quantity bộ</td></CellTemplate>
+                    </Column>
+                </DataTemplate>
+                <ActionTemplate>
+                    <a href="/cavities/@context.Id" class="btn btn-primary">Chi tiết</a>
+                    <button @onclick="() => CavityToDelete = context" type="button" class="btn btn-danger"
+                            data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                        Xóa cửa
+                    </button>
+                </ActionTemplate>
+            </DataTable>
         </div>
     </div>
     <div class="tab-pane fade" id="pane-materials" role="tabpanel" aria-labelledby="tab-materials">
@@ -105,66 +137,273 @@
                 </h2>
                 <div id="collapseProfile" class="accordion-collapse collapse show" data-bs-parent="#materialsAccordion">
                     <div class="accordion-body">
-                        <table class="table table-bordered align-middle">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>Mã profile</th>
-                                    <th>Tên profile</th>
-                                    <th>Chiều dài cây (mm)</th>
-                                    <th>Số cây dùng</th>
-                                    <th>Số cây tồn</th>
-                                    <th>Cần thêm</th>
-                                    <th>Trọng lượng (kg)</th>
-                                    <th>Đơn giá</th>
-                                    <th>Thành tiền</th>
-                                    <th>Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach (var profile in Profiles)
-                                {
-                                    var barGroups = profile.BarsUsedByStockLength.Keys.ToList();
-                                    var rowSpan = barGroups.Count;
-                                    for (var i = 0; i < rowSpan; i++)
+                        <div class="mb-3 d-flex align-items-center">
+                            <EditForm Model="Input" OnValidSubmit="LoadProfileSummaries" FormName="summarize-profile-form">
+                                <DataAnnotationsValidator />
+                                <div class="input-group w-auto me-2">
+                                    <label class="input-group-text fw-semibold">Chiều dài cây (mm)</label>
+                                    <InputNumber @bind-Value="Input.StockLength" class="form-control" />
+                                    <button type="submit" class="btn btn-primary" disabled="@IsLoadingProfileSummaries">Tổng hợp nhôm</button>
+                                </div>
+                            </EditForm>
+                            @if (IsLoadingProfileSummaries)
+                            {
+                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            }
+                            <button type="button" class="btn btn-success" disabled="@(!Profiles.Any())">Xuất Excel</button>
+                        </div>
+                        <div class="fixed-table-wrapper">
+                            <table class="table table-bordered table-striped table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Mã profile</th>
+                                        <th>Tên profile</th>
+                                        <th>Chiều dài cây (mm)</th>
+                                        <th>Số cây dùng</th>
+                                        <th>Số cây tồn</th>
+                                        <th>Cần thêm</th>
+                                        <th>Tỷ trọng (kg/m)</th>
+                                        <th>Tổng trọng lượng (kg)</th>
+                                        <th>Đơn giá</th>
+                                        <th>Thành tiền</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var profile in Profiles)
                                     {
-                                        var stockLength = barGroups[i];
-                                        profile.BarsUsedByStockLength.TryGetValue(stockLength, out var used);
-                                        profile.BarsInStockByStockLength.TryGetValue(stockLength, out var stock);
-                                        profile.BarsNeedByStockLength.TryGetValue(stockLength, out var need);
-                                        profile.UnitPriceByStockLength.TryGetValue(stockLength, out var price);
-                                        <tr>
-                                            @if (i == 0)
-                                            {
-                                                <td rowspan="@rowSpan">@profile.Code</td>
-                                                <td rowspan="@rowSpan">@profile.Name</td>
-                                            }
-                                            <td>@stockLength</td>
-                                            <td>@used</td>
-                                            <td>@stock</td>
-                                            <td>@need</td>
-                                            @if (i == 0)
-                                            {
-                                                <td rowspan="@rowSpan">@profile.TotalWeight.ToString("N2")</td>
-                                                <td rowspan="@rowSpan">@price.ToString("C")</td>
-                                                <td rowspan="@rowSpan">@profile.TotalPrice.ToString("C")</td>
-                                                <td rowspan="@rowSpan">
-                                                    <button @onclick="() => ShowCuts(profile)" type="button"
-                                                            class="btn btn-sm btn-outline-primary me-1"
-                                                            data-bs-toggle="modal" data-bs-target="#profileCutsModal">
-                                                        Kích thước cắt
-                                                    </button>
-                                                    <button @onclick="() => ShowSolutions(profile)" type="button"
-                                                            class="btn btn-sm btn-outline-success"
-                                                            data-bs-toggle="modal" data-bs-target="#profileCutSolutionsModal">
-                                                        Tối ưu cắt
-                                                    </button>
+                                        var rows = profile.StockUsages;
+                                        var rowSpan = rows.Count;
+                                        for (var i = 0; i < rowSpan; i++)
+                                        {
+                                            var row = rows[i];
+                                            <tr>
+                                                @if (i == 0)
+                                                {
+                                                    <td rowspan="@rowSpan">@profile.Id</td>
+                                                    <td rowspan="@rowSpan">@profile.Name</td>
+                                                }
+                                                <td>@row.StockLength</td>
+                                                <td>@row.Used</td>
+                                                <td>@row.InStock</td>
+                                                <td>@row.Need</td>
+                                                @if (i == 0)
+                                                {
+                                                    <td rowspan="@rowSpan">
+                                                        @if (EditingWeightProfileCode == profile.Id)
+                                                        {
+                                                            <InputNumber @bind-Value="profile.Weight"
+                                                                         step="0.001"
+                                                                         @onblur="() => HandleMaterialWeightChange(profile.Id, profile.Weight)"
+                                                                         class="form-control" />
+                                                        }
+                                                        else
+                                                        {
+                                                            <span @onclick="() => EditingWeightProfileCode = profile.Id">
+                                                                @profile.Weight.ToString("N2")
+                                                            </span>
+                                                        }
+                                                    </td>
+                                                    <td rowspan="@rowSpan">@profile.TotalWeight.ToString("N2")</td>
+                                                }
+                                                <td>
+                                                    @if (EditingProfileStockPriceRow == (profile.Id, row.StockLength))
+                                                    {
+                                                        <div class="input-group">
+                                                            <InputNumber @bind-Value="EditingProfileStockPrice"
+                                                                         @onblur="() => HandleUpdateProfileStockPrice(row, EditingProfileStockPrice)"
+                                                                         class="form-control" />
+                                                            <span class="input-group-text">₫</span>
+                                                        </div>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span @onclick="() => BeginEditPrice(profile.Id, row.StockLength, row.UnitPrice)">
+                                                            @row.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))
+                                                        </span>
+                                                    }
                                                 </td>
+                                                @if (i == 0)
+                                                {
+                                                    <td rowspan="@rowSpan">@profile.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                                    <td rowspan="@rowSpan">
+                                                        <button @onclick="() => ShowCuts(profile)" type="button"
+                                                                class="btn btn-sm btn-outline-primary me-1"
+                                                                data-bs-toggle="modal" data-bs-target="#profileCutsModal">
+                                                            KT cắt
+                                                        </button>
+                                                        <button @onclick="() => ShowSolutions(profile)" type="button"
+                                                                class="btn btn-sm btn-outline-success"
+                                                                data-bs-toggle="modal" data-bs-target="#profileCutSolutionsModal">
+                                                            Tối ưu cắt
+                                                        </button>
+                                                    </td>
+                                                }
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td colspan="7">Tổng cộng</td>
+                                        <td>@Profiles.Sum(p => p.TotalWeight).ToString("N2") kg</td>
+                                        <td></td>
+                                        <td>@Profiles.Sum(p => p.TotalPrice).ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingGlass">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGlass"
+                            aria-expanded="true" aria-controls="collapseGlass">
+                        Kính
+                    </button>
+                </h2>
+                <div id="collapseGlass" class="accordion-collapse collapse" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <div class="fixed-table-wrapper">
+                            <table class="table table-bordered table-striped table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Mã kính</th>
+                                        <th>Tên kính</th>
+                                        <th>Kích thước</th>
+                                        <th>Số tấm</th>
+                                        <th>Số tấm tồn</th>
+                                        <th>Cần thêm</th>
+                                        <th>Tổng chu vi (m)</th>
+                                        <th>Tổng diện tích (m2)</th>
+                                        <th>Màu sắc</th>
+                                        <th>Cửa</th>
+                                        <th>Đơn giá</th>
+                                        <th>Thành tiền</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var glass in Glasses)
+                                    {
+                                        var rowSpan = glass.Cuts.Count;
+                                        for (var i = 0; i < rowSpan; i++)
+                                        {
+                                            <tr>
+                                                @if (i == 0)
+                                                {
+                                                    <td rowspan="@rowSpan">@glass.Code</td>
+                                                    <td rowspan="@rowSpan">@glass.Name</td>
+                                                }
+                                                <td>@glass.Cuts[i].Width x @glass.Cuts[i].Length</td>
+                                                <td>@glass.Cuts[i].Quantity</td>
+                                                <td>@glass.Cuts[i].Stock</td>
+                                                <td>@glass.Cuts[i].Need</td>
+                                                <td>@glass.Cuts[i].TotalPerimeter</td>
+                                                <td>@glass.Cuts[i].TotalSize</td>
+                                                <td>@glass.Cuts[i].Color</td>
+                                                <td>@string.Join(",", glass.Cuts[i].CavityCodes)</td>
+                                                @if (i == 0)
+                                                {
+                                                    <td>@glass.UnitPrice</td>
+                                                    <td>@glass.TotalPrice</td>
+                                                    <td></td>
+                                                }
+                                            </tr>
+                                        }
+                                    }
+                                </tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td colspan="6">Tổng cộng</td>
+                                        <td>@Glasses.Sum(g => g.TotalPerimeter)</td>
+                                        <td>@Glasses.Sum(g => g.TotalSize)</td>
+                                        <td colspan="3"></td>
+                                        <td>@Glasses.Sum(p => p.TotalPrice).ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="headingGasket">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseGasket"
+                            aria-expanded="true" aria-controls="collapseGasket">
+                        Vật tư khác
+                    </button>
+                </h2>
+                <div id="collapseGasket" class="accordion-collapse collapse" data-bs-parent="#materialsAccordion">
+                    <div class="accordion-body">
+                        <div class="fixed-table-wrapper">
+                            <table class="table table-bordered table-striped table-hover align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Mã vật liệu</th>
+                                        <th>Tên vật liệu</th>
+                                        <th>Kích thước</th>
+                                        <th>Số lượng</th>
+                                        <th>Đơn vị</th>
+                                        <th>Tồn</th>
+                                        <th>Cần thêm</th>
+                                        <th>Màu sắc</th>
+                                        <th>Đơn giá</th>
+                                        <th>Thành tiền</th>
+                                        <th>Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var mat in OtherMaterials)
+                                    {
+                                        <tr>
+                                            <td>@mat.Code</td>
+                                            <td>@mat.Name</td>
+                                            @if (mat.Gasket is not null)
+                                            {
+                                                <td>@mat.Gasket.Length</td>
+                                                <td>@mat.Quantity</td>
+                                                <td>@mat.Unit</td>
+                                                <td>@mat.Gasket.StockLength</td>
+                                                <td>@mat.Gasket.NeedLength</td>
                                             }
+                                            else
+                                            {
+                                                <td></td>
+                                                <td>@mat.Quantity</td>
+                                                <td>@mat.Unit</td>
+                                                <td>@mat.Stock</td>
+                                                <td>@mat.Need</td>
+                                            }
+                                            <td>@mat.Color</td>
+                                            @if (mat.Gasket is not null)
+                                            {
+                                                <td>@mat.Gasket.PricePerMeter.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn")) / @mat.Unit</td>
+                                                <td>@mat.Gasket.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                            }
+                                            else
+                                            {
+                                                <td>@mat.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                                <td>@mat.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                            }
+                                            <td></td>
                                         </tr>
                                     }
-                                }
-                            </tbody>
-                        </table>
+                                </tbody>
+                                <tfoot class="table-light fw-bold">
+                                    <tr>
+                                        <td colspan="9">Tổng cộng</td>
+                                        <td>@OtherMaterials.Sum(p => p.TotalPrice).ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -192,10 +431,10 @@
     </div>
 </div>
 <div class="modal fade" id="profileCutsModal" tabindex="-1" aria-labelledby="profileCutsModal" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Kích thước cắt - @SelectedProfile?.Code</h5>
+                <h5 class="modal-title">Kích thước cắt - @SelectedProfile?.Id</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" @onclick="CloseModals"></button>
             </div>
             <div class="modal-body">
@@ -234,7 +473,7 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Tối ưu cắt - @SelectedProfile?.Code</h5>
+                <h5 class="modal-title">Tối ưu cắt - @SelectedProfile?.Id</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" @onclick="CloseModals"></button>
             </div>
             <div class="modal-body">
@@ -293,14 +532,23 @@
     private string? UploadedFilePath;
     private IEnumerable<WStarProject> WStarProjects = [];
     private IEnumerable<Cavity> Cavities = [];
-    // private IEnumerable<AluminumSummary> Aluminums = [];
     private IEnumerable<CavityProfileSummary> Profiles = [];
+    private IEnumerable<CavityGlassSummary> Glasses = [];
+    private IEnumerable<CavityOtherMaterialSummary> OtherMaterials = [];
     private CavityProfileSummary? SelectedProfile;
     private List<CavityProfileSummary.ProfileCut>? SelectedCuts;
     private List<CavityProfileSummary.CutSolution>? SelectedSolutions;
 
     private SelectWStarCavitiesModal? SelectModal;
     private Cavity? CavityToDelete;
+
+    private bool IsWStarFileLoading { get; set; } = false;
+    private bool IsAddingCavitiesFromWStar { get; set; } = false;
+    private bool IsLoadingProfileSummaries { get; set; } = false;
+
+    private string? EditingWeightProfileCode { get; set; }
+    private (string ProfileId, double StockLength)? EditingProfileStockPriceRow { get; set; }
+    private decimal EditingProfileStockPrice { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -313,20 +561,23 @@
         if (result.Success)
         {
             Cavities = result.Cavities;
-            await LoadProfileSummaries();
+            // await LoadProfileSummaries();
         }
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
     private async Task LoadProfileSummaries()
     {
-        var result = await ProductService.GetCavityProfileSummariesAsync(ProjectId);
+        IsLoadingProfileSummaries = true;
+        var result = await ProductService.GetCavityProfileSummariesAsync(ProjectId, Input.StockLength);
+        IsLoadingProfileSummaries = false;
         if (result.Success) Profiles = result.Summaries;
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
     private async Task OnInputFileChange(InputFileChangeEventArgs e)
     {
+        IsWStarFileLoading = true;
         var file = e.File;
         if (file is null || !file.Name.EndsWith(".mdb", StringComparison.OrdinalIgnoreCase))
         {
@@ -336,8 +587,9 @@
         }
         var tempFile = Path.Combine(Path.GetTempPath(), file.Name);
         using var stream = File.Create(tempFile);
-        await file.OpenReadStream(200 * 1024 * 1024).CopyToAsync(stream);
+        await file.OpenReadStream(1024 * 1024 * 1024).CopyToAsync(stream);
         UploadedFilePath = tempFile;
+        IsWStarFileLoading = false;
     }
 
     private async Task LoadWStarProjects()
@@ -351,7 +603,9 @@
 
     private async Task AddSelectedCavities(IEnumerable<WStarCavity> selectedCavities)
     {
+        IsAddingCavitiesFromWStar = true;
         var result = await ProductService.AddCavitiesFromWStarDesignAsync(ProjectId, selectedCavities);
+        IsAddingCavitiesFromWStar = false;
         if (result.Success)
         {
             StatusMessage = StatusMessage.Success("Thêm cửa thành công");
@@ -407,10 +661,71 @@
         catch {}
     }
 
+    private async Task SaveCavityChange(UpdateCavityModel input, Cavity cavity)
+    {
+        cavity.Code = input.Code;
+        cavity.Description = input.Description;
+        cavity.Location = input.Location;
+        var result = await ProductService.UpdateCavityAsync(cavity);
+        if (result.Success)
+        {
+            StatusMessage = StatusMessage.Success($"Cập nhật cửa {cavity.Code} thành công");
+            await LoadProjectCavities();
+        }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private async Task HandleMaterialWeightChange(string materialId, double newWeight)
+    {
+        var result = await ProductService.UpdateProfileMaterialWeightAsync(materialId, newWeight);
+        if (result.Success)
+        {
+            EditingWeightProfileCode = null;
+        }
+        else
+        {
+            StatusMessage = StatusMessage.Error(result.ErrorMessage);
+        }
+    }
+
+    private void BeginEditPrice(string profileId, double stockLength, decimal price)
+    {
+        EditingProfileStockPriceRow = (profileId, stockLength);
+        EditingProfileStockPrice = price;
+    }
+
+    private async Task HandleUpdateProfileStockPrice(CavityProfileSummary.StockUsage stock, decimal newPrice)
+    {
+        if (EditingProfileStockPriceRow is null) return;
+        var result = await ProductService.AddOrUpdateProfileMaterialBasePriceAsync(
+            EditingProfileStockPriceRow.Value.ProfileId,
+            EditingProfileStockPriceRow.Value.StockLength,
+            stock.StockId, newPrice);
+        if (result.Success)
+        {
+            stock.UnitPrice = newPrice;
+            EditingProfileStockPriceRow = null;
+        }
+        else
+        {
+            StatusMessage = StatusMessage.Error(result.ErrorMessage);
+        }
+    }
+
     private sealed class SummarizeAluminumModel
     {
         [Required]
         [Range(1, int.MaxValue, ErrorMessage = "Độ dài lõi thép phải lớn hơn 0")]
         public int StockLength { get; set; } = 5800;
+    }
+
+    private sealed class UpdateCavityModel
+    {
+        [Required(ErrorMessage = "Mã cửa là bắt buộc")]
+        public string Code { get; set; } = string.Empty;
+
+        public string? Description { get; set; }
+
+        public string? Location { get; set; }
     }
 }

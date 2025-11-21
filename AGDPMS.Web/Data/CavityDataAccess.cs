@@ -9,7 +9,7 @@ public class CavityDataAccess(IDbConnection conn)
     public Task<IEnumerable<Cavity>> GetAllFromProjectAsync(int projectId) =>
         conn.QueryAsync<Cavity>(@"
             select cav.id as Id, cav.code as Code, cav.project_id as ProjectId, cav.description as Description, 
-                   cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.aluminum_vendor as AluminumVendor
+                   cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.window_type as WindowType
             from cavities as cav
             where cav.project_id = @ProjectId",
             new { ProjectId = projectId });
@@ -19,18 +19,17 @@ public class CavityDataAccess(IDbConnection conn)
         Cavity? cavity = null;
         List<CavityBOM> boms = [];
         await conn.QueryAsync<Cavity, CavityBOM, Material, MaterialType, Cavity>(@"
-            select distinct on (bom.id)
-                   cav.id as Id, cav.code as Code, cav.project_id as ProjectId, cav.description as Description, 
-                   cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.aluminum_vendor as AluminumVendor,
+            select cav.id as Id, cav.code as Code, cav.project_id as ProjectId, cav.description as Description, 
+                   cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.window_type as WindowType,
 
                    bom.id as Id, bom.cavity_id as CavityId, bom.quantity as Quantity, bom.length as Length, bom.width as Width,
                    bom.color as Color, bom.unit as Unit,
 
-                   m.id as Id, m.code as Code, m.name as Name, m.stock as Stock, m.weight as Weight, m.thickness as Thickness,
+                   m.id as Id, m.name as Name, m.weight as Weight,
                    mt.id as Id, mt.name as Name
             from cavities as cav
             left join cavity_boms as bom on cav.id = bom.cavity_id
-            left join materials as m on bom.material_code = m.code
+            left join materials as m on bom.material_id = m.id
             left join material_type as mt on m.type = mt.id
             where cav.id = @CavityId",
             (cav, bom, material, materialType) =>
@@ -55,7 +54,7 @@ public class CavityDataAccess(IDbConnection conn)
     public async Task<Cavity?> GetByCodeAsync(int projectId, string code, IDbTransaction? tran = null) =>
         (await conn.QueryAsync<Cavity>(@"
             select cav.id as Id, cav.code as Code, cav.project_id as ProjectId, cav.description as Description, 
-                   cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.aluminum_vendor as AluminumVendor
+                   cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.window_type as WindowType
             from cavities as cav
             where cav.project_id = @ProjectId and cav.code = @Code",
             new { ProjectId = projectId, Code = code }, tran)).FirstOrDefault();
@@ -63,8 +62,8 @@ public class CavityDataAccess(IDbConnection conn)
     public async Task<Cavity> CreateAsync(Cavity cavity, IDbTransaction? tran = null)
     {
         var id = await conn.ExecuteScalarAsync<int>(@"
-            insert into cavities(code, project_id, location, quantity, aluminum_vendor, description, width, height)
-            values (@Code, @ProjectId, @Location, @Quantity, @AluminumVendor, @Description, @Width, @Height)
+            insert into cavities(code, project_id, location, quantity, window_type, description, width, height)
+            values (@Code, @ProjectId, @Location, @Quantity, @WindowType, @Description, @Width, @Height)
             returning id", cavity, tran);
         cavity.Id = id;
         return cavity;
@@ -76,7 +75,7 @@ public class CavityDataAccess(IDbConnection conn)
             set code = @Code,
                 location = @Location,
                 quantity = @Quantity,
-                aluminum_vendor = @AluminumVendor,
+                window_type = @WindowType,
                 description = @Description,
                 width = @Width,
                 height = @Height
@@ -108,30 +107,28 @@ public class CavityDataAccess(IDbConnection conn)
         foreach (var bom in boms)
         {
             var existingMat = await conn.QueryFirstOrDefaultAsync<int>(
-                "select count(1) from materials where code = @Code", new { bom.Material.Code }, tran);
+                "select count(1) from materials where id = @Id", new { bom.Material.Id }, tran);
             if (existingMat == 0)
             {
                 // Add the material if didn't exist
                 await conn.ExecuteAsync(@"
-                    insert into materials(code, name, type, stock_length, vendor)
-                    values (@Code, @Name, @Type, @StockLength, @Vendor)",
+                    insert into materials(id, name, type)
+                    values (@Id, @Name, @Type)",
                     new
                     {
-                        bom.Material.Code,
+                        bom.Material.Id,
                         bom.Material.Name,
                         Type = bom.Material.Type?.Id,
-                        bom.Material.StockLength,
-                        bom.Material.Vendor
                     }, tran);
             }
         }
         await conn.ExecuteAsync(@"
-            insert into cavity_boms(cavity_id, material_code, quantity, length, width, color, unit)
-            values (@CavityId, @MaterialCode, @Quantity, @Length, @Width, @Color, @Unit)",
+            insert into cavity_boms(cavity_id, material_id, quantity, length, width, color, unit)
+            values (@CavityId, @MaterialId, @Quantity, @Length, @Width, @Color, @Unit)",
             boms.Select(b => new
             {
                 b.CavityId,
-                MaterialCode = b.Material.Code,
+                MaterialId = b.Material.Id,
                 b.Quantity,
                 b.Length,
                 b.Width,
@@ -143,25 +140,39 @@ public class CavityDataAccess(IDbConnection conn)
     public Task DeleteAllBOMsAsync(int cavityId, IDbTransaction? tran = null) =>
         conn.ExecuteAsync("delete from cavity_boms where cavity_id = @CavityId", new { CavityId = cavityId }, tran);
 
-    public Task<IEnumerable<CavityBOM>> GetBOMsOfTypeAsync(int projectId, MaterialType type, IDbTransaction? tran = null) =>
-        conn.QueryAsync<CavityBOM, Material, MaterialType, CavityBOM>(@"
-            select distinct on (bom.id)
-                    bom.id as Id, bom.cavity_id as CavityId, bom.quantity as Quantity, bom.length as Length, bom.width as Width,
-                   bom.color as Color, bom.unit as Unit,
-                   m.id as Id, m.code as Code, m.name as Name, m.stock as Stock, m.weight as Weight, m.thickness as Thickness,
-                   mt.id as Id, mt.name as Name
+    public async Task<IEnumerable<(CavityBOM BOM, int CavityQuantity)>> GetBOMsOfTypeAsync(int projectId, MaterialType type, IDbTransaction? tran = null)
+    {
+        var lookup = new Dictionary<int, CavityBOM>();
+        var result = await conn.QueryAsync<CavityBOM, Material, MaterialType, MaterialStock, int, (CavityBOM bom, int cavityQty)>(@"
+            select bom.id as Id, bom.cavity_id as CavityId, bom.quantity as Quantity, bom.length as Length, bom.width as Width, bom.color as Color, bom.unit as Unit,
+                   m.id as Id, m.name as Name, m.weight as Weight,
+                   mt.id as Id, mt.name as Name,
+                   ms.id as Id, ms.length as Length, ms.width as Width, ms.stock as Stock, ms.base_price as BasePrice,
+                   cav.quantity as CavityQuantity
             from cavity_boms as bom
             join cavities as cav on bom.cavity_id = cav.id and cav.project_id = @ProjectId
-            join materials as m on bom.material_code = m.code
+            join materials as m on bom.material_id = m.id
             join material_type as mt on m.type = mt.id and mt.name = @Type
+            left join material_stock as ms on m.id = ms.material_id
             order by bom.id, m.id",
-            (bom, material, materialType) =>
+            (bom, material, materialType, stock, cavityQuantity) =>
             {
-                material.Type = materialType;
-                bom.Material = material;
-                return bom;
+                if (!lookup.TryGetValue(bom.Id, out var existing))
+                {
+                    material.Type = materialType;
+                    bom.Material = material;
+                    lookup.Add(bom.Id, bom);
+                    existing = bom;
+                }
+                if (stock != null) existing.Material.Stocks.Add(stock);
+                return (existing, cavityQuantity);
             },
-            new { ProjectId = projectId, Type = type.Name }, tran);
+            new { ProjectId = projectId, Type = type.Name },
+            tran,
+            splitOn: "Id,CavityQuantity");
+        return result;
+    }
+
     public async Task<Dictionary<int, decimal>> GetAveragePricesAsync(IDbTransaction? tran = null) =>
         (await conn.QueryAsync<(int MaterialId, decimal AvgPrice)>(@"
             select material_id as MaterialId, avg(cast(price as numeric)) as AvgPrice
@@ -174,6 +185,23 @@ public class CavityDataAccess(IDbConnection conn)
             from stock_import as si
             left join materials as m on si.material_id = m.id
             group by m.code", transaction: tran)).ToDictionary(x => x.MaterialCode, x => x.AvgPrice);
+
+    // Move this to inventory data access
+    public Task UpdateMaterialWeightAsync(string materialId, double weight, IDbTransaction? tran = null) =>
+        conn.ExecuteAsync("update materials set weight = @Weight where id = @Id", new { Id = materialId, Weight = weight }, tran);
+
+    // Move this to inventory data access
+    public Task AddMaterialStockAsync(string materialId, MaterialStock stock, IDbTransaction? tran = null) =>
+        conn.ExecuteAsync(@"
+            insert into material_stock(material_id, length, base_price)
+            values (@MaterialId, @Length, @Price)",
+            new { MaterialId = materialId, stock.Length, Price = stock.BasePrice }, tran);
+    public Task UpdateMaterialStockBasePriceAsync(int stockId, decimal price, IDbTransaction? tran = null) =>
+        conn.ExecuteAsync(@"
+            update material_stock
+            set base_price = @Price
+            where id = @StockId",
+            new { StockId = stockId, Price = price }, tran);
 
     public async Task<string?> AddOrUpdateBatchAsync(IEnumerable<Cavity> cavities)
     {

@@ -81,20 +81,20 @@ internal class WebProductService(
         {
             var error = await cavityDataAccess.AddOrUpdateBatchAsync(cavities.Select(c => new Cavity
             {
-                Code = c.Description,
+                Code = c.Description.Trim(),
                 ProjectId = projectId,
                 Width = c.Width,
                 Height = c.Height,
-                Location = c.Location,
+                Location = c.Location?.Trim(),
                 Quantity = c.Quantity,
-                AluminumVendor = c.WindowType,
+                WindowType = c.WindowType?.Trim(),
                 BOMs = [..c.Materials.Select(m => new CavityBOM
                 {
                     CavityId = 0, // Invalid value, set later
                     Material = new Material
                     {
-                        Code = m.Symbol,
-                        Name = m.Description,
+                        Id = m.Symbol.Trim().Replace(" ", string.Empty),
+                        Name = m.Description.Trim(),
                         Type = m.MatType switch // Hack, revise this
                         {
                             "Profile" => MaterialType.Aluminum,
@@ -104,12 +104,6 @@ internal class WebProductService(
                             "Vat tu phu" => MaterialType.Auxiliary,
                             _ => null,
                         },
-                        StockLength = m.MatType switch
-                        {
-                            "Profile" => 6000, // Hardcoded, should let users set the default
-                            _ => 0,
-                        },
-                        Vendor = m.MatVendor
                     },
                     Quantity = m.Num,
                     Length = m.Length,
@@ -126,28 +120,31 @@ internal class WebProductService(
         }
     }
 
-    public async Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId)
+    public async Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId, double stockLengthForOptimize)
     {
         try
         {
             var boms = await cavityDataAccess.GetBOMsOfTypeAsync(projectId, MaterialType.Aluminum);
-            var avgPrices = await cavityDataAccess.GetAveragePricesGroupByCodeAsync();
-            var grouped = boms.GroupBy(b => new { b.Material.Code, b.Material.Name, b.Material.Weight, b.Material.Stock });
+            var grouped = boms.GroupBy(b => b.BOM.Material);
             var summaries = grouped.Select(g =>
             {
-                var cuts = g.GroupBy(x => x.Length)
-                    .Select(x => new CavityProfileSummary.ProfileCut(CutLength: x.Key, Quantity: x.Sum(b => b.Quantity)))
-                    .OrderBy(x => x.CutLength)
+                var cuts = g.GroupBy(bom => bom.BOM.Length)
+                    .Select(bomGroup => new CavityProfileSummary.ProfileCut(
+                        CutLength: bomGroup.Key,
+                        Quantity: bomGroup.Sum(bom => bom.BOM.Quantity * bom.CavityQuantity)
+                    ))
+                    .OrderBy(cut => cut.CutLength)
                     .ToList();
-                double[] lengths = [.. cuts.Select(c => c.CutLength)];
-                double[] demands = [.. cuts.Select(c => (double)c.Quantity)];
-                var opt = ICutOptimizationService.Solve(6000, lengths, demands); // Hardcoded stock length
+                double[] stockLengths = [.. g.Key.Stocks.Select(s => s.Length)];
+                int[] stockLengthQuantities = [.. g.Key.Stocks.Select(s => s.Stock)];
+                double[] cutLengths = [.. cuts.Select(c => c.CutLength)];
+                double[] cutLengthDemands = [.. cuts.Select(c => (double)c.Quantity)];
+                var opt = ICutOptimizationService.Solve(stockLengthForOptimize, cutLengths, cutLengthDemands); // optimization from stock is not implemented yet.
                 List<CavityProfileSummary.CutSolution> cutSolutions = [];
                 for (int i = 0; i < opt.patterns.Count; i++)
                 {
                     var pattern = opt.patterns[i];
-                    int quantity = 0;
-                    if (i < opt.pattern_quantity.Length) quantity = (int)opt.pattern_quantity[i];
+                    int quantity = i < opt.pattern_quantity.Length ? (int)opt.pattern_quantity[i] : 0;
                     List<CavityProfileSummary.ProfileCut> patternCuts = [];
                     for (int j = 0; j < opt.lengths.Length; j++)
                     {
@@ -164,29 +161,63 @@ internal class WebProductService(
                         });
                     }
                 }
-                decimal unitPrice = avgPrices.TryGetValue(g.Key.Code, out var price) ? price : 0;
-                return new CavityProfileSummary
+
+                if (!g.Key.Stocks.Any(s => s.Length == stockLengthForOptimize))
+                    g.Key.Stocks.Add(new MaterialStock { Length = stockLengthForOptimize });
+                
+                return new CavityProfileSummary(g.Key)
                 {
-                    Code = g.Key.Code,
+                    Id = g.Key.Id,
                     Name = g.Key.Name,
+                    Type = g.Key.Type,
                     Cuts = cuts,
-                    CutSolutions = cutSolutions,
-                    WeightPerMeter = g.Key.Weight,
-                    BarsInStockByStockLength = new()
-                    {
-                        [6000] = g.Key.Stock
-                    },
-                    UnitPriceByStockLength = new()
-                    {
-                        [6000] = unitPrice
-                    }
+                    CutSolutions = cutSolutions
                 };
-            }).OrderBy(x => x.Code).ToList();
+            }).OrderBy(s => s.Id).ToList();
             return new GetCavityProfileSummariesResult { Success = true, Summaries = summaries };
         }
         catch (Exception ex)
         {
             return new GetCavityProfileSummariesResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    public async Task<GetCavityGlassAndOtherMaterialSummariesResult> GetCavityGlassAndOtherMaterialSummariesAsync(int projectId)
+    {
+        try
+        {
+            throw new NotImplementedException();
+        }
+        catch (Exception ex)
+        {
+            return new GetCavityGlassAndOtherMaterialSummariesResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    public async Task<UpdateProfileMaterialWeightResult> UpdateProfileMaterialWeightAsync(string materialId, double weight)
+    {
+        try
+        {
+            await cavityDataAccess.UpdateMaterialWeightAsync(materialId, weight);
+            return new UpdateProfileMaterialWeightResult { Success = true };
+        }
+        catch (Exception ex)
+        {
+            return new UpdateProfileMaterialWeightResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    public async Task<AddOrUpdateProfileMaterialBasePriceResult> AddOrUpdateProfileMaterialBasePriceAsync(string materialId, double stockLength, int stockId, decimal price)
+    {
+        try
+        {
+            if (stockId == 0) await cavityDataAccess.AddMaterialStockAsync(materialId, new MaterialStock { Length = stockLength, BasePrice = price });
+            else await cavityDataAccess.UpdateMaterialStockBasePriceAsync(stockId, price);
+            return new AddOrUpdateProfileMaterialBasePriceResult { Success = true };
+        }
+        catch (Exception ex)
+        {
+            return new AddOrUpdateProfileMaterialBasePriceResult { Success  = false, ErrorMessage = ex.Message };
         }
     }
 }

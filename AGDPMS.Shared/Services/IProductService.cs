@@ -10,7 +10,10 @@ public interface IProductService
     Task<UpdateCavityResult> UpdateCavityAsync(Cavity cavity);
     Task<DeleteCavityResult> DeleteCavityAsync(int cavityId);
     Task<AddCavitiesFromWStarDesignResult> AddCavitiesFromWStarDesignAsync(int projectId, IEnumerable<WStarCavity> cavities);
-    Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId);
+    Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId, double stockLengthForOptimize);
+    Task<GetCavityGlassAndOtherMaterialSummariesResult> GetCavityGlassAndOtherMaterialSummariesAsync(int projectId);
+    Task<UpdateProfileMaterialWeightResult> UpdateProfileMaterialWeightAsync(string materialId, double weight);
+    Task<AddOrUpdateProfileMaterialBasePriceResult> AddOrUpdateProfileMaterialBasePriceAsync(string materialId, double stockLength, int stockId, decimal price);
 }
 
 public sealed class GetAllProjectsResult
@@ -57,4 +60,24 @@ public sealed class GetCavityProfileSummariesResult
     public required bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public IEnumerable<CavityProfileSummary> Summaries { get; set; } = [];
+}
+
+public sealed class GetCavityGlassAndOtherMaterialSummariesResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+    public IEnumerable<CavityGlassSummary> Glasses { get; set; } = [];
+    public IEnumerable<CavityOtherMaterialSummary> Others { get; set; } = [];
+}
+
+public sealed class UpdateProfileMaterialWeightResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class AddOrUpdateProfileMaterialBasePriceResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
 }

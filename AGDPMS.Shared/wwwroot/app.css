@@ -102,3 +102,20 @@ h1:focus {
         .dropdown-menu[aria-labelledby="dropdownBell"] .dropdown-item.show .text-muted {
             color: #ffffff !important;
         }
+
+.fixed-table-wrapper {
+    max-height: 450px;
+    overflow: auto;
+}
+
+    .fixed-table-wrapper thead th {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+    }
+
+    .fixed-table-wrapper tfoot td {
+        position: sticky;
+        bottom: 0;
+        z-index: 1;
+    }
