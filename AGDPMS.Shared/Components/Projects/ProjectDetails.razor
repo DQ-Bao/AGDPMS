@@ -71,7 +71,6 @@
                         <span>Đang thêm cửa...</span>
                     </div>
                 }
-                <button type="button" class="btn btn-primary">Báo giá</button>
             </div>
             <DataTable TItem="Cavity" TEdit="UpdateCavityModel" Items="Cavities" SearchBy="@(c => c.Description)"
                        EnableEditing="true"
@@ -128,6 +127,10 @@
     <div class="tab-pane fade" id="pane-materials" role="tabpanel" aria-labelledby="tab-materials">
         <div class="mt-3">
             <StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
+            <div class="mb-3 d-flex align-items-center">
+                <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#materialRequestModal">Tạo yêu cầu nhập vật tư</button>
+                <button type="button" class="btn btn-success">Báo giá</button>
+            </div>
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingProfile">
                     <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProfile"
@@ -531,6 +534,103 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal" @onclick="CloseModals">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+<div class="modal fade" id="materialRequestModal" tabindex="-1" aria-labelledby="materialRequestModal" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="missingMaterialsLabel">Danh sách vật tư thiếu</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                <h5 class="mt-3">Profile</h5>
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã</th>
+                            <th>Tên vật tư</th>
+                            <th>Số lượng thiếu</th>
+                            <th>Chiều dài yêu cầu (mm)</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var p in Profiles)
+                        {
+                            foreach (var (su, i) in p.StockUsages.Select((v, i) => (v, i)))
+                            {
+                                <tr>
+                                    @if (i == 0)
+                                    {
+                                        <td rowspan="@p.StockUsages.Count">@p.Id</td>
+                                        <td rowspan="@p.StockUsages.Count">@p.Name</td>
+                                    }
+                                    <td>@su.Need</td>
+                                    <td>@su.StockLength</td>
+                                    <td></td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+                <h5 class="mt-4">Kính</h5>
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Mã</th>
+                            <th>Tên kính</th>
+                            <th>Kích thước</th>
+                            <th>Số lượng</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var g in Glasses)
+                        {
+                            for (var i = 0; i < g.Cuts.Count; i++)
+                            {
+                                <tr>
+                                    <td>@g.Id</td>
+                                    <td>@g.Name</td>
+                                    <td>@g.Cuts[i].Width x @g.Cuts[i].Length</td>
+                                    <td>@g.Cuts[i].Quantity</td>
+                                    <td></td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+                <h5 class="mt-4">Vật tư khác</h5>
+                <table class="table table-bordered table-striped align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Id</th>
+                            <th>Tên vật tư</th>
+                            <th>Số lượng thiếu</th>
+                            <th>Đơn vị</th>
+                            <th>Ghi chú</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var m in OtherMaterials)
+                        {
+                            <tr>
+                                <td>@m.Id</td>
+                                <td>@m.Name</td>
+                                <td>@(m.GasketLength is null ? m.Need : m.NeedGasketLength)</td>
+                                <td>@m.Unit</td>
+                                <td></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Gửi</button>
             </div>
         </div>
     </div>

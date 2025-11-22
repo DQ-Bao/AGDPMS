@@ -105,25 +105,25 @@ public class InventoryDataAccess(IDbConnection conn)
         );
     }
 
-    public async Task<Material> CreateMaterialAsync(Material material)
-    {
-        string insert = @"
-            insert into material(id, name, type, stock, weight, thickness)
-            values (@Id, @Name, @Type, @Stock, @Weight, @Thickness);
-        ";
+    //public async Task<Material> CreateMaterialAsync(Material material)
+    //{
+    //    string insert = @"
+    //        insert into material(id, name, type, stock, weight, thickness)
+    //        values (@Id, @Name, @Type, @Stock, @Weight, @Thickness);
+    //    ";
 
-        await conn.ExecuteScalarAsync<int>(
-            insert,
-            new
-            {
-                material.Id,
-                material.Name,
-                Type = material.Type.Id,
-                material.Stock,
-                material.Weight,
-                material.Thickness
-            }
-        );
-        return material;
-    }
+    //    await conn.ExecuteScalarAsync<int>(
+    //        insert,
+    //        new
+    //        {
+    //            material.Id,
+    //            material.Name,
+    //            Type = material.Type.Id,
+    //            material.Stock,
+    //            material.Weight,
+    //            material.Thickness
+    //        }
+    //    );
+    //    return material;
+    //}
 }
