@@ -2,14 +2,20 @@
 @rendermode InteractiveServer
 
 @using AGDPMS.Shared.Models
-@using AGDPMS.Web.Data
+@using AGDPMS.Shared.Services
 @using System.ComponentModel.DataAnnotations
 
 @* @attribute [Authorize(Roles = "Admin")] *@
 
-@inject IReportService IReportService
+@inject IReportService reportSerivce
 
 <PageTitle>Inventory</PageTitle>
-@code {
 
+<button onclick="">Generate Issue</button>
+<button>Generate receipt</button>
+<button>Generate quotation</button>
+<button>Generate material planning</button>
+
+@code {
+	
 }

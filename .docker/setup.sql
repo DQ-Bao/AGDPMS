@@ -1,82 +1,220 @@
 set client_encoding to 'utf8';
 
-insert into roles ("name") values ('Director'), ('Technician'), ('Sale'), ('Inventory Manage'), ('Qa');
+drop table if exists stock_import;
+drop table if exists material_planning_details;
+drop table if exists material_plannings;
+drop table if exists machines;
+drop table if exists machine_types;
+drop table if exists cavity_boms;
+drop table if exists cavities;
+drop table if exists projects;
+drop table if exists clients;
+drop table if exists material_stock;
+drop table if exists materials;
+drop table if exists material_type;
+drop table if exists users;
+drop table if exists roles;
+
+create table if not exists roles ( 
+	"id" serial primary key,
+	"name" varchar(250) not null unique
+);
+
+create table if not exists users ( 
+	"id" serial primary key,
+	"fullname" varchar(250) not null,
+	"phone" varchar(20) not null unique,
+	"password_hash" text not null,
+	"created_at" timestamp null default now(),
+	"need_change_password" boolean not null default true,
+	"role_id" integer not null references roles("id"),
+    "active" boolean not null default true,
+    "email" varchar(250),
+    "date_of_birth" date
+);
+
+create table if not exists material_type (
+	"id" serial primary key,
+	"name" varchar(250) not null unique
+);
+
+create table if not exists materials (
+    "id" varchar(250) primary key,
+    "name" varchar(250) not null,
+    "type" integer references material_type("id"),
+	"weight" numeric(10,3)
+);
+
+create table if not exists material_stock (
+	"id" serial primary key,
+	"material_id" varchar(250) not null references materials("id"),
+	"length" numeric(10,3) not null default 0,
+	"width" numeric(10,3) not null default 0,
+	"stock" int not null default 0,
+	"base_price" numeric(20,0) not null default 0
+);
+
+create table if not exists clients ( 
+  "id" serial primary key,
+  "name" varchar(250) not null,
+  "address" varchar(250),
+  "phone" varchar(250),
+  "email" varchar(250),
+  "sales_in_charge_id" integer references users("id")
+);
+
+create table if not exists projects (
+  "id" serial primary key,
+  "name" varchar(250) not null,
+  "location" varchar(250) not null,
+  "client_id" integer not null references clients("id"),
+  "design_company" varchar(250),
+  "completion_date" date not null,
+  "created_at" timestamp default now(),
+  "design_file_path" varchar(250),
+  "status" varchar(250) not null default 'Planning' check ("status" in ('Planning', 'Production', 'Deploying', 'Completed', 'Cancelled')),
+  "document_path" varchar(250)
+);
+
+create table if not exists cavities (
+    "id" serial primary key,
+    "code" varchar(250) not null,
+    "project_id" integer not null references projects("id"),
+    "location" varchar(250),
+    "quantity" integer not null,
+    "window_type" varchar(250),
+    "description" varchar(250),
+    "width" numeric(10,2) not null,
+    "height" numeric(10,2) not null
+);
+
+create table if not exists cavity_boms (
+    "id" serial primary key,
+    "cavity_id" integer not null references cavities("id"),
+    "material_id" varchar(250) not null references materials("id"),
+    "quantity" integer not null,
+    "length" numeric(10,2) not null default 0, -- lưu độ dài cắt nhôm, độ dài gioăng, độ dài cắt kính
+    "width" numeric(10,2) not null default 0, -- lưu độ rộng cắt kính
+    "color" varchar(250),
+    "unit" varchar(250)
+);
+
+create table if not exists machine_types (
+  "id" serial primary key,
+  "name" varchar(250) not null unique
+);
+
+create table if not exists machines (
+  "id" serial primary key,
+  "name" varchar(250) not null,
+  "machine_type_id" integer not null references machine_types("id"),
+  "status" varchar(50) not null default 'Operational' check ("status" in ('Operational', 'NeedsMaintenance', 'Broken')),
+  "entry_date" date not null,
+  "last_maintenance_date" date null,
+  "expected_completion_date" date null,
+  "capacity_value" numeric(10,2), -- <<  công suất 
+  "capacity_unit" varchar(50) -- <<  đơn vị (sản phẩm/phút, kg/giờ, mm/phút)
+);
+
+create table if not exists material_plannings (
+	"id" serial primary key,
+	"made_by" integer not null references users("id"),
+	"project_id" integer not null references projects("id"),
+	"status" varchar(250) not null,
+	"created_at" timestamp null default now()
+);
+
+create table if not exists material_planning_details (
+	"id" serial primary key,
+	"planning_id" integer not null references material_plannings("id"),
+	"material_id" varchar(250) not null references materials("id"),
+	"quantity" integer not null,
+	"unit" varchar(250),
+	"note" text
+);
+
+create table if not exists stock_import (
+    "id" serial primary key,
+    "material_id" varchar(250) not null references materials("id"),
+    "quantity_change" int not null,
+    "quantity_after" int not null,
+    "price" numeric(20,0) not null,
+    "date" date default now()
+);
+
+-- INSERT --
+insert into roles ("name")
+values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA');
 
 insert into users ("fullname", "phone", "password_hash", "role_id")
 values ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1);
 
 insert into material_type ("name")
-values
-('Nhôm'),
-('Kính'),
-('Phụ kiện'),
-('Roăng'),
-('Vật tư phụ');
+values ('Nhôm'), ('Kính'), ('Phụ kiện'), ('Roăng'), ('Vật tư phụ');
 
 insert into materials ("id", "name", "weight", "type")
 values
 -- Cửa đi mở quay
-('C3328', N'Khung cửa đi', 1.257, 1),
-('C3303', N'Cánh cửa đi mở ngoài (có gân)', 1.441, 1),
-('C18772', N'Cánh cửa đi mở ngoài (không gân)', 1.431, 1),
-('C3332', N'Cánh cửa đi mở trong (có gân)', 1.442, 1),
-('C18782', N'Cánh cửa đi mở trong (không gân)', 1.431, 1),
+('C3328', 'Khung cửa đi', 1.257, 1),
+('C3303', 'Cánh cửa đi mở ngoài (có gân)', 1.441, 1),
+('C18772', 'Cánh cửa đi mở ngoài (không gân)', 1.431, 1),
+('C3332', 'Cánh cửa đi mở trong (có gân)', 1.442, 1),
+('C18782', 'Cánh cửa đi mở trong (không gân)', 1.431, 1),
 
-('C3322', N'Cánh cửa đi mở ngoài (có gân & bo cạnh)', 1.507, 1),
-('C22912', N'Cánh cửa đi mở ngoài (không gân & bo cạnh)', 1.496, 1),
-('C38032', N'Cánh cửa đi ngang dưới (có gân)', 2.260, 1),
-('C3304', N'Cánh cửa đi ngang dưới (có gân)', 2.023, 1),
-('C6614', N'Cánh cửa đi ngang dưới (không gân)', 2.014, 1),
+('C3322', 'Cánh cửa đi mở ngoài (có gân & bo cạnh)', 1.507, 1),
+('C22912', 'Cánh cửa đi mở ngoài (không gân & bo cạnh)', 1.496, 1),
+('C38032', 'Cánh cửa đi ngang dưới (có gân)', 2.260, 1),
+('C3304', 'Cánh cửa đi ngang dưới (có gân)', 2.023, 1),
+('C6614', 'Cánh cửa đi ngang dưới (không gân)', 2.014, 1),
 
-('C3323', N'Đố động cửa đi', 1.086, 1),
-('C22903', N'Đố động cửa đi và cửa sổ', 0.891, 1),
-('C22900', N'Ốp đáy cánh cửa đi', 0.476, 1),
-('C3329', N'Ốp đáy cánh cửa đi', 0.428, 1),
-('C3319', N'Ngưỡng cửa đi', 0.689, 1),
+('C3323', 'Đố động cửa đi', 1.086, 1),
+('C22903', 'Đố động cửa đi và cửa sổ', 0.891, 1),
+('C22900', 'Ốp đáy cánh cửa đi', 0.476, 1),
+('C3329', 'Ốp đáy cánh cửa đi', 0.428, 1),
+('C3319', 'Ngưỡng cửa đi', 0.689, 1),
 
-('C3291', N'Nẹp kính', 0.206, 1),
-('C3225', N'Nẹp kính', 0.211, 1),
-('C3296', N'Nẹp kính', 0.237, 1),
-('F347', N'Ke góc', 4.957, 5),
+('C3291', 'Nẹp kính', 0.206, 1),
+('C3225', 'Nẹp kính', 0.211, 1),
+('C3296', 'Nẹp kính', 0.237, 1),
+('F347', 'Ke góc', 4.957, 5),
 
-('C3246', N'Nẹp kính', 0.216, 1),
-('C3286', N'Nẹp kính', 0.223, 1),
-('C3236', N'Nẹp kính', 0.227, 1),
-('C3206', N'Nẹp kính', 0.257, 1),
-('C3295', N'Nẹp kính', 0.271, 1),
-
+('C3246', 'Nẹp kính', 0.216, 1),
+('C3286', 'Nẹp kính', 0.223, 1),
+('C3236', 'Nẹp kính', 0.227, 1),
+('C3206', 'Nẹp kính', 0.257, 1),
+('C3295', 'Nẹp kính', 0.271, 1),
 -- Cửa sổ mở quay
-('C3318', N'Khung cửa sổ',  0.876, 1),
-('C8092', N'Cánh cửa sổ mở ngoài (có gân)', 1.064, 1),
-('C3202', N'Cánh cửa sổ mở ngoài (có gân)', 1.088, 1),
-('C18762', N'Cánh cửa sổ mở ngoài (không gân)', 1.081, 1),
-('C3312', N'Cánh cửa sổ mở ngoài (có gân & bo cạnh)', 1.159, 1),
+('C3318', 'Khung cửa sổ',  0.876, 1),
+('C8092', 'Cánh cửa sổ mở ngoài (có gân)', 1.064, 1),
+('C3202', 'Cánh cửa sổ mở ngoài (có gân)', 1.088, 1),
+('C18762', 'Cánh cửa sổ mở ngoài (không gân)', 1.081, 1),
+('C3312', 'Cánh cửa sổ mở ngoài (có gân & bo cạnh)', 1.159, 1),
 
-('C22922', N'Cánh cửa sổ mở ngoài (không gân & bo cạnh', 1.118, 1),
-('C3033', N'Đố động cửa sổ', 0.825, 1),
+('C22922', 'Cánh cửa sổ mở ngoài (không gân & bo cạnh', 1.118, 1),
+('C3033', 'Đố động cửa sổ', 0.825, 1),
 --('C22903', N'Đố động cửa đi và cửa sổ', 0.891, 1), --duplicate
-('C3313', N'Đố cố định trên khung', 1.010, 1),
-('C3209', N'Khung vách kính', 0.802, 1),
+('C3313', 'Đố cố định trên khung', 1.126, 1),
+('C3209', 'Khung vách kính', 0.876, 1),
 
-('C3203', N'Đố cố định (có lỗ vít)', 0.950, 1),
-('F077', N'Pano', 0.664, 1),
-('E1283', N'Khung lá sách', 0.290, 1),
-('E192', N'Lá sách', 0.317, 1),
-('B507', N'Nan dán trang trí', 0.150, 1),
+('C3203', 'Đố cố định (có lỗ vít)', 0.314, 1),
+('F077', 'Pano', 0.664, 1),
+('E1283', 'Khung lá sách', 0.290, 1),
+('E192', 'Lá sách', 0.317, 1),
+('B507', 'Nan dán trang trí', 0.150, 1),
 
-('C3300', N'Nối khung', 0.347, 1),
-('C3310', N'Nối khung', 1.308, 1),
-('C3210', N'Nối khung 90 độ (bo cạnh)', 1.275, 1),
-('C920', N'Nối khung 90 độ (vuông cạnh)', 1.126, 1),
-('C910', N'Nối khung 135 độ', 0.916, 1),
+('C3300', 'Nối khung', 0.347, 1),
+('C3310', 'Nối khung', 1.308, 1),
+('C3210', 'Nối khung 90 độ (bo cạnh)', 1.275, 1),
+('C920', 'Nối khung 90 độ (vuông cạnh)', 1.126, 1),
+('C910', 'Nối khung 135 độ', 0.916, 1),
 
-('C459', N'Thanh truyền khóa', 0.139, 1),
+('C459', 'Thanh truyền khóa', 0.139, 1),
 
-('C3317', N'Pát liên kết (đố cố định với Fix)', 1.105, 1),
-('C3207', N'Pát liên kết (đố cố định với Fix)', 1.154, 1),
-('C1687', N'Ke góc', 3.134, 5),
-('C4137', N'Ke góc', 1.879, 5),
-('C1697', N'Ke góc', 2.436, 5),
+('C3317', 'Pát liên kết (đố cố định với Fix)', 1.105, 1),
+('C3207', 'Pát liên kết (đố cố định với Fix)', 1.154, 1),
+('C1687', 'Ke góc', 3.134, 5),
+('C4137', 'Ke góc', 1.879, 5),
+('C1697', 'Ke góc', 2.436, 5),
 
 --MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
 ('C38019', 'Khung cửa đi bản 100', 2.057, 1),
@@ -90,9 +228,9 @@ values
 ('C48980', 'Nối khung 90 độ bản 100', 2.090, 1),
 
 ('C48945', 'Nẹp phụ bản 100', 0.346, 1),
---('F347', 'Ke góc', 4.957, 5), --duplicate
---('C1687', 'Ke góc', 3.134, 5), --duplicate
---('C4137', 'Ke góc', 1.879, 5), --duplicate
+--('F347', 'Ke góc', 4.957, 1), --duplicate
+--('C1687', 'Ke góc', 3.134, 1), --duplicate
+--('C4137', 'Ke góc', 1.879, 1), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA ĐI MỞ QUAY
 ('CX283', 'Khung cửa đi', 1.533, 1),
@@ -107,7 +245,7 @@ values
 --('C459', 'Thanh truyền khóa', 0.139, 1), --duplicate
 --('B507', 'Nan dán trang trí', 0.150, 1), --duplicate
 
---('F347', 'Ke góc', 4.957, 5), --duplicate
+--('F347', 'Ke góc', 4.957, 1), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ QUAY
 ('CX267', 'Khung cửa sổ, vách kính', 1.057, 1),
@@ -126,9 +264,9 @@ values
 --('C3206', 'Nẹp kính', 0.257, 1), --duplicate
 --('C3295', 'Nẹp kính', 0.271, 1), --duplicate
 
---('C1687', 'Ke góc', 3.134, 5), --duplicate
---('C4137', 'Ke góc', 1.879, 5), --duplicate
---('C1697', 'Ke góc', 2.436, 5), --duplicate
+--('C1687', 'Ke góc', 3.134, 1), --duplicate
+--('C4137', 'Ke góc', 1.879, 1), --duplicate
+--('C1697', 'Ke góc', 2.436, 1), --duplicate
 ('C1757', 'Ke góc', 2.167, 5),
 
 --MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
@@ -171,7 +309,7 @@ values
 ('F608', 'Ke liên kết khung đứng với ngang trên', 1.440, 5),
 ('F609', 'Ke liên kết khung đứng với ngang dưới', 1.377, 5),
 ('F417', 'Ke góc', 5.228, 5),
---('F347', 'Ke góc', 4.957, 5), --duplicate
+--('F347', 'Ke góc', 4.957, 1), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ LÙA
 ('D23151', 'Khung cửa lùa', 0.949, 1),
@@ -318,7 +456,7 @@ values
 ('GK534', 'Thanh đỡ kính cho cánh cửa sổ', 0.195, 1),
 ('GK454', 'Máng che cánh cửa sổ', 0.288, 1),
 
---('GK1215', 'Ke cửa sổ', 0.959, 5), --duplicate
+--('GK1215', 'Ke cửa sổ', 0.959, 1), --duplicate
 
 --MẶT CẮT PROFILE LAN CAN KÍNH
 ('E1214', 'Khung bao ngang trên', 1.795, 1),
@@ -387,31 +525,27 @@ values
 ('F521', 6000, 88000);
 --('F431', 6000, 88000);
 
-INSERT INTO clients ("name", "address", "phone", "email", "sales_in_charge_id")
-VALUES
-('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com', NULL),
-('Barry Hunter', '456 Đường XYZ, TP. HCM', '091-234-5678', 'barry.hunter@example.com', NULL),
-('Trevor Baker', '789 Đường QWE, Đà Nẵng', '092-345-6789', 'trevor.baker@example.com', NULL),
-('Nguyễn Văn An', '101 Đường Hùng Vương, Huế', '098-888-9999', 'an.nguyen@company.vn', NULL),
-('Trần Thị Bích', '22 Phố Cổ, Hà Nội', '097-777-6666', 'bich.tran@startup.com', NULL);
+insert into clients ("name", "address", "phone", "email", "sales_in_charge_id")
+values
+('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com', null),
+('Barry Hunter', '456 Đường XYZ, TP. HCM', '091-234-5678', 'barry.hunter@example.com', null),
+('Trevor Baker', '789 Đường QWE, Đà Nẵng', '092-345-6789', 'trevor.baker@example.com', null),
+('Nguyễn Văn An', '101 Đường Hùng Vương, Huế', '098-888-9999', 'an.nguyen@company.vn', null),
+('Trần Thị Bích', '22 Phố Cổ, Hà Nội', '097-777-6666', 'bich.tran@startup.com', null);
 
-INSERT INTO projects ("name", "location", "client_id", "design_company", "completion_date", "created_at", "design_file_path", "status", "document_path")
-VALUES
-('Dự án Vinhome', 'Hà Nội', 1, 'Design Firm X', '2025-12-31', '2025-10-01 09:00:00', 'path/A.pdf', 'Active', 'doc/A.docx'),
+insert into projects ("name", "location", "client_id", "design_company", "completion_date", "created_at", "design_file_path", "status", "document_path")
+values
+('Dự án Vinhome', 'Hà Nội', 1, 'Design Firm X', '2025-12-31', '2025-10-01 09:00:00', 'path/A.pdf', 'Production', 'doc/A.docx'),
 ('Dự án Ecopark', 'Hưng Yên', 2, 'Design Firm Y', '2024-10-20', '2025-10-05 10:00:00', 'path/B.pdf', 'Completed', 'doc/B.docx'),
-('Dự án Biệt thự FLC', 'Quy Nhơn', 1, 'Design Firm X', '2026-06-15', '2025-10-10 11:00:00', 'path/C.pdf', 'Pending', 'doc/C.docx'),
-('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Scheduled', 'rfq/imperial_docs.docx'),
-('Homestay Phố Cổ', 'Hà Nội', 5, NULL, '2025-11-30', '2025-10-20 16:30:00', NULL, 'Pending', 'rfq/homestay_hanoi.docx');
+('Dự án Biệt thự FLC', 'Quy Nhơn', 1, 'Design Firm X', '2026-06-15', '2025-10-10 11:00:00', 'path/C.pdf', 'Planning', 'doc/C.docx'),
+('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Deploying', 'rfq/imperial_docs.docx'),
+('Homestay Phố Cổ', 'Hà Nội', 5, null, '2025-11-30', '2025-10-20 16:30:00', null, 'Planning', 'rfq/homestay_hanoi.docx');
 
-INSERT INTO machine_types ("name") 
-VALUES 
-('Máy Cắt'),
-('Máy Phay Ổ Khóa'),
-('Máy Tiện Tự Động');
+insert into machine_types ("name") 
+values  ('Máy Cắt'), ('Máy Phay Ổ Khóa'), ('Máy Tiện Tự Động');
 
-INSERT INTO machines 
-("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
-VALUES
-('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, NULL,'mm/phút', NULL),
+insert into machines ("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
+values
+('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, 5, 'mm/phút', NULL),
 ('Máy Cắt Góc', 1, 'Operational', '2025-02-20', NULL, 5, 'mm', NULL),
 ('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);

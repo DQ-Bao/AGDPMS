@@ -29,14 +29,14 @@ builder.Services.AddSmsSender(opts =>
 
 builder.Services.AddScoped<IAuthService, WebAuthService>();
 builder.Services.AddScoped<IUserService, WebUserService>();
+builder.Services.AddScoped<WStarService>();
+builder.Services.AddScoped<IProductService, WebProductService>();
 builder.Services.AddScoped<ISaleServices, SaleService>();
+builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportService, ReportSerivce>();
-
-builder.Services.AddScoped<WStarService>();
-builder.Services.AddScoped<IProductService, WebProductService>();
 
 builder.Services.AddSingleton<IWebHostEnvironment>(builder.Environment);
 var app = builder.Build();
