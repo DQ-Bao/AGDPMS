@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using AGDPMS.Shared.Models;
 
 namespace AGDPMS.Shared.Services;
 
 public interface IReportService
 {
-    void GenerateReciept(IEnumerable<StockTransaction> transactions);
-    void GenerateIssue(IEnumerable<StockTransaction> transactions);
-    void GenerateQuotation(Quotation quotation);
-    void GenerateMaterialPlanning(IEnumerable<MaterialPlanning> plannings);
+    string GenerateReceipt(IEnumerable<StockTransaction> transactions);
+    string GenerateIssue(IEnumerable<StockTransaction> transactions);
+    string GenerateQuotation(Quotation quotation);
+    string GenerateMaterialPlanning(IEnumerable<MaterialPlanning> plannings);
 }
