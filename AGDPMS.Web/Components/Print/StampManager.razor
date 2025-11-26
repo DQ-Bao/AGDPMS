@@ -1,0 +1,231 @@
+﻿@page "/print/stamp-manager"
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Components.Print
+@rendermode InteractiveServer
+
+<PageTitle>Quản lý & In Tem Bảo Hành</PageTitle>
+
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+        <h3 class="mb-0">
+            @if (isPreviewMode)
+            {
+                <span>🖨️ Xem trước bản in</span>
+            }
+            else
+            {
+                <span>📝 Quản lý Tem Bảo Hành</span>
+            }
+        </h3>
+
+        @if (isPreviewMode)
+        {
+            <button class="btn btn-secondary" @onclick="BackToEdit">
+                <i class="bx bx-arrow-back me-1"></i> Quay lại chỉnh sửa
+            </button>
+        }
+        else
+        {
+            <button class="btn btn-primary" @onclick="GoToPreview" disabled="@(stampsToPrint.Count == 0)">
+                <i class="bx bx-show me-1"></i> XEM TRƯỚC BẢN IN (@stampsToPrint.Count tem)
+            </button>
+        }
+    </div>
+
+    @if (!isPreviewMode)
+    {
+        <div class="row d-print-none">
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white fw-bold py-3">
+                        <i class="bx bx-plus-circle me-1 text-primary"></i> Thêm tem mới
+                    </div>
+                    <div class="card-body">
+                        <EditForm Model="@newStamp" OnValidSubmit="AddStamp">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Tên Sản Phẩm</label>
+                                <InputText class="form-control" @bind-Value="newStamp.ProductName" placeholder="VD: Cửa đi mở quay..." />
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold text-muted">Mã Lệnh TC</label>
+                                    <InputText class="form-control" @bind-Value="newStamp.CommandCode" placeholder="VD: LC-2025-001" />
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold text-muted">Mã Sản Phẩm (Tạo QR)</label>
+                                    <InputText class="form-control" @bind-Value="newStamp.ProductCode" placeholder="VD: W6T2-001" />
+                                    <div class="form-text small text-primary"><i class="bx bx-info-circle"></i> Mã này sẽ được dùng để tạo QR.</div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold text-muted">Ngày Lắp Đặt</label>
+                                <InputDate class="form-control" @bind-Value="newStamp.InstallDate" />
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold">
+                                <i class="bx bx-list-plus me-1"></i> Thêm vào danh sách
+                            </button>
+                        </EditForm>
+
+                        <hr class="text-muted my-3" />
+                        <button class="btn btn-outline-secondary btn-sm w-100" @onclick="AddDummyData">
+                            <i class="bx bx-test-tube me-1"></i> + Thêm nhanh 10 tem mẫu (Test)
+                        </button>
+
+                        <hr class="text-muted my-3" />
+                        <button class="btn btn-outline-secondary btn-sm w-100" @onclick="AddDummyData2">
+                            <i class="bx bx-test-tube me-1"></i> + Thêm nhanh 12 tem mẫu (Test)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                        <span class="fw-bold"><i class="bx bx-list-ul me-1 text-primary"></i> Danh sách chờ in</span>
+                        <span class="badge bg-primary rounded-pill">@stampsToPrint.Count / 10 tem (Trang 1)</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
+                            <table class="table table-hover table-striped mb-0 align-middle">
+                                <thead class="table-light sticky-top small text-muted text-uppercase">
+                                    <tr>
+                                        <th class="ps-3">#</th>
+                                        <th>Mã SP (QR)</th>
+                                        <th>Tên Sản Phẩm</th>
+                                        <th>Mã Lệnh</th>
+                                        <th>Ngày lắp</th>
+                                        <th class="text-center">Xóa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @if (stampsToPrint.Count == 0)
+                                    {
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted py-5">
+                                                <i class="bx bx-inbox fs-1 d-block mb-2"></i>
+                                                Chưa có tem nào trong danh sách. Hãy thêm tem mới.
+                                            </td>
+                                        </tr>
+                                    }
+                                    else
+                                    {
+                                        @for (int i = 0; i < stampsToPrint.Count; i++)
+                                        {
+                                            var item = stampsToPrint[i];
+                                            var index = i; // Biến cục bộ cho vòng lặp
+                                                           <tr>
+                                                               <td class="ps-3 fw-bold text-muted">@(index + 1)</td>
+                                                               <td><span class="badge bg-info text-dark">@item.ProductCode</span></td>
+                                                               <td class="text-truncate" style="max-width: 200px;" title="@item.ProductName">@item.ProductName</td>
+                                                               <td><small>@item.CommandCode</small></td>
+                                                               <td><small>@(item.InstallDate?.ToString("dd/MM/yyyy"))</small></td>
+                                                               <td class="text-center">
+                                                                   <button class="btn btn-outline-danger btn-sm rounded-circle" @onclick="() => RemoveStamp(item)" title="Xóa tem này">
+                                                                       <i class="bx bx-x"></i>
+                                                                   </button>
+                                                               </td>
+                                                           </tr>
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-light small text-muted">
+                        <i class="bx bx-bulb me-1"></i> Mẹo: Mỗi trang A4 in được 10-12 tem. Hãy nhập đúng số lượng để tiết kiệm giấy.
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    @if (isPreviewMode)
+    {
+        <PrintWarrantyStamps Stamps="@stampsToPrint" />
+    }
+
+</div>
+
+@code {
+    // Danh sách chính chứa các tem sẽ in
+    private List<WarrantyStamp> stampsToPrint = new();
+
+    // Model tạm dùng cho form nhập liệu
+    private WarrantyStamp newStamp = new() { InstallDate = DateTime.Now };
+
+    // Biến trạng thái: true = đang xem trước, false = đang nhập liệu
+    private bool isPreviewMode = false;
+
+    // Hàm xử lý khi nhấn nút "Thêm vào danh sách"
+    private void AddStamp()
+    {
+        // Tạo một đối tượng mới (copy dữ liệu từ form) để thêm vào danh sách
+        // Điều này quan trọng để ngắt tham chiếu với form nhập liệu
+        stampsToPrint.Add(new WarrantyStamp
+        {
+            ProductName = newStamp.ProductName,
+            CommandCode = newStamp.CommandCode,
+            ProductCode = newStamp.ProductCode, // Mã này sẽ được dùng tạo QR
+            InstallDate = newStamp.InstallDate
+        });
+
+        // Reset form để nhập tem tiếp theo (giữ lại ngày hiện tại cho tiện)
+        var currentDate = newStamp.InstallDate;
+        newStamp = new WarrantyStamp { InstallDate = currentDate, ProductCode = "" };
+    }
+
+    // Hàm xóa một tem khỏi danh sách
+    private void RemoveStamp(WarrantyStamp item)
+    {
+        stampsToPrint.Remove(item);
+    }
+
+    // Hàm thêm dữ liệu giả để test nhanh chức năng
+    private void AddDummyData()
+    {
+        int startId = stampsToPrint.Count + 1;
+        for (int i = 0; i < 10; i++)
+        {
+            int id = startId + i;
+            stampsToPrint.Add(new WarrantyStamp
+            {
+                ProductName = $"Cửa Nhôm Hệ Xingfa (Mẫu test #{id})",
+                CommandCode = $"LC-{DateTime.Now.Year}-{id:000}",
+                ProductCode = $"W6T2-{id:000}", // Mã QR sẽ là W6T2-001, W6T2-002...
+                InstallDate = DateTime.Now.AddDays(-i)
+            });
+        }
+    }
+
+    // Hàm thêm dữ liệu giả để test nhanh chức năng
+    private void AddDummyData2()
+    {
+        int startId = stampsToPrint.Count + 1;
+        for (int i = 0; i < 12; i++)
+        {
+            int id = startId + i;
+            stampsToPrint.Add(new WarrantyStamp
+            {
+                ProductName = $"Cửa Nhôm Hệ Xingfa (Mẫu test #{id})",
+                CommandCode = $"LC-{DateTime.Now.Year}-{id:000}",
+                ProductCode = $"W6T2-{id:000}", // Mã QR sẽ là W6T2-001, W6T2-002...
+                InstallDate = DateTime.Now.AddDays(-i)
+            });
+        }
+    }
+    // Chuyển sang chế độ xem trước
+    private void GoToPreview()
+    {
+        if (stampsToPrint.Any())
+        {
+            isPreviewMode = true;
+        }
+    }
+
+    // Quay lại chế độ nhập liệu
+    private void BackToEdit()
+    {
+        isPreviewMode = false;
+    }
+}

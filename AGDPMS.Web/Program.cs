@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Components;
 using System.Net.Http;
 using AGDPMS.Web.Services;
 using Microsoft.AspNetCore.Identity;
+using AGDPMS.Shared.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -48,11 +49,14 @@ builder.Services.AddScoped<IUserService, WebUserService>();
 builder.Services.AddScoped<ISaleServices, SaleService>();
 builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
-
 
 builder.Services.AddScoped<WStarService>();
 builder.Services.AddScoped<IProductService, WebProductService>();
+
+// enable SignalR
+builder.Services.AddSignalR();
+
+builder.Services.AddSingleton<INotificationService, AGDPMS.Shared.Services.NotificationService>();
 
 builder.Services.AddSingleton<IWebHostEnvironment>(builder.Environment);
 var app = builder.Build();
@@ -97,7 +101,7 @@ app.MapLookup();
 
 //    var hash = passwordHasher.HashPassword(user, "abc123");
 //    await userDataAccess.SetPasswordHashAsync(user.Id, hash, needChange: false);
-    
+
 //    return Results.Ok(new { Success = true, Message = "Password changed successfully" });
 //});
 
@@ -181,6 +185,9 @@ app.MapLookup();
 //        return Results.Ok(new DeleteUserResponse { Success = false, Message = ex.Message });
 //    }
 //});
+
+app.MapHub<NotificationHub>("/notificationHub");
+
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

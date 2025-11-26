@@ -140,6 +140,7 @@ else
             // project.DesignFilePath = savedPath;
             project.DesignFilePath = $"new_{file.Name}"; // Placeholder - MUST BE REPLACED
             Console.WriteLine($"Selected NEW Design File: {file.Name}");
+            await Task.CompletedTask; // Fixes CS1998 by including an await
         }
     }
 
@@ -148,10 +149,11 @@ else
         var file = e.File;
         if (file != null && project != null)
         {
-             // Example: var savedPath = await FileUploadService.SaveFileAsync(file, project.Id, "document");
+            // Example: var savedPath = await FileUploadService.SaveFileAsync(file, project.Id, "document");
             // project.DocumentPath = savedPath;
-            project.DocumentPath = $"new_{file.Name}"; 
+            project.DocumentPath = $"new_{file.Name}";
             Console.WriteLine($"Selected NEW Document File: {file.Name}");
+            await Task.CompletedTask; // Fixes CS1998 by including an await
         }
     }
 
