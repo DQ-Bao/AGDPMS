@@ -11,11 +11,27 @@
 
 <PageTitle>Inventory</PageTitle>
 
-<button onclick="">Generate Issue</button>
+<button @onclick="GenerateIssue">Generate Issue</button>
 <button>Generate receipt</button>
 <button>Generate quotation</button>
 <button>Generate material planning</button>
 
 @code {
-	
+	public void GenerateIssue()
+	{
+		Console.WriteLine("GenerateIssue");
+		reportSerivce.GenerateIssue(null);
+	}
+	public void GenerateReceipt()
+	{
+		reportSerivce.GenerateReceipt(null);
+	}
+	public void GenerateQuotation()
+	{
+		reportSerivce.GenerateQuotation(null);
+	}
+	public void GenerateMaterialPlanning()
+	{
+		reportSerivce.GenerateMaterialPlanning(null);
+	}
 }

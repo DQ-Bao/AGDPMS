@@ -34,7 +34,7 @@ public class ReportSerivce : IReportService
         //     row++;
         // }
 
-        string filePath = Path.Combine(exports, $"receipt_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+        string filePath = Path.Combine(exports, $"nhap_kho_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         wb.SaveAs(filePath);
         return filePath;
     }
@@ -46,7 +46,7 @@ public class ReportSerivce : IReportService
 
         // Fill data here
 
-        string filePath = Path.Combine(exports, $"issue_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+        string filePath = Path.Combine(exports, $"xuat_kho_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         wb.SaveAs(filePath);
         return filePath;
     }
@@ -58,7 +58,7 @@ public class ReportSerivce : IReportService
 
         // Fill data here
 
-        string filePath = Path.Combine(exports, $"quotation_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+        string filePath = Path.Combine(exports, $"bao_gia_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         wb.SaveAs(filePath);
         return filePath;
     }
@@ -70,7 +70,7 @@ public class ReportSerivce : IReportService
 
         // Fill data here
 
-        string filePath = Path.Combine(exports, $"material_planning_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
+        string filePath = Path.Combine(exports, $"du_tru_vat_tu_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         wb.SaveAs(filePath);
         return filePath;
     }
