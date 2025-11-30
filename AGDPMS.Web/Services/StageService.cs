@@ -101,11 +101,6 @@ public class StageService(
         return stageAccess.UpdateActualDatesAsync(stageId, actualStartDate, actualFinishDate, actualTimeHours);
     }
 
-    public Task UpdateStatusAsync(int stageId, StageStatus status)
-    {
-        return stageAccess.UpdateStatusAsync(stageId, status);
-    }
-
     public Task BulkAssignQaToItemAsync(int itemId, int qaUserId)
     {
         return stageAccess.BulkAssignQaAsync(itemId, qaUserId);

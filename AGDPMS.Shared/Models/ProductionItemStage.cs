@@ -6,7 +6,6 @@ public class ProductionItemStage
     public int ProductionOrderItemId { get; set; }
     public int StageTypeId { get; set; }
     public int? AssignedQaUserId { get; set; }
-    public StageStatus Status { get; set; }
     
     public DateTime? PlannedStartDate { get; set; }
     public DateTime? PlannedFinishDate { get; set; }

@@ -157,6 +157,19 @@ public static class ProductionOrdersEndpoints
             if (order is null) return Results.NotFound();
             var items = (await itemAccess.ListByOrderAsync(id)).ToList();
             var types = (await stageTypeAccess.GetAllAsync()).ToDictionary(t => t.Id);
+            // Create order mapping based on code order in data.sql
+            var stageTypeOrder = new Dictionary<string, int>
+            {
+                { "CUT_AL", 1 },
+                { "MILL_LOCK", 2 },
+                { "DOOR_CORNER_CUT", 3 },
+                { "ASSEMBLE_FRAME", 4 },
+                { "GLASS_INSTALL", 5 },
+                { "PRESS_GASKET", 6 },
+                { "INSTALL_ACCESSORIES", 7 },
+                { "CUT_FLUSH", 8 },
+                { "FINISH_SILICON", 9 }
+            };
             var allUsers = (await userAccess.GetAllAsync()).ToDictionary(u => u.Id);
             var allProducts = (await productAccess.GetAllAsync()).ToDictionary(p => p.Id, p => p.Name);
             var itemsWithStages = new List<object>();
@@ -164,15 +177,29 @@ public static class ProductionOrdersEndpoints
             foreach (var it in items)
             {
                 var stages = (await stageAccess.ListByItemAsync(it.Id)).ToList();
-                var stageDtos = stages
-                    .OrderBy(s => s.StageTypeId)
+                // Filter: Hide stages with planned_time_hours = 0 or NULL unless order is Draft
+                var filteredStages = stages.Where(s => 
+                    (s.PlannedTimeHours > 0 || s.PlannedTimeHours.HasValue) || 
+                    order.Status == ProductionOrderStatus.Draft
+                ).ToList();
+                
+                var stageDtos = filteredStages
+                    .OrderBy(s =>
+                    {
+                        if (types.ContainsKey(s.StageTypeId))
+                        {
+                            var code = types[s.StageTypeId].Code;
+                            return stageTypeOrder.ContainsKey(code) ? stageTypeOrder[code] : 999;
+                        }
+                        return 999;
+                    })
+                    .ThenBy(s => s.StageTypeId)
                     .Select(s => new
                     {
                         s.Id,
                         s.StageTypeId,
                         StageCode = types.ContainsKey(s.StageTypeId) ? types[s.StageTypeId].Code : string.Empty,
                         StageName = types.ContainsKey(s.StageTypeId) ? types[s.StageTypeId].Name : $"Stage Type {s.StageTypeId}",
-                        s.Status,
                         s.PlannedStartDate,
                         s.PlannedFinishDate,
                         s.ActualStartDate,
@@ -187,6 +214,7 @@ public static class ProductionOrdersEndpoints
                         s.CompletedAt
                     }).ToList();
                 
+                // Calculate completed stages - only check IsCompleted flag
                 var completedStages = stageDtos.Count(s => s.IsCompleted);
                 var totalStages = stageDtos.Count;
                 var needsQa = stageDtos.Any(s => s.AssignedQaUserId != null && !s.IsCompleted);
@@ -200,11 +228,13 @@ public static class ProductionOrdersEndpoints
                 if (it.PlannedFinishDate.HasValue)
                 {
                     var planFinish = it.PlannedFinishDate.Value;
-                    if (it.IsCompleted && it.ActualFinishDate.HasValue && it.ActualFinishDate.Value > planFinish)
+                    // Item is late if actual finish date is later than planned finish date (even if not completed)
+                    if (it.ActualFinishDate.HasValue && it.ActualFinishDate.Value > planFinish)
                     {
                         isLate = true;
                         daysLate = (int)Math.Ceiling((it.ActualFinishDate.Value - planFinish).TotalDays);
                     }
+                    // Or if not completed and current time is past planned finish date
                     else if (!it.IsCompleted && now > planFinish)
                     {
                         isLate = true;
@@ -244,7 +274,6 @@ public static class ProductionOrdersEndpoints
                         s.Id,
                         s.StageTypeId,
                         s.StageName,
-                        s.Status,
                         s.IsCompleted,
                         s.PlannedStartDate,
                         s.PlannedFinishDate,

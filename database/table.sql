@@ -1,8 +1,9 @@
     set client_encoding to 'utf8';
 
     -- drop new production tables first (children before parents)
-    drop table if exists production_issue_reports;
-    drop table if exists production_reject_reports;
+    drop table if exists stage_review_criteria_results;
+    drop table if exists stage_reviews;
+    drop table if exists stage_criteria;
     drop table if exists production_item_stages;
     drop table if exists production_order_items;
     drop table if exists production_orders;
@@ -179,7 +180,6 @@
     "production_order_item_id" integer not null,
     "stage_type_id" integer not null,
     "assigned_qa_user_id" integer null,
-    "status" smallint not null default 0,
     "planned_start_date" timestamp null,
     "planned_finish_date" timestamp null,
     "actual_start_date" timestamp null,
@@ -200,24 +200,69 @@
     create index if not exists "ix_item_stages_item"
         on production_item_stages ("production_order_item_id");
 
-    -- production issue reports (renamed from reject reports)
-    create table if not exists production_issue_reports (
+    -- stage criteria for QA review
+    create table if not exists stage_criteria (
         "id" serial,
-        "production_item_stage_id" integer not null,
-        "created_by_user_id" integer not null,
-        "status" smallint not null default 0,
-        "priority" smallint not null default 0,
-        "reason" text not null,
-        "resolved_at" timestamp null,
-        "resolved_by_user_id" integer null,
+        "stage_type_id" integer not null,
+        "code" varchar(50) not null,
+        "name" varchar(250) not null,
+        "description" text null,
+        "check_type" varchar(50) not null default 'boolean' check ("check_type" in ('boolean', 'numeric', 'text', 'select')),
+        "required" boolean not null default true,
+        "order_index" integer not null default 0,
+        "is_active" boolean not null default true,
         "created_at" timestamp null default now(),
-        constraint "pk_production_issue_reports" primary key ("id"),
-        constraint "fk_issue_reports_stage" foreign key ("production_item_stage_id") references production_item_stages ("id"),
-        constraint "fk_issue_reports_created_by" foreign key ("created_by_user_id") references users ("id"),
-        constraint "fk_issue_reports_resolved_by" foreign key ("resolved_by_user_id") references users ("id")
+        "updated_at" timestamp null,
+        constraint "pk_stage_criteria" primary key ("id"),
+        constraint "fk_stage_criteria_stage_type" foreign key ("stage_type_id") references stage_types ("id"),
+        constraint "uq_stage_criteria_code" unique ("stage_type_id", "code")
     );
 
+    create index if not exists "ix_stage_criteria_stage_type"
+        on stage_criteria ("stage_type_id", "order_index");
 
+    -- stage reviews for QA review process
+    create table if not exists stage_reviews (
+        "id" serial,
+        "production_item_stage_id" integer not null,
+        "requested_by_user_id" integer not null,
+        "reviewed_by_user_id" integer null,
+        "status" varchar(50) not null default 'pending' check ("status" in ('pending', 'in_progress', 'passed', 'failed')),
+        "notes" text null,
+        "requested_at" timestamp null default now(),
+        "reviewed_at" timestamp null,
+        "created_at" timestamp null default now(),
+        "updated_at" timestamp null,
+        constraint "pk_stage_reviews" primary key ("id"),
+        constraint "fk_stage_reviews_stage" foreign key ("production_item_stage_id") references production_item_stages ("id"),
+        constraint "fk_stage_reviews_requested_by" foreign key ("requested_by_user_id") references users ("id"),
+        constraint "fk_stage_reviews_reviewed_by" foreign key ("reviewed_by_user_id") references users ("id")
+    );
+
+    create index if not exists "ix_stage_reviews_stage"
+        on stage_reviews ("production_item_stage_id", "created_at" desc);
+
+    -- stage review criteria results
+    create table if not exists stage_review_criteria_results (
+        "id" serial,
+        "stage_review_id" integer not null,
+        "stage_criteria_id" integer not null,
+        "is_passed" boolean null,
+        "value" text null,
+        "notes" text null,
+        "severity" varchar(50) null check ("severity" in ('low', 'medium', 'high', 'critical')),
+        "content" text null,
+        "attachments" text null,
+        "created_at" timestamp null default now(),
+        "updated_at" timestamp null,
+        constraint "pk_stage_review_criteria_results" primary key ("id"),
+        constraint "fk_review_criteria_review" foreign key ("stage_review_id") references stage_reviews ("id") on delete cascade,
+        constraint "fk_review_criteria_criteria" foreign key ("stage_criteria_id") references stage_criteria ("id"),
+        constraint "uq_review_criteria" unique ("stage_review_id", "stage_criteria_id")
+    );
+
+    create index if not exists "ix_review_criteria_review"
+        on stage_review_criteria_results ("stage_review_id");
 
     CREATE TABLE if not exists machine_types (
     "id" SERIAL PRIMARY KEY,

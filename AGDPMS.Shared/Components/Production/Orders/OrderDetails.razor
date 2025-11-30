@@ -90,11 +90,28 @@
             <div class="alert alert-danger">@errorMessage</div>
         }
 
-        @* Stage Progress Bar *@
-        @if (model?.items?.Any() == true)
+        @* Overall Progress Bar *@
+        @if (model?.items != null)
         {
             <div class="mb-3">
-                <AGDPMS.Shared.Components.Production.Stages.StageProgressBar OrderId="@Id" />
+                <div class="small text-secondary mb-1">Tiến độ tổng thể: @CompletedItems/@TotalItems item</div>
+                <div class="progress" style="height: 30px;">
+                    @{
+                        var totalItems = TotalItems;
+                        var completedItems = CompletedItems;
+                        var overallProgressPercent = totalItems > 0 
+                            ? (completedItems * 100.0 / totalItems) 
+                            : 0;
+                        var overallProgressClass = overallProgressPercent == 100 ? "bg-success" : (overallProgressPercent > 0 ? "bg-info" : "bg-secondary");
+                    }
+                    <div class="progress-bar @overallProgressClass" role="progressbar" 
+                         style="width: @($"{overallProgressPercent:F1}%")" 
+                         aria-valuenow="@overallProgressPercent" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <span class="ms-2">@($"{overallProgressPercent:F1}%")</span>
+                    </div>
+                </div>
             </div>
         }
 
@@ -127,16 +144,15 @@
                     <tr>
                         <th>#</th>
                         <th>Sản phẩm</th>
-                        <th>QR</th>
                         <th>Kế hoạch</th>
                         <th>Thực tế</th>
+                        <th>Chênh lệch</th>
                         <th>Hoàn thành</th>
                     </tr>
                 </thead>
                 <tbody>
                     @foreach (var it in model.items)
                     {
-                        var expanded = expandedItemId == it.Id;
                         var rowClass = string.Empty;
                         if (it.IsLate)
                         {
@@ -148,19 +164,15 @@
                         }
                         var editingPlan = editingItemPlanId == it.Id;
                         var editingActual = editingItemActualId == it.Id;
-                        <tr class="@rowClass" style="cursor:pointer;" @onclick='@(() => Toggle(it.Id))'>
+                        <tr class="@rowClass">
                             <td>@it.LineNo</td>
                             <td>
-                                @(string.IsNullOrWhiteSpace(it.ProductName) ? $"Sản phẩm {it.ProductId}" : it.ProductName)
+                                <a href="/production/orders/@Id/items/@it.Id" class="text-decoration-none">
+                                    @(string.IsNullOrWhiteSpace(it.ProductName) ? $"Sản phẩm {it.ProductId}" : it.ProductName)
+                                </a>
                                 @if (it.IsLate)
                                 {
                                     <span class="badge bg-danger ms-1" title="@GetLateTooltip(it)">Trễ</span>
-                                }
-                            </td>
-                            <td>
-                                @if (!string.IsNullOrWhiteSpace(it.QRCode))
-                                {
-                                    <a href="@it.QRCode" target="_blank" @onclick:stopPropagation="true">Xem</a>
                                 }
                             </td>
                             <td>
@@ -220,10 +232,14 @@
                                 }
                             </td>
                             <td>
+                                @GetDifferenceInfo(it)
+                            </td>
+                            <td>
                                 @if (CanEditItemCompletion())
                                 {
                                     <button class="btn btn-sm @(it.IsCompleted ? "btn-success" : "btn-outline-secondary")"
-                                            @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true">
+                                            @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true"
+                                            disabled="@(!CanCompleteItem(it))">
                                         @(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")
                                     </button>
                                 }
@@ -233,14 +249,6 @@
                                 }
                             </td>
                         </tr>
-                        @if (expanded)
-                        {
-                            <tr>
-                                <td colspan="6">
-                                    <AGDPMS.Shared.Components.Production.Stages.ItemStages ItemId="@it.Id" OrderStatus="@model.order.Status" OnChanged="OnStagesChanged" />
-                                </td>
-                            </tr>
-                        }
                     }
                 </tbody>
             </table>
@@ -252,7 +260,6 @@
     [Parameter] public int Id { get; set; }
 
     private OrderDetailsResponse? model;
-    private int? expandedItemId;
     private string? userRole;
     private string? errorMessage;
     private bool showCancelConfirm;
@@ -302,8 +309,6 @@
             model = null;
         }
     }
-
-    private void Toggle(int id) => expandedItemId = expandedItemId == id ? null : id;
 
     private bool ShouldShowButton(string buttonName) => buttonName switch
     {
@@ -371,6 +376,20 @@
     private bool CanEditItemPlan() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft;
     private bool CanEditItemActual() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanEditItemCompletion() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
+
+    private bool CanCompleteItem(ItemDto item)
+    {
+        if (!CanEditItemCompletion() || item == null)
+            return false;
+
+        // Check if all stages are completed
+        var stages = item.Stages ?? new();
+        var visibleStages = stages.Where(s => (s.PlannedTimeHours.HasValue && s.PlannedTimeHours > 0) || model?.order?.Status == ProductionOrderStatus.Draft).ToList();
+        if (!visibleStages.All(s => s.IsCompleted))
+            return false;
+
+        return true;
+    }
 
     private async Task<bool> ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
     {
@@ -495,11 +514,6 @@
         }
     }
 
-    private async Task OnStagesChanged()
-    {
-        await Load();
-        StateHasChanged();
-    }
 
     private void OpenPlanModal()
     {
@@ -595,9 +609,46 @@
         }
         if (item.DaysLate > 0)
         {
-            return $"Hoàn thành trễ {item.DaysLate} ngày";
+            return $"Kết thúc trễ {item.DaysLate} ngày";
         }
         return "Trễ kế hoạch";
+    }
+
+    private MarkupString GetDifferenceInfo(ItemDto item)
+    {
+        var sb = new StringBuilder();
+        sb.Append("<small>");
+        
+        // Chênh lệch về giờ
+        if (item.PlannedTimeHours.HasValue && item.ActualTimeHours.HasValue)
+        {
+            var hourDiff = item.ActualTimeHours.Value - item.PlannedTimeHours.Value;
+            var hourClass = hourDiff > 0 ? "text-danger" : (hourDiff < 0 ? "text-success" : "");
+            var hourSign = hourDiff > 0 ? "+" : "";
+            sb.Append($"<div class=\"{hourClass}\">Giờ: {hourSign}{hourDiff:F1}h</div>");
+        }
+        
+        // Chênh lệch về ngày kết thúc
+        if (item.PlannedFinishDate.HasValue && item.ActualFinishDate.HasValue)
+        {
+            var dateDiff = (item.ActualFinishDate.Value - item.PlannedFinishDate.Value).TotalDays;
+            var dateClass = dateDiff > 0 ? "text-danger" : (dateDiff < 0 ? "text-success" : "");
+            var dateSign = dateDiff > 0 ? "+" : "";
+            var days = (int)Math.Ceiling(Math.Abs(dateDiff));
+            sb.Append($"<div class=\"{dateClass}\">Ngày: {dateSign}{days} ngày</div>");
+        }
+        else if (item.PlannedFinishDate.HasValue && !item.ActualFinishDate.HasValue)
+        {
+            var now = DateTime.UtcNow;
+            if (now > item.PlannedFinishDate.Value)
+            {
+                var days = (int)Math.Ceiling((now - item.PlannedFinishDate.Value).TotalDays);
+                sb.Append($"<div class=\"text-danger\">Ngày: +{days} ngày</div>");
+            }
+        }
+        
+        sb.Append("</small>");
+        return new MarkupString(sb.ToString());
     }
 
     private int TotalItems => model?.items?.Count ?? 0;
@@ -651,6 +702,8 @@
     {
         public DateTime Date { get; set; }
         public int CompletedCount { get; set; }
+    }
+
     }
 }
 
