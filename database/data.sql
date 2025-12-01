@@ -5,7 +5,15 @@ insert into roles ("name") values ('Director'), ('Technician'), ('Sale'), ('Inve
 insert into users ("fullname", "phone", "password_hash", "role_id")
 values ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1);
 
-insert into materials ("code", "name", "weight", "type", "stock_length", "stock_width")
+insert into material_type ("name")
+values
+('Nhôm'),
+('Kính'),
+('Phụ kiện'),
+('Roăng'),
+('Vật tư phụ');
+
+insert into materials ("id", "name", "weight", "type")
 values
 -- Cửa đi mở quay
 ('C3328', N'Khung cửa đi', 1.257, 1),
@@ -29,7 +37,7 @@ values
 ('C3291', N'Nẹp kính', 0.206, 1),
 ('C3225', N'Nẹp kính', 0.211, 1),
 ('C3296', N'Nẹp kính', 0.237, 1),
-('F347', N'Ke góc', 4.957, 1),
+('F347', N'Ke góc', 4.957, 5),
 
 ('C3246', N'Nẹp kính', 0.216, 1),
 ('C3286', N'Nẹp kính', 0.223, 1),
@@ -47,10 +55,10 @@ values
 ('C22922', N'Cánh cửa sổ mở ngoài (không gân & bo cạnh', 1.118, 1),
 ('C3033', N'Đố động cửa sổ', 0.825, 1),
 --('C22903', N'Đố động cửa đi và cửa sổ', 0.891, 1), --duplicate
-('C3313', N'Đố cố định trên khung', 1.126, 1),
-('C3209', N'Khung vách kính', 0.876, 1),
+('C3313', N'Đố cố định trên khung', 1.010, 1),
+('C3209', N'Khung vách kính', 0.802, 1),
 
-('C3203', N'Đố cố định (có lỗ vít)', 0.314, 1),
+('C3203', N'Đố cố định (có lỗ vít)', 0.950, 1),
 ('F077', N'Pano', 0.664, 1),
 ('E1283', N'Khung lá sách', 0.290, 1),
 ('E192', N'Lá sách', 0.317, 1),
@@ -66,9 +74,9 @@ values
 
 ('C3317', N'Pát liên kết (đố cố định với Fix)', 1.105, 1),
 ('C3207', N'Pát liên kết (đố cố định với Fix)', 1.154, 1),
-('C1687', N'Ke góc', 3.134, 1),
-('C4137', N'Ke góc', 1.879, 1),
-('C1697', N'Ke góc', 2.436, 1),
+('C1687', N'Ke góc', 3.134, 5),
+('C4137', N'Ke góc', 1.879, 5),
+('C1697', N'Ke góc', 2.436, 5),
 
 --MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
 ('C38019', 'Khung cửa đi bản 100', 2.057, 1),
@@ -82,9 +90,9 @@ values
 ('C48980', 'Nối khung 90 độ bản 100', 2.090, 1),
 
 ('C48945', 'Nẹp phụ bản 100', 0.346, 1),
---('F347', 'Ke góc', 4.957, 1), --duplicate
---('C1687', 'Ke góc', 3.134, 1), --duplicate
---('C4137', 'Ke góc', 1.879, 1), --duplicate
+--('F347', 'Ke góc', 4.957, 5), --duplicate
+--('C1687', 'Ke góc', 3.134, 5), --duplicate
+--('C4137', 'Ke góc', 1.879, 5), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA ĐI MỞ QUAY
 ('CX283', 'Khung cửa đi', 1.533, 1),
@@ -99,7 +107,7 @@ values
 --('C459', 'Thanh truyền khóa', 0.139, 1), --duplicate
 --('B507', 'Nan dán trang trí', 0.150, 1), --duplicate
 
---('F347', 'Ke góc', 4.957, 1), --duplicate
+--('F347', 'Ke góc', 4.957, 5), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ QUAY
 ('CX267', 'Khung cửa sổ, vách kính', 1.057, 1),
@@ -118,10 +126,10 @@ values
 --('C3206', 'Nẹp kính', 0.257, 1), --duplicate
 --('C3295', 'Nẹp kính', 0.271, 1), --duplicate
 
---('C1687', 'Ke góc', 3.134, 1), --duplicate
---('C4137', 'Ke góc', 1.879, 1), --duplicate
---('C1697', 'Ke góc', 2.436, 1), --duplicate
-('C1757', 'Ke góc', 2.167, 1),
+--('C1687', 'Ke góc', 3.134, 5), --duplicate
+--('C4137', 'Ke góc', 1.879, 5), --duplicate
+--('C1697', 'Ke góc', 2.436, 5), --duplicate
+('C1757', 'Ke góc', 2.167, 5),
 
 --MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
 ('C40988', 'Khung cửa đi và cửa sổ', 0.862, 1),
@@ -160,10 +168,10 @@ values
 ('F6029', 'Nẹp kính', 0.276, 1),
 ('F521', 'Nẹp kính', 0.222, 1),
 
-('F608', 'Ke liên kết khung đứng với ngang trên', 1.440, 1),
-('F609', 'Ke liên kết khung đứng với ngang dưới', 1.377, 1),
-('F417', 'Ke góc', 5.228, 1),
---('F347', 'Ke góc', 4.957, 1), --duplicate
+('F608', 'Ke liên kết khung đứng với ngang trên', 1.440, 5),
+('F609', 'Ke liên kết khung đứng với ngang dưới', 1.377, 5),
+('F417', 'Ke góc', 5.228, 5),
+--('F347', 'Ke góc', 4.957, 5), --duplicate
 
 --MẶT CẮT THANH NHÔM CỬA SỔ MỞ LÙA
 ('D23151', 'Khung cửa lùa', 0.949, 1),
@@ -277,7 +285,7 @@ values
 
 ('GK1365', 'Cánh cửa sổ', 0.801, 1),
 ('GK505', 'Thanh đố kính cho cánh cửa sổ', 0.959, 1),
-('GK1215', 'Ke cửa sổ', 0.959, 1),
+('GK1215', 'Ke cửa sổ', 0.959, 5),
 
 --THANH NHÔM MẶT DỰNG GIẤU ĐỐ
 ('GK001', 'Thanh đố đứng', 1.923, 1),
@@ -310,7 +318,7 @@ values
 ('GK534', 'Thanh đỡ kính cho cánh cửa sổ', 0.195, 1),
 ('GK454', 'Máng che cánh cửa sổ', 0.288, 1),
 
---('GK1215', 'Ke cửa sổ', 0.959, 1), --duplicate
+--('GK1215', 'Ke cửa sổ', 0.959, 5), --duplicate
 
 --MẶT CẮT PROFILE LAN CAN KÍNH
 ('E1214', 'Khung bao ngang trên', 1.795, 1),
@@ -342,6 +350,43 @@ values
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
 
+insert into material_stock("material_id", "length", "base_price")
+values
+('C3209', 6000, 88000),
+('C3295', 6000, 88000),
+('C3313', 6000, 88000),
+('C3328', 6000, 88000),
+('C22903', 6000, 88000),
+('C3303', 6000, 88000),
+('C3329', 6000, 88000),
+('C3296', 6000, 88000),
+('C3203', 6000, 88000),
+('C3318', 6000, 88000),
+('C3202', 6000, 88000),
+('C3300', 6000, 88000),
+('C3304', 6000, 88000),
+--('C3208', 6000, 88000),
+('D1543A', 6000, 88000),
+('D1555A', 6000, 88000),
+('D1544A', 6000, 88000),
+('D1546A', 6000, 88000),
+('D1547A', 6000, 88000),
+('D1942', 6000, 88000),
+('D1541A', 6000, 88000),
+('D23156', 6000, 88000),
+('D23157', 6000, 88000),
+('D23151', 6000, 88000),
+('C3236', 6000, 88000),
+('F606', 6000, 88000),
+('F605', 6000, 88000),
+('F523', 6000, 88000),
+('F560', 6000, 88000),
+('F607', 6000, 88000),
+('F2435', 6000, 88000),
+('F520', 6000, 88000),
+('F521', 6000, 88000);
+--('F431', 6000, 88000);
+
 INSERT INTO clients ("name", "address", "phone", "email", "sales_in_charge_id")
 VALUES
 ('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com', NULL),
@@ -367,6 +412,6 @@ VALUES
 INSERT INTO machines 
 ("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
 VALUES
-('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, 'mm/phút', NULL),
+('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, NULL,'mm/phút', NULL),
 ('Máy Cắt Góc', 1, 'Operational', '2025-02-20', NULL, 5, 'mm', NULL),
 ('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);
