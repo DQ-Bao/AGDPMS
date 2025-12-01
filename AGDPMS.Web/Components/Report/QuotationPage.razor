@@ -1,4 +1,4 @@
-﻿@page "/report"
+﻿@page "/report/quotation"
 @rendermode InteractiveServer
 
 @using AGDPMS.Shared.Models
@@ -19,12 +19,11 @@
 @code {
 	public void GenerateIssue()
 	{
-		Console.WriteLine("GenerateIssue");
-		reportSerivce.GenerateIssue(null);
+		reportSerivce.GenerateIssue(new List<StockTransaction>());
 	}
 	public void GenerateReceipt()
 	{
-		reportSerivce.GenerateReceipt(null);
+		reportSerivce.GenerateIssue(new List<StockTransaction>());
 	}
 	public void GenerateQuotation()
 	{

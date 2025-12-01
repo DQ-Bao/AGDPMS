@@ -38,6 +38,10 @@ public class ReportSerivce : IReportService
         wb.SaveAs(filePath);
         return filePath;
     }
+    public string GenerateReceipt(Receipt receipt)
+    {
+        throw new NotImplementedException();
+    }
 
     public string GenerateIssue(IEnumerable<StockTransaction> transactions)
     {
@@ -49,6 +53,11 @@ public class ReportSerivce : IReportService
         string filePath = Path.Combine(exports, $"xuat_kho_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         wb.SaveAs(filePath);
         return filePath;
+    }
+
+    public string GenerateIssue(Issue issue)
+    {
+        throw new NotImplementedException();
     }
 
     public string GenerateQuotation(Quotation quotationData)
@@ -74,4 +83,5 @@ public class ReportSerivce : IReportService
         wb.SaveAs(filePath);
         return filePath;
     }
+
 }
