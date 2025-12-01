@@ -17,6 +17,8 @@
     <PackageReference Include="Microsoft.AspNetCore.Components.Authorization" Version="9.0.10" />
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="9.0.10" />
     <PackageReference Include="System.Data.Odbc" Version="9.0.10" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Common" Version="9.0.10"/>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Core" Version="1.2.0"/>
   </ItemGroup>
 
   <ItemGroup>

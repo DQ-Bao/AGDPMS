@@ -1,9 +1,12 @@
+using System.Net.Http;
+using AGDPMS.Shared.Hubs;
 using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web;
 using AGDPMS.Web.Components;
 using AGDPMS.Web.Endpoints;
 using AGDPMS.Web.Services;
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +20,22 @@ builder.Services.AddDataAccesses(builder.Configuration.GetConnectionString("Defa
 builder.Services.AddScoped<IPasswordHasher<AppUser>, PasswordHasher<AppUser>>();
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
+
+// Configure HttpClient for Blazor Server with cookie forwarding
+builder.Services.AddTransient<CookieForwardingHandler>();
+builder
+    .Services.AddHttpClient("BlazorServer")
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler())
+    .AddHttpMessageHandler<CookieForwardingHandler>();
+
+builder.Services.AddScoped(sp =>
+{
+    var nav = sp.GetRequiredService<NavigationManager>();
+    var factory = sp.GetRequiredService<IHttpClientFactory>();
+    var client = factory.CreateClient("BlazorServer");
+    client.BaseAddress = new Uri(nav.BaseUri);
+    return client;
+});
 
 builder.Services.AddCookieAndJwtAuth(opts => opts.Key = builder.Configuration["Jwt:Key"]!);
 
@@ -36,6 +55,9 @@ builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportService, ReportSerivce>();
+
+// enable SignalR
+builder.Services.AddSignalR();
 
 builder.Services.AddSingleton<IWebHostEnvironment>(builder.Environment);
 var app = builder.Build();
@@ -57,6 +79,11 @@ app.UseAntiforgery();
 
 app.MapAuthEndpoints();
 app.MapUserEndpoints();
+app.MapProductionOrders();
+app.MapProductionStages();
+app.MapStageTypes();
+app.MapQr();
+app.MapLookup();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
@@ -66,3 +93,31 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.Run();
+
+// Cookie forwarding handler for Blazor Server HttpClient
+public class CookieForwardingHandler : DelegatingHandler
+{
+    private readonly IHttpContextAccessor _httpContextAccessor;
+
+    public CookieForwardingHandler(IHttpContextAccessor httpContextAccessor)
+    {
+        _httpContextAccessor = httpContextAccessor;
+    }
+
+    protected override async Task<HttpResponseMessage> SendAsync(
+        HttpRequestMessage request,
+        CancellationToken cancellationToken
+    )
+    {
+        var httpContext = _httpContextAccessor.HttpContext;
+        if (httpContext?.Request.Headers.ContainsKey("Cookie") == true)
+        {
+            var cookieHeader = httpContext.Request.Headers["Cookie"].ToString();
+            if (!string.IsNullOrEmpty(cookieHeader))
+            {
+                request.Headers.Add("Cookie", cookieHeader);
+            }
+        }
+        return await base.SendAsync(request, cancellationToken);
+    }
+}
