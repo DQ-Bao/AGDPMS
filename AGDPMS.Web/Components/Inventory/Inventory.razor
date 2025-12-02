@@ -70,6 +70,7 @@
                     @foreach(Material m in items)
                     {
                         <tr>
+<<<<<<< HEAD
                             <td rowspan="@(@m.Stock.Count() + 1)">@m.Id</td>
                             <td rowspan="@(@m.Stock.Count() + 1)">@m.Name</td>
                             <td rowspan="@(@m.Stock.Count() + 1)">@m.Type.Name</td>
@@ -77,6 +78,15 @@
                             @* <td>@m.Weight</td> *@
                         </tr>
                         @foreach(MaterialStock ms in m.Stock)
+=======
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Id</td>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Name</td>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Type.Name</td>
+                            @* <td>@m.Stock</td> *@
+                            @* <td>@m.Weight</td> *@
+                        </tr>
+                        @foreach(MaterialStock ms in m.Stocks)
+>>>>>>> merging
                         {
                             <tr>
                                 <td>@ms.Length</td>
@@ -129,6 +139,32 @@
         }
         isLoading = false;
         StateHasChanged();
+<<<<<<< HEAD
+=======
+    }
+
+    private void Search(ChangeEventArgs e)
+    {
+        searchTerm = e.Value?.ToString() ?? string.Empty;
+        // searchTimer?.Dispose();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
+    private void Select(ChangeEventArgs e)
+    {
+        select_value = e.Value?.ToString();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
+    void PerformSearch(object? state)
+    {
+        items = materials
+        .Where(m => (m.Name.Contains(searchTerm) || m.Id.Contains(searchTerm)) && m.Type.Name == select_value)
+        .Skip((currentPage - 1) * pageSize)
+        .Take(pageSize)
+        .ToArray();
+        InvokeAsync(StateHasChanged);
+>>>>>>> merging
     }
 
     private void Search(ChangeEventArgs e)

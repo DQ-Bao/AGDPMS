@@ -1,6 +1,4 @@
-﻿@page "/sale/projectrfq"
-@rendermode InteractiveServer
-@implements IDisposable
+﻿@implements IDisposable
 
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
@@ -261,10 +259,11 @@
     {
         return status switch
         {
-            ProjectRFQStatus.Active => "bg-primary text-white",
+            ProjectRFQStatus.Planning => "bg-primary text-white",
             ProjectRFQStatus.Completed => "bg-success text-white",
-            ProjectRFQStatus.Pending => "bg-warning text-dark",
-            ProjectRFQStatus.Scheduled => "bg-info text-white",
+            ProjectRFQStatus.Production => "bg-warning text-dark",
+            ProjectRFQStatus.Deploying => "bg-warning text-dark",
+            ProjectRFQStatus.Cancelled => "bg-danger text-white",
             _ => "bg-secondary text-white"
         };
     }
@@ -273,10 +272,11 @@
     {
         return status switch
         {
-            ProjectRFQStatus.Active => "Hoạt động",
-            ProjectRFQStatus.Completed => "Hoàn thành",
-            ProjectRFQStatus.Pending => "Đang chờ",
-            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            ProjectRFQStatus.Planning => "Lên kế hoạch",
+            ProjectRFQStatus.Production => "Đang sản xuất",
+            ProjectRFQStatus.Deploying => "Đang lắp đặt",
+            ProjectRFQStatus.Completed => "Đã xong",
+            ProjectRFQStatus.Cancelled => "Bị hủy",
             _ => status.ToString()
         };
     }

@@ -1,0 +1,305 @@
+﻿<style >
+/* --- CSS CHUNG --- */
+.print-area {
+    font-family: Calibri, Arial, sans-serif;
+    background-color: #e9ecef;
+    padding: 30px 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+/* Số trang (ẩn khi in) */
+.page-number {
+    position: absolute;
+    bottom: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 14px;
+    color: #6c757d;
+}
+
+/* --- 1. MẪU CHUẨN (10 Tem: 5x2) --- */
+.page-a4-standard {
+    width: 210mm;
+    height: 296mm;
+    background: white;
+    margin-bottom: 30px;
+    padding: 12mm 15mm;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(5, 1fr);
+    gap: 6mm;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    position: relative;
+    page-break-after: always;
+}
+
+/* --- 2. MẪU TIẾT KIỆM (12 Tem: 6x2) --- */
+.page-a4-compact {
+    width: 210mm;
+    height: 296mm;
+    background: white;
+    margin-bottom: 30px;
+    padding: 8mm 10mm;
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: repeat(6, 1fr);
+    gap: 3mm;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    position: relative;
+    page-break-after: always;
+}
+
+/* --- CSS CON TEM (Dùng chung) --- */
+.stamp-ticket {
+    border: 2.6px solid #00859B;
+    border-radius: 8px;
+    position: relative;
+    background-color: #fffcf0;
+    background-image: radial-gradient(#ffeecf 1px, transparent 1px);
+    background-size: 5px 5px;
+    display: flex;
+    flex-direction: column;
+    padding: 3mm;
+    overflow: hidden;
+    height: 100%;
+    box-sizing: border-box;
+    min-height: 0;
+}
+
+/* PHẦN TRÊN - Header */
+.stamp-header {
+    text-align: center;
+    margin-bottom: 1.5mm;
+    padding-bottom: 1mm;
+    border-bottom: 1.3px dashed #00859B;
+}
+
+.company {
+    font-size: 9.1pt; /* Tăng 30% từ 7pt */
+    color: #00859B;
+    font-weight: bold;
+    text-transform: uppercase;
+    line-height: 1.2;
+    margin-bottom: 0.8mm;
+}
+
+.title {
+    font-size: 10.4pt; /* Tăng 30% từ 8pt */
+    color: #00859B;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+/* PHẦN GIỮA - Body (2 cột) */
+.stamp-body {
+    display: flex;
+    flex: 1;
+    gap: 1.5mm;
+    min-height: 0;
+    margin-bottom: 1.5mm;
+}
+
+/* Cột trái - QR Code */
+.stamp-left {
+    width: 30%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+}
+
+.qr-img {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 1/1;
+    object-fit: contain;
+    border: 1.3px solid #ddd;
+    background: white;
+}
+
+/* Cột phải - Thông tin sản phẩm */
+.stamp-right {
+    width: 70%;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    min-height: 0;
+}
+
+.stamp-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-height: 0;
+}
+
+.stamp-row {
+    font-size: 9.1pt; /* Tăng 30% từ 7pt */
+    margin-bottom: 0.8mm;
+    color: #000;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.stamp-data {
+    font-weight: normal;
+    font-family: 'Courier New', Courier, monospace;
+    font-weight: bold;
+    color: #000;
+}
+
+/* PHẦN DƯỚI - Footer với số điện thoại và logo */
+.stamp-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1mm;
+    border-top: 1.3px dashed #ccc;
+    margin-top: auto;
+}
+
+.stamp-phone {
+    font-size: 9.1pt; /* Tăng 30% từ 7pt */
+    color: #00859B;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 0.8mm;
+}
+
+.phone-icon {
+    width: 8px; /* Tăng 30% */
+    height: 8px;
+    display: inline-block;
+    fill: #00859B;
+}
+
+.stamp-logo {
+    text-align: right;
+    display: flex;
+    align-items: center;
+    gap: 2mm;
+}
+
+.logo-image {
+    height: 12px; /* Kích thước logo */
+    width: auto;
+}
+
+.logo-text {
+    font-size: 10.4pt; /* Tăng 30% từ 8pt */
+    color: #003366;
+    font-weight: bold;
+    font-style: italic;
+}
+
+/* --- ĐIỀU CHỈNH CHO MẪU TIẾT KIỆM (12 tem) --- */
+.page-a4-compact .stamp-ticket {
+    padding: 2mm;
+}
+
+    .page-a4-compact .stamp-ticket .company {
+        font-size: 7.8pt; /* Tăng 30% từ 6pt */
+        margin-bottom: 0.5mm;
+    }
+
+    .page-a4-compact .stamp-ticket .title {
+        font-size: 8.45pt; /* Tăng 30% từ 6.5pt */
+    }
+
+    .page-a4-compact .stamp-ticket .stamp-row {
+        font-size: 7.8pt; /* Tăng 30% từ 6pt */
+        margin-bottom: 0.5mm;
+    }
+
+    .page-a4-compact .stamp-ticket .stamp-phone {
+        font-size: 7.8pt; /* Tăng 30% từ 6pt */
+    }
+
+    .page-a4-compact .stamp-ticket .logo-text {
+        font-size: 8.45pt; /* Tăng 30% từ 6.5pt */
+    }
+
+    .page-a4-compact .stamp-ticket .phone-icon {
+        width: 6.5px; /* Tăng 30% */
+        height: 6.5px;
+    }
+
+    .page-a4-compact .stamp-ticket .stamp-left {
+        width: 28%;
+    }
+
+    .page-a4-compact .stamp-ticket .stamp-right {
+        width: 72%;
+    }
+
+    .page-a4-compact .stamp-ticket .logo-image {
+        height: 10px; /* Nhỏ hơn cho 12 tem */
+    }
+
+/* --- MEDIA QUERY IN ẤN --- */
+@@media print {
+    @@page {
+        size: A4;
+        margin: 0;
+    }
+
+    body, html {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+
+        body > * {
+            display: none !important;
+        }
+
+    .print-area, .print-area * {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    .print-area {
+        position: relative !important;
+        left: 0 !important;
+        top: 0 !important;
+        width: 100% !important;
+        height: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: white !important;
+        overflow: visible !important;
+    }
+
+    .page-a4-standard, .page-a4-compact {
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 210mm !important;
+        height: 296mm !important;
+        box-shadow: none !important;
+        border: none !important;
+        page-break-after: always !important;
+        display: grid !important;
+    }
+
+    .d-print-none {
+        display: none !important;
+    }
+
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        box-sizing: border-box;
+    }
+}
+
+</style >

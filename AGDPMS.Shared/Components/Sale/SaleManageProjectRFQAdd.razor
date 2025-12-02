@@ -147,7 +147,7 @@ else
     {
         CompletionDate = DateTime.Now,
         CreatedAt = DateTime.Now,
-        Status = ProjectRFQStatus.Pending
+        Status = ProjectRFQStatus.Planning
     };
 
     private List<AppClient>? customers;
@@ -280,10 +280,11 @@ else
     {
         return status switch
         {
-            ProjectRFQStatus.Active => "Hoạt động",
-            ProjectRFQStatus.Completed => "Hoàn thành",
-            ProjectRFQStatus.Pending => "Đang chờ",
-            ProjectRFQStatus.Scheduled => "Đã lên lịch",
+            ProjectRFQStatus.Planning => "Lên kế hoạch",
+            ProjectRFQStatus.Production => "Đang sản xuất",
+            ProjectRFQStatus.Deploying => "Đang lắp đặt",
+            ProjectRFQStatus.Completed => "Đã xong",
+            ProjectRFQStatus.Cancelled => "Bị hủy",
             _ => status.ToString()
         };
     }

@@ -1,0 +1,782 @@
+@page "/production/orders/{Id:int}"
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Models.DTOs
+@using AGDPMS.Shared.Components.Production.Stages
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Net.Http
+@using System.Net.Http.Json
+@using System.Security.Claims
+@using System.Linq
+@using System.Text
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthStateProvider
+
+<div class="container py-3">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/production/orders">Lệnh sản xuất</a></li>
+            <li class="breadcrumb-item active">@(model?.order?.Code ?? "Chi tiết")</li>
+        </ol>
+    </nav>
+    @if (model is null)
+    {
+        <div>Loading...</div>
+    }
+    else
+    {
+        <div class="d-flex align-items-center justify-content-between mb-3">
+            <div>
+                <h5 class="mb-1">Lệnh sản xuất @model.order?.Code</h5>
+                <div class="text-secondary">Dự án: @model.order?.ProjectId | Trạng thái: @GetOrderStatusDisplay()</div>
+                <div class="text-secondary small mt-1">
+                    <span>Kế hoạch: Bắt đầu: @FormatDate(model.order?.PlannedStartDate) | Kết thúc: @FormatDate(model.order?.PlannedFinishDate)</span>
+                </div>
+                <div class="text-secondary small">
+                    <span>Thực tế: Bắt đầu: @FormatDate(model.order?.StartedAt) | Kết thúc: @FormatDate(model.order?.FinishedAt)</span>
+                </div>
+                @if (model.items?.Any() == true)
+                {
+                    <div class="text-secondary small mt-1">
+                        <span>Tiến độ: @CompletedItems/@TotalItems item (@(TotalItems == 0 ? 0 : (CompletedItems * 100 / TotalItems))%)</span>
+                        <span class="ms-3">Giờ kế hoạch: @($"{TotalPlannedHours:F1}h")</span>
+                        <span class="ms-3">Giờ thực tế: @($"{TotalActualHours:F1}h")</span>
+                    </div>
+                }
+            </div>
+            <div class="d-flex gap-2">
+                @if (ShouldShowButton("Submit"))
+                {
+                    <button class="btn btn-outline-primary btn-sm" @onclick="Submit">Gửi duyệt</button>
+                }
+                @if (ShouldShowButton("Cancel"))
+                {
+                    <button class="btn btn-outline-danger btn-sm" @onclick="OpenCancelModal">Hủy lệnh</button>
+                }
+                @if (ShouldShowButton("Finish"))
+                {
+                    <button class="btn btn-outline-success btn-sm" @onclick="ConfirmFinish">Hoàn tất</button>
+                }
+                @if (ShouldShowButton("DirectorApprove"))
+                {
+                    <button class="btn btn-outline-success btn-sm" @onclick="DirectorApprove">Duyệt</button>
+                }
+                @if (ShouldShowButton("DirectorReject"))
+                {
+                    <button class="btn btn-outline-danger btn-sm" @onclick="DirectorReject">Từ chối</button>
+                }
+                @if (ShouldShowButton("RevertToDraft"))
+                {
+                    <button class="btn btn-outline-secondary btn-sm" @onclick="RevertToDraft">Hủy xin duyệt</button>
+                }
+                @if (ShouldShowButton("QaMachines"))
+                {
+                    <button class="btn btn-outline-success btn-sm" @onclick="QaMachines">Xác nhận máy</button>
+                }
+                @if (ShouldShowButton("QaMaterial"))
+                {
+                    <button class="btn btn-outline-success btn-sm" @onclick="QaMaterial">Xác nhận vật tư</button>
+                }
+                @if (IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft)
+                {
+                    <button class="btn btn-outline-info btn-sm" @onclick="OpenPlanModal">Cập nhật kế hoạch</button>
+                }
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="alert alert-danger">@errorMessage</div>
+        }
+
+        @* Overall Progress Bar *@
+        @if (model?.items != null)
+        {
+            <div class="mb-3">
+                <div class="small text-secondary mb-1">Tiến độ tổng thể: @CompletedItems/@TotalItems item</div>
+                <div class="progress" style="height: 30px;">
+                    @{
+                        var totalItems = TotalItems;
+                        var completedItems = CompletedItems;
+                        var overallProgressPercent = totalItems > 0 
+                            ? (completedItems * 100.0 / totalItems) 
+                            : 0;
+                        var overallProgressClass = overallProgressPercent == 100 ? "bg-success" : (overallProgressPercent > 0 ? "bg-info" : "bg-secondary");
+                    }
+                    <div class="progress-bar @overallProgressClass" role="progressbar" 
+                         style="width: @($"{overallProgressPercent:F1}%")" 
+                         aria-valuenow="@overallProgressPercent" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <span class="ms-2">@($"{overallProgressPercent:F1}%")</span>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (model?.ProgressTimeline?.Any() == true)
+        {
+            <div class="mt-3">
+                <div class="small text-secondary mb-1">Biểu đồ tiến độ (số item hoàn thành theo ngày)</div>
+                @{
+                    var maxCount = model.ProgressTimeline.Max(p => p.CompletedCount);
+                    if (maxCount == 0) { maxCount = 1; }
+                }
+                <div class="d-flex align-items-end gap-1" style="height:80px;">
+                    @foreach (var point in model.ProgressTimeline)
+                    {
+                        var heightPercent = point.CompletedCount * 100 / maxCount;
+                        <div class="d-flex flex-column align-items-center" style="width:28px;">
+                            <div style="width:100%; background-color:#0d6efd; height:@($"{heightPercent}%");"
+                                 title="@($"{point.CompletedCount} item ngày {point.Date:dd/MM}")">
+                            </div>
+                            <small class="text-muted" style="font-size:9px;">@point.Date.ToString("dd/MM")</small>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+        <div class="table-responsive" style="max-height:60vh; overflow:auto;">
+            <table class="table table-sm align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Sản phẩm</th>
+                        <th>Kế hoạch</th>
+                        <th>Thực tế</th>
+                        <th>Chênh lệch</th>
+                        <th>Hoàn thành</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var it in model.items)
+                    {
+                        var rowClass = string.Empty;
+                        if (it.IsLate)
+                        {
+                            rowClass = "table-danger";
+                        }
+                        else if (it.NeedsQa && IsQa())
+                        {
+                            rowClass = "table-warning";
+                        }
+                        var editingPlan = editingItemPlanId == it.Id;
+                        var editingActual = editingItemActualId == it.Id;
+                        <tr class="@rowClass">
+                            <td>@it.LineNo</td>
+                            <td>
+                                <a href="/production/orders/@Id/items/@it.Id" class="text-decoration-none">
+                                    @(string.IsNullOrWhiteSpace(it.ProductName) ? $"Sản phẩm {it.ProductId}" : it.ProductName)
+                                </a>
+                                @if (it.IsLate)
+                                {
+                                    <span class="badge bg-danger ms-1" title="@GetLateTooltip(it)">Trễ</span>
+                                }
+                            </td>
+                            <td>
+                                @if (CanEditItemPlan())
+                                {
+                                    if (editingPlan)
+                                    {
+                                        <div class="d-flex flex-column gap-1" @onclick:stopPropagation="true">
+                                            <input type="datetime-local" class="form-control form-control-sm" @bind="editingItemPlannedStartDate" />
+                                            <input type="datetime-local" class="form-control form-control-sm" @bind="editingItemPlannedFinishDate" />
+                                            <div class="d-flex gap-1">
+                                                <button class="btn btn-sm btn-success" @onclick='@(() => SaveItemPlan(it.Id))' @onclick:stopPropagation="true">✓</button>
+                                                <button class="btn btn-sm btn-secondary" @onclick='@(() => CancelItemPlanEdit())' @onclick:stopPropagation="true">✗</button>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div style="cursor:pointer;" class="text-primary text-decoration-underline" @onclick='@(() => StartEditItemPlan(it))' @onclick:stopPropagation="true" title="Click để cập nhật kế hoạch">
+                                            @GetPlanInfoMarkup(it)
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div>
+                                        @GetPlanInfoMarkup(it)
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                @if (CanEditItemActual())
+                                {
+                                    if (editingActual)
+                                    {
+                                        <div class="d-flex flex-column gap-1" @onclick:stopPropagation="true">
+                                            <input type="datetime-local" class="form-control form-control-sm" @bind="editingItemActualStartDate" />
+                                            <input type="datetime-local" class="form-control form-control-sm" @bind="editingItemActualFinishDate" />
+                                            <div class="d-flex gap-1">
+                                                <button class="btn btn-sm btn-success" @onclick='@(() => SaveItemActual(it.Id))' @onclick:stopPropagation="true">✓</button>
+                                                <button class="btn btn-sm btn-secondary" @onclick='@(() => CancelItemActualEdit())' @onclick:stopPropagation="true">✗</button>
+                                            </div>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div style="cursor:pointer;" class="text-primary text-decoration-underline" @onclick='@(() => StartEditItemActual(it))' @onclick:stopPropagation="true" title="Click để cập nhật thực tế">
+                                            @GetActualInfoMarkup(it)
+                                        </div>
+                                    }
+                                }
+                                else
+                                {
+                                    <div>
+                                        @GetActualInfoMarkup(it)
+                                    </div>
+                                }
+                            </td>
+                            <td>
+                                @GetDifferenceInfo(it)
+                            </td>
+                            <td>
+                                @if (CanEditItemCompletion())
+                                {
+                                    <button class="btn btn-sm @(it.IsCompleted ? "btn-success" : "btn-outline-secondary")"
+                                            @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true"
+                                            disabled="@(!CanCompleteItem(it))">
+                                        @(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")
+                                    </button>
+                                }
+                                else
+                                {
+                                    <span>@(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")</span>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private OrderDetailsResponse? model;
+    private string? userRole;
+    private string? errorMessage;
+    private bool showCancelConfirm;
+    private string? cancelConfirmInput;
+    private bool showPlanModal;
+    private DateTime? plannedStartDate;
+    private DateTime? plannedFinishDate;
+    private int? editingItemPlanId;
+    private DateTime? editingItemPlannedStartDate;
+    private DateTime? editingItemPlannedFinishDate;
+    private int? editingItemActualId;
+    private DateTime? editingItemActualStartDate;
+    private DateTime? editingItemActualFinishDate;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadUserRole();
+        await Load();
+    }
+
+    private async Task LoadUserRole()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        userRole = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+    }
+
+    private async Task Load()
+    {
+        errorMessage = null;
+        try
+        {
+            var response = await Http.GetAsync($"/api/orders/{Id}");
+            if (response.IsSuccessStatusCode)
+            {
+                model = await response.Content.ReadFromJsonAsync<OrderDetailsResponse>();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Lỗi khi tải đơn hàng: {response.StatusCode}. {errorContent}";
+                model = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lỗi khi tải đơn hàng: {ex.Message}";
+            model = null;
+        }
+    }
+
+    private bool ShouldShowButton(string buttonName) => buttonName switch
+    {
+        "Submit" => IsProductionManager() && CanSubmit(),
+        "Cancel" => IsProductionManager() && CanCancel(),
+        "Finish" => IsProductionManager() && CanFinish(),
+        "DirectorApprove" => IsDirector() && CanDirectorApprove(),
+        "DirectorReject" => IsDirector() && CanDirectorReject(),
+        "QaMachines" => IsQa() && CanQaMachines(),
+        "QaMaterial" => IsQa() && CanQaMaterial(),
+        "RevertToDraft" => IsProductionManager() && CanRevertToDraft(),
+        _ => false
+    };
+
+    private bool CanSubmit() => model?.order?.Status == ProductionOrderStatus.Draft;
+    private bool CanCancel() => model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanFinish() => model?.order?.Status == ProductionOrderStatus.InProduction;
+    private bool CanDirectorApprove() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanDirectorReject() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanRevertToDraft() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
+    private bool CanQaMachines() => model?.order?.Status == ProductionOrderStatus.PendingQACheckMachines;
+    private bool CanQaMaterial() => model?.order?.Status == ProductionOrderStatus.PendingQACheckMaterial;
+
+    private bool HasRole(string role) => string.Equals(userRole, role, StringComparison.OrdinalIgnoreCase);
+    private bool IsProductionManager() => HasRole("ProductionManager") || HasRole("Production Manager");
+    private bool IsDirector() => HasRole("Admin") || HasRole("Director");
+    private bool IsQa() => HasRole("QA") || HasRole("Qa");
+
+    private string GetOrderStatusDisplay()
+    {
+        if (model?.order is null) return string.Empty;
+        var label = GetStatusLabel(model.order.Status);
+        var date = GetStatusDate(model.order);
+        return date.HasValue ? $"{label} ({FormatDate(date)})" : label;
+    }
+
+    private DateTime? GetStatusDate(ProductionOrder order) => order.Status switch
+    {
+        ProductionOrderStatus.Draft => order.CreatedAt,
+        ProductionOrderStatus.PendingDirectorApproval => order.SubmittedAt ?? order.CreatedAt,
+        ProductionOrderStatus.DirectorRejected => order.DirectorDecisionAt,
+        ProductionOrderStatus.PendingQACheckMachines => order.DirectorDecisionAt,
+        ProductionOrderStatus.PendingQACheckMaterial => order.QAMachinesCheckedAt,
+        ProductionOrderStatus.InProduction => order.StartedAt ?? order.QAMaterialCheckedAt,
+        ProductionOrderStatus.Finished => order.FinishedAt,
+        ProductionOrderStatus.Cancelled => order.UpdatedAt ?? order.FinishedAt ?? order.StartedAt ?? order.CreatedAt,
+        _ => null
+    };
+
+    private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToString("dd/MM/yyyy HH:mm") : "-";
+
+    private string GetStatusLabel(ProductionOrderStatus status) => status switch
+    {
+        ProductionOrderStatus.Draft => "Nháp",
+        ProductionOrderStatus.PendingDirectorApproval => "Chờ giám đốc duyệt",
+        ProductionOrderStatus.DirectorRejected => "Bị từ chối",
+        ProductionOrderStatus.PendingQACheckMachines => "Chờ QA kiểm tra máy",
+        ProductionOrderStatus.PendingQACheckMaterial => "Chờ QA kiểm tra vật tư",
+        ProductionOrderStatus.InProduction => "Đang sản xuất",
+        ProductionOrderStatus.Finished => "Hoàn thành",
+        ProductionOrderStatus.Cancelled => "Đã hủy",
+        _ => status.ToString()
+    };
+
+    private bool CanEditItemPlan() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft;
+    private bool CanEditItemActual() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
+    private bool CanEditItemCompletion() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
+
+    private bool CanCompleteItem(ItemDto item)
+    {
+        if (!CanEditItemCompletion() || item == null)
+            return false;
+
+        // Check if all stages are completed
+        var stages = item.Stages ?? new();
+        var visibleStages = stages.Where(s => (s.PlannedTimeHours.HasValue && s.PlannedTimeHours > 0) || model?.order?.Status == ProductionOrderStatus.Draft).ToList();
+        if (!visibleStages.All(s => s.IsCompleted))
+            return false;
+
+        return true;
+    }
+
+    private async Task<bool> ExecuteOrderAction(Func<Task<HttpResponseMessage>> action)
+    {
+        try
+        {
+            var response = await action();
+            if (response.IsSuccessStatusCode)
+            {
+                errorMessage = null;
+                await Load();
+                return true;
+            }
+            else
+            {
+                var detail = await response.Content.ReadAsStringAsync();
+                errorMessage = $"Thao tác thất bại: {response.StatusCode} - {detail}";
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lỗi: {ex.Message}";
+            return false;
+        }
+        finally
+        {
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void StartEditItemPlan(ItemDto item)
+    {
+        editingItemPlanId = item.Id;
+        editingItemPlannedStartDate = item.PlannedStartDate;
+        editingItemPlannedFinishDate = item.PlannedFinishDate;
+        StateHasChanged();
+    }
+
+    private void CancelItemPlanEdit()
+    {
+        editingItemPlanId = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveItemPlan(int itemId)
+    {
+        var dto = new UpdateItemPlanDto
+        {
+            PlannedStartDate = editingItemPlannedStartDate,
+            PlannedFinishDate = editingItemPlannedFinishDate
+        };
+        var success = await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/items/{itemId}/plan", dto));
+        if (success)
+        {
+            editingItemPlanId = null;
+        }
+    }
+
+    private void StartEditItemActual(ItemDto item)
+    {
+        editingItemActualId = item.Id;
+        editingItemActualStartDate = item.ActualStartDate;
+        editingItemActualFinishDate = item.ActualFinishDate;
+        StateHasChanged();
+    }
+
+    private void CancelItemActualEdit()
+    {
+        editingItemActualId = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveItemActual(int itemId)
+    {
+        var dto = new UpdateItemActualDto
+        {
+            ActualStartDate = editingItemActualStartDate,
+            ActualFinishDate = editingItemActualFinishDate
+        };
+        var success = await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/items/{itemId}/actuals", dto));
+        if (success)
+        {
+            editingItemActualId = null;
+        }
+    }
+
+    private async Task ToggleItemCompletion(ItemDto item)
+    {
+        var dto = new UpdateItemCompletionDto
+        {
+            IsCompleted = !item.IsCompleted
+        };
+        await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/items/{item.Id}/completion", dto));
+    }
+
+    private void OpenCancelModal()
+    {
+        cancelConfirmInput = string.Empty;
+        showCancelConfirm = true;
+        StateHasChanged();
+    }
+
+    private void CloseCancelModal()
+    {
+        showCancelConfirm = false;
+        cancelConfirmInput = null;
+        StateHasChanged();
+    }
+
+    private bool CanConfirmCancel =>
+        showCancelConfirm && !string.IsNullOrWhiteSpace(model?.order?.Code) &&
+        string.Equals(cancelConfirmInput?.Trim(), model!.order!.Code, StringComparison.OrdinalIgnoreCase);
+
+    private async Task CancelConfirmed()
+    {
+        var success = await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/cancel", null));
+        if (success)
+        {
+            showCancelConfirm = false;
+            cancelConfirmInput = null;
+            StateHasChanged();
+        }
+    }
+
+
+    private void OpenPlanModal()
+    {
+        plannedStartDate = model?.order?.PlannedStartDate;
+        plannedFinishDate = model?.order?.PlannedFinishDate;
+        showPlanModal = true;
+        StateHasChanged();
+    }
+
+    private void ClosePlanModal()
+    {
+        showPlanModal = false;
+        StateHasChanged();
+    }
+
+    private async Task SavePlan()
+    {
+        var dto = new UpdateOrderPlanDto
+        {
+            PlannedStartDate = plannedStartDate,
+            PlannedFinishDate = plannedFinishDate
+        };
+        var success = await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/orders/{Id}/plan", dto));
+        if (success)
+        {
+            ClosePlanModal();
+        }
+    }
+
+    private async Task Submit() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/submit", null));
+    private bool showFinishConfirm = false;
+    private void ConfirmFinish() { showFinishConfirm = true; StateHasChanged(); }
+    private void CancelFinishConfirm() { showFinishConfirm = false; StateHasChanged(); }
+    private async Task FinishConfirmed()
+    {
+        var success = await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/finish", null));
+        if (success)
+        {
+            showFinishConfirm = false;
+            StateHasChanged();
+        }
+    }
+
+    private string GetProgress(ItemDto item)
+    {
+        var stages = item.Stages ?? new();
+        if (!stages.Any())
+        {
+            var totalHoursEmpty = item.ActualTimeHours ?? 0;
+            return $"0% ({totalHoursEmpty:F1}h)";
+        }
+
+        var completedStages = stages.Count(s => s.IsCompleted);
+        var percentage = stages.Count == 0 ? 0 : (completedStages * 100.0) / stages.Count;
+        var totalHours = item.ActualTimeHours ?? 0;
+
+        return $"{percentage:F0}% ({totalHours:F1}h)";
+    }
+
+    private MarkupString GetPlanInfoMarkup(ItemDto item) =>
+        BuildScheduleMarkup(item.PlannedStartDate, item.PlannedFinishDate, item.PlannedTimeHours);
+
+    private MarkupString GetActualInfoMarkup(ItemDto item) =>
+        BuildScheduleMarkup(item.ActualStartDate, item.ActualFinishDate, item.ActualTimeHours);
+
+    private MarkupString BuildScheduleMarkup(DateTime? start, DateTime? finish, decimal? hours)
+    {
+        var sb = new StringBuilder();
+        sb.Append("<small>");
+
+        sb.Append($"<div>Bắt đầu: {FormatDate(start)}</div>");
+        sb.Append($"<div>Kết thúc: {FormatDate(finish)}</div>");
+
+        if (hours.HasValue)
+        {
+            sb.Append($"<div>Giờ: {hours.Value:F1}h</div>");
+        }
+
+        sb.Append("</small>");
+        return new MarkupString(sb.ToString());
+    }
+
+    private string GetLateTooltip(ItemDto item)
+    {
+        if (!item.IsLate) return string.Empty;
+        if (item.IsOverdue && item.DaysLate > 0)
+        {
+            return $"Đã quá hạn kế hoạch {item.DaysLate} ngày";
+        }
+        if (item.IsOverdue)
+        {
+            return "Đã quá hạn kế hoạch";
+        }
+        if (item.DaysLate > 0)
+        {
+            return $"Kết thúc trễ {item.DaysLate} ngày";
+        }
+        return "Trễ kế hoạch";
+    }
+
+    private MarkupString GetDifferenceInfo(ItemDto item)
+    {
+        var sb = new StringBuilder();
+        sb.Append("<small>");
+        
+        // Chênh lệch về giờ
+        if (item.PlannedTimeHours.HasValue && item.ActualTimeHours.HasValue)
+        {
+            var hourDiff = item.ActualTimeHours.Value - item.PlannedTimeHours.Value;
+            var hourClass = hourDiff > 0 ? "text-danger" : (hourDiff < 0 ? "text-success" : "");
+            var hourSign = hourDiff > 0 ? "+" : "";
+            sb.Append($"<div class=\"{hourClass}\">Giờ: {hourSign}{hourDiff:F1}h</div>");
+        }
+        
+        // Chênh lệch về ngày kết thúc
+        if (item.PlannedFinishDate.HasValue && item.ActualFinishDate.HasValue)
+        {
+            var dateDiff = (item.ActualFinishDate.Value - item.PlannedFinishDate.Value).TotalDays;
+            var dateClass = dateDiff > 0 ? "text-danger" : (dateDiff < 0 ? "text-success" : "");
+            var dateSign = dateDiff > 0 ? "+" : "";
+            var days = (int)Math.Ceiling(Math.Abs(dateDiff));
+            sb.Append($"<div class=\"{dateClass}\">Ngày: {dateSign}{days} ngày</div>");
+        }
+        else if (item.PlannedFinishDate.HasValue && !item.ActualFinishDate.HasValue)
+        {
+            var now = DateTime.UtcNow;
+            if (now > item.PlannedFinishDate.Value)
+            {
+                var days = (int)Math.Ceiling((now - item.PlannedFinishDate.Value).TotalDays);
+                sb.Append($"<div class=\"text-danger\">Ngày: +{days} ngày</div>");
+            }
+        }
+        
+        sb.Append("</small>");
+        return new MarkupString(sb.ToString());
+    }
+
+    private int TotalItems => model?.items?.Count ?? 0;
+    private int CompletedItems => model?.items?.Count(i => i.IsCompleted) ?? 0;
+    private decimal TotalPlannedHours => model?.items?.Sum(i => i.PlannedTimeHours ?? 0) ?? 0;
+    private decimal TotalActualHours => model?.items?.Sum(i => i.ActualTimeHours ?? 0) ?? 0;
+    private async Task DirectorApprove() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/approve", null));
+    private async Task DirectorReject() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/reject", null));
+    private async Task RevertToDraft() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/revert-to-draft", null));
+    private async Task QaMachines() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null));
+    private async Task QaMaterial() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null));
+
+    private class OrderDetailsResponse
+    {
+        public ProductionOrder? order { get; set; }
+        public List<ItemDto> items { get; set; } = new();
+        public List<ProgressPointDto> ProgressTimeline { get; set; } = new();
+    }
+    private class ItemDto
+    {
+        public int Id { get; set; }
+        public int ProductId { get; set; }
+        public string? ProductName { get; set; }
+        public int LineNo { get; set; }
+        public string? QRCode { get; set; }
+        public bool IsCompleted { get; set; }
+        public DateTime? PlannedStartDate { get; set; }
+        public DateTime? PlannedFinishDate { get; set; }
+        public DateTime? ActualStartDate { get; set; }
+        public DateTime? ActualFinishDate { get; set; }
+        public decimal? PlannedTimeHours { get; set; }
+        public decimal? ActualTimeHours { get; set; }
+        public bool NeedsQa { get; set; }
+        public int CompletedStages { get; set; }
+        public int TotalStages { get; set; }
+        public List<StageDto>? Stages { get; set; }
+        public bool IsLate { get; set; }
+        public bool IsOverdue { get; set; }
+        public int DaysLate { get; set; }
+    }
+    
+    private class StageDto
+    {
+        public int Id { get; set; }
+        public bool IsCompleted { get; set; }
+        public decimal? PlannedTimeHours { get; set; }
+        public decimal? ActualTimeHours { get; set; }
+    }
+
+    private class ProgressPointDto
+    {
+        public DateTime Date { get; set; }
+        public int CompletedCount { get; set; }
+    }
+}
+
+@* Finish Confirmation Modal *@
+@if (showFinishConfirm)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận hoàn tất</h5>
+                    <button type="button" class="btn-close" @onclick="CancelFinishConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc chắn muốn hoàn tất lệnh sản xuất này?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CancelFinishConfirm">Hủy</button>
+                    <button type="button" class="btn btn-success" @onclick="FinishConfirmed">Xác nhận</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Plan Update Modal *@
+@if (showPlanModal)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Cập nhật kế hoạch</h5>
+                    <button type="button" class="btn-close" @onclick="ClosePlanModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Ngày bắt đầu dự kiến</label>
+                        <input type="datetime-local" class="form-control" @bind="plannedStartDate" />
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Ngày kết thúc dự kiến</label>
+                        <input type="datetime-local" class="form-control" @bind="plannedFinishDate" />
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="ClosePlanModal">Hủy</button>
+                    <button type="button" class="btn btn-primary" @onclick="SavePlan">Lưu</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Cancel Confirmation Modal *@
+@if (showCancelConfirm && model?.order is not null)
+{
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận hủy lệnh</h5>
+                    <button type="button" class="btn-close" @onclick="CloseCancelModal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Nhập chính xác mã lệnh <strong>@model.order.Code</strong> để xác nhận hủy.</p>
+                    <input class="form-control" placeholder="Nhập mã lệnh" @bind="cancelConfirmInput" />
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseCancelModal">Thoát</button>
+                    <button type="button" class="btn btn-danger" disabled="@(!CanConfirmCancel)" @onclick="CancelConfirmed">Hủy lệnh</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+

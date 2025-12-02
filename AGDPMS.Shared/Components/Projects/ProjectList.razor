@@ -1,0 +1,17 @@
+﻿@page "/projects"
+@using AGDPMS.Shared.Components.Sale
+@using Microsoft.AspNetCore.Components.Authorization
+
+<AuthorizeView Roles="Director,Technician">
+    <Authorized>
+        <ProjectTechList />
+    </Authorized>
+</AuthorizeView>
+<AuthorizeView Roles="Sale">
+    <Authorized>
+        <SaleManageProjectRFQ />
+    </Authorized>
+</AuthorizeView>
+
+@code {
+}

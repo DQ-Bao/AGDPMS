@@ -1,0 +1,88 @@
+@using AGDPMS.Shared.Models
+@inject HttpClient Http
+@namespace AGDPMS.Shared.Components.Production.Stages
+
+<div class="card">
+    <div class="card-body">
+        <h6 class="card-title">Trạng thái lệnh sản xuất</h6>
+        @if (orderStatus == null)
+        {
+            <div>Đang tải...</div>
+        }
+        else
+        {
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                @{
+                    var statuses = new[]
+                    {
+                        (ProductionOrderStatus.Draft, "Nháp"),
+                        (ProductionOrderStatus.PendingDirectorApproval, "Chờ giám đốc duyệt"),
+                        (ProductionOrderStatus.DirectorRejected, "Giám đốc từ chối"),
+                        (ProductionOrderStatus.PendingQACheckMachines, "Chờ QA kiểm tra máy"),
+                        (ProductionOrderStatus.PendingQACheckMaterial, "Chờ QA kiểm tra vật tư"),
+                        (ProductionOrderStatus.InProduction, "Đang sản xuất"),
+                        (ProductionOrderStatus.Finished, "Hoàn thành"),
+                        (ProductionOrderStatus.Cancelled, "Đã hủy")
+                    };
+                }
+                @foreach (var (status, label) in statuses)
+                {
+                    var isActive = (int)status <= (int)orderStatus.Value;
+                    var isCurrent = status == orderStatus.Value;
+                    var statusClass = isCurrent ? "bg-primary" : (isActive ? "bg-success" : "bg-secondary");
+                    <div class="d-flex flex-column align-items-center" style="min-width: 120px;">
+                        <div class="badge @statusClass mb-1" style="width: 100%; padding: 8px; @(isCurrent ? "font-weight: bold;" : "")">
+                            @label
+                        </div>
+                    </div>
+                    @if (status != statuses.Last().Item1)
+                    {
+                        <div class="flex-grow-1" style="height: 2px; background: @(isActive ? "#28a745" : "#dee2e6");"></div>
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int OrderId { get; set; }
+
+    private ProductionOrderStatus? orderStatus;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadOrderStatus();
+    }
+
+    private async Task LoadOrderStatus()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"/api/orders/{OrderId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var data = await response.Content.ReadFromJsonAsync<OrderData>();
+                if (data?.order != null)
+                {
+                    orderStatus = data.order.Status;
+                }
+            }
+        }
+        catch
+        {
+            orderStatus = null;
+        }
+    }
+
+    private class OrderData
+    {
+        public OrderInfo? order { get; set; }
+    }
+
+    private class OrderInfo
+    {
+        public ProductionOrderStatus Status { get; set; }
+    }
+}
+

@@ -1,0 +1,223 @@
+﻿@using System
+@using System.Linq
+@using AGDPMS.Shared.Models
+@inject IJSRuntime JS
+
+@if (Stamps != null && Stamps.Any())
+{
+    <div class="d-print-none mb-4 p-3 bg-white border rounded shadow-sm" style="max-width: 800px; margin: 0 auto;">
+        <h4 class="mb-3 text-center text-primary">🖨️ Cấu hình bản in</h4>
+
+        <div class="row align-items-center justify-content-center">
+            <div class="col-md-6 text-center mb-3 mb-md-0">
+                <label class="fw-bold mb-2 d-block">Chọn mẫu giấy in:</label>
+                <div class="btn-group" role="group">
+                    <input type="radio" class="btn-check" name="layoutOptions" id="layout10" autocomplete="off"
+                           checked=@(itemsPerPage == 10) @onchange="() => SetLayout(10)">
+                    <label class="btn btn-outline-primary" for="layout10">
+                        <i class="bx bx-grid-alt"></i> Mẫu Chuẩn (10 tem)
+                        <br><small style="font-size: 0.75rem">(5 hàng x 2 cột)</small>
+                    </label>
+
+                    <input type="radio" class="btn-check" name="layoutOptions" id="layout12" autocomplete="off"
+                           checked=@(itemsPerPage == 12) @onchange="() => SetLayout(12)"
+                           disabled="@(HasEnoughStampsFor12Layout() ? null : true)">
+                    <label class="btn @GetLayout12ButtonClass()" for="layout12" title="@GetLayout12Tooltip()">
+                        <i class="bx bx-grid-small"></i> Mẫu Tiết kiệm (12 tem)
+                        <br><small style="font-size: 0.75rem">(6 hàng x 2 cột)</small>
+                        @if (!HasEnoughStampsFor12Layout())
+                        {
+                            <br>
+                            <small class="text-danger" style="font-size: 0.65rem;">❌ Chưa đủ tem</small>
+                        }
+                    </label>
+                </div>
+
+                @if (!HasEnoughStampsFor12Layout())
+                {
+                    <div class="mt-2 text-warning small">
+                        <i class="bx bx-info-circle"></i>
+                        Cần ít nhất @GetRequiredStampCount() tem để sử dụng mẫu 12 tem.
+                        Hiện có: <strong>@Stamps.Count tem</strong>
+                    </div>
+                }
+            </div>
+
+            <div class="col-md-4 text-center">
+                <button class="btn btn-success btn-lg fw-bold px-4 shadow" @onclick="Print">
+                    <i class="bx bx-printer me-2"></i> IN NGAY
+                </button>
+            </div>
+        </div>
+
+        <div class="alert alert-warning mt-3 mb-0 py-2 small text-center">
+            <i class="bx bx-info-circle me-1"></i>
+            Lưu ý: Trong hộp thoại in, nhớ chọn <strong>"Background graphics"</strong> (Đồ họa nền) để in màu.
+        </div>
+    </div>
+}
+
+<div id="print-area">
+    @if (Stamps != null && Stamps.Any())
+    {
+        // QUAN TRỌNG: Đảm bảo luôn có đủ số lượng tem theo layout
+        var totalStampsNeeded = (int)Math.Ceiling((double)Stamps.Count / itemsPerPage) * itemsPerPage;
+        var filledStamps = Stamps.ToList();
+
+        // Thêm tem mẫu nếu không đủ số lượng
+        while (filledStamps.Count < totalStampsNeeded)
+        {
+            filledStamps.Add(CreateSampleStamp(filledStamps.Count + 1));
+        }
+
+        var pages = filledStamps.Chunk(itemsPerPage);
+        var pageIndex = 1;
+
+        string layoutClass = itemsPerPage == 12 ? "page-a4-compact" : "page-a4-standard";
+
+        foreach (var pageGroup in pages)
+        {
+            <div class="@layoutClass">
+                @foreach (var item in pageGroup)
+                {
+                    <div class="stamp-ticket">
+                        <!-- PHẦN TRÊN - Header -->
+                        <div class="stamp-header">
+                            <div class="company">CÔNG TY CỔ PHẦN CÔNG NGHỆ XÂY DỰNG HOA MAI</div>
+                            <div class="title">TEM BẢO HÀNH SẢN PHẨM</div>
+                        </div>
+
+                        <!-- PHẦN GIỮA - Body (2 cột) -->
+                        <div class="stamp-body">
+                            <!-- CỘT TRÁI: QR Code -->
+                            <div class="stamp-left">
+                                <img src="@GetQrSrc(item)" class="qr-img" alt="QR Code" />
+                            </div>
+
+                            <!-- CỘT PHẢI: Thông tin sản phẩm -->
+                            <div class="stamp-right">
+                                <div class="stamp-info">
+                                    <div class="stamp-row">Tên SP: <span class="stamp-data">@item.ProductName</span></div>
+                                    <div class="stamp-row">Mã lệnh TC: <span class="stamp-data">@item.CommandCode</span></div>
+                                    <div class="stamp-row">Mã SP: <span class="stamp-data">@item.ProductCode</span></div>
+                                    <div class="stamp-row">
+                                        Ngày lắp đặt:
+                                        <span class="stamp-data">
+                                            @(item.InstallDate.HasValue? item.InstallDate.Value.ToString("dd/MM/yyyy") : DateTime.Now.ToString("dd/MM/yyyy"))
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- PHẦN DƯỚI - Footer -->
+                        <div class="stamp-footer">
+                            <div class="stamp-phone">
+                                <svg class="phone-icon" viewBox="0 0 29 27" fill="currentColor">
+                                    <path d="M8 1C6.34 1 5 2.34 5 4V23C5 24.66 6.34 26 8 26H20C21.66 26 23 24.66 23 23V4C23 2.34 21.66 1 20 1H8ZM8 3H20C20.55 3 21 3.45 21 4V23C21 23.55 20.55 24 20 24H8C7.45 24 7 23.55 7 23V4C7 3.45 7.45 3 8 3ZM14 24C14.55 24 15 23.55 15 23C15 22.45 14.55 22 14 22C13.45 22 13 22.45 13 23C13 23.55 13.45 24 14 24Z" />
+                                </svg>
+                                094.409.3547
+                            </div>
+                            <div class="stamp-logo">
+                                <img src="/images/logo_hoamai.jpg" class="logo-image" alt="HOA MAI" onerror="this.style.display='none'" />
+                                @* <span class="logo-text">HOA MAI</span> *@
+                            </div>
+                        </div>
+                    </div>
+                }
+                <div class="page-number d-print-none">Trang @pageIndex / @pages.Count() (@itemsPerPage tem/trang)</div>
+            </div>
+            pageIndex++;
+        }
+    }
+</div>
+
+@code {
+    [Parameter]
+    public List<WarrantyStamp> Stamps { get; set; } = new();
+
+    private int itemsPerPage = 10;
+    private bool isRendering = false;
+
+    private bool HasEnoughStampsFor12Layout()
+    {
+        return Stamps?.Count >= 12;
+    }
+
+    private int GetRequiredStampCount()
+    {
+        return 12;
+    }
+
+    private string GetLayout12ButtonClass()
+    {
+        return HasEnoughStampsFor12Layout() ? "btn-outline-primary" : "btn-outline-secondary";
+    }
+
+    private string GetLayout12Tooltip()
+    {
+        return HasEnoughStampsFor12Layout() ? "Chọn mẫu 12 tem" : "Cần ít nhất 12 tem để sử dụng mẫu này";
+    }
+
+    private void SetLayout(int count)
+    {
+        if (count == 12 && !HasEnoughStampsFor12Layout())
+        {
+            return;
+        }
+
+        if (itemsPerPage != count && !isRendering)
+        {
+            itemsPerPage = count;
+            isRendering = true;
+            StateHasChanged();
+            // Reset trạng thái sau khi render
+            Task.Delay(100).ContinueWith(_ =>
+            {
+                isRendering = false;
+                InvokeAsync(StateHasChanged);
+            });
+        }
+    }
+
+
+    private async Task Print()
+    {
+        // pass the id of the container to print
+        await JS.InvokeVoidAsync("openPrintWindow", "print-area");
+    }
+
+    private string GetQrSrc(WarrantyStamp item)
+    {
+        if (!string.IsNullOrWhiteSpace(item.QrImage))
+            return item.QrImage!;
+
+        var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='266' height='266' viewBox='0 0 266 266'>" +
+                  "<rect width='100%' height='100%' fill='#f8f9fa' stroke='#ccc' />" +
+                  "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#888' font-family='Arial' font-size='24'>QR</text>" +
+                  "</svg>";
+        return "data:image/svg+xml;utf8," + Uri.EscapeDataString(svg);
+    }
+
+    // Tạo tem mẫu để lấp đầy các ô trống
+    private WarrantyStamp CreateSampleStamp(int index)
+    {
+        return new WarrantyStamp
+        {
+            ProductName = $"Sản phẩm mẫu #{index}",
+            CommandCode = $"LC-2025-{index:000}",
+            ProductCode = $"W872-{index:000}",
+            InstallDate = DateTime.Now,
+            QrImage = GetSampleQr()
+        };
+    }
+
+    private string GetSampleQr()
+    {
+        var svg = "<svg xmlns='http://www.w3.org/2000/svg' width='266' height='266' viewBox='0 0 266 266'>" +
+                  "<rect width='100%' height='100%' fill='#f0f0f0' stroke='#999' stroke-dasharray='4' />" +
+                  "<text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='#666' font-family='Arial' font-size='16'>QR MẪU</text>" +
+                  "</svg>";
+        return "data:image/svg+xml;utf8," + Uri.EscapeDataString(svg);
+    }
+
+}
