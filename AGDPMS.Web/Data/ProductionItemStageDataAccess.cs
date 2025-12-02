@@ -8,7 +8,7 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
 {
     public Task<IEnumerable<ProductionItemStage>> ListByItemAsync(int itemId) => conn.QueryAsync<ProductionItemStage>(@"
         select id as Id, production_order_item_id as ProductionOrderItemId, stage_type_id as StageTypeId,
-               assigned_qa_user_id as AssignedQaUserId, status as Status,
+               assigned_qa_user_id as AssignedQaUserId,
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                planned_time_hours as PlannedTimeHours, actual_time_hours as ActualTimeHours,
@@ -21,7 +21,7 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
 
     public Task<ProductionItemStage?> GetByIdAsync(int id) => conn.QueryFirstOrDefaultAsync<ProductionItemStage>(@"
         select id as Id, production_order_item_id as ProductionOrderItemId, stage_type_id as StageTypeId,
-               assigned_qa_user_id as AssignedQaUserId, status as Status,
+               assigned_qa_user_id as AssignedQaUserId,
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                planned_time_hours as PlannedTimeHours, actual_time_hours as ActualTimeHours,
@@ -45,7 +45,7 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
 
     public Task CompleteByPmAsync(int stageId) => conn.ExecuteAsync(@"
         update production_item_stages
-        set is_completed = true, status = 2, completed_at = now(), updated_at = now()
+        set is_completed = true, completed_at = now(), updated_at = now()
         where id = @Id",
         new { Id = stageId });
 
@@ -67,17 +67,9 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
         where id = @Id",
         new { Id = stageId, ActualStartDate = actualStartDate, ActualFinishDate = actualFinishDate, ActualTimeHours = actualTimeHours });
 
-    public Task UpdateStatusAsync(int stageId, StageStatus status) => conn.ExecuteAsync(@"
-        update production_item_stages
-        set status = @Status, updated_at = now()
-        where id = @Id",
-        new { Id = stageId, Status = (short)status });
-
     public Task BulkAssignQaAsync(int itemId, int qaUserId) => conn.ExecuteAsync(@"
         update production_item_stages
         set assigned_qa_user_id = @QaUserId, updated_at = now()
         where production_order_item_id = @ItemId",
         new { ItemId = itemId, QaUserId = qaUserId });
 }
-
-

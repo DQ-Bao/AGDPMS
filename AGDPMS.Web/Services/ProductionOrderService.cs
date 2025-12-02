@@ -34,8 +34,8 @@ public class ProductionOrderService(
             });
             // Initialize stages for item
             await stageService.InitializeDefaultStagesForItemAsync(itemId);
-            // Generate QR and store
-            var (url, png) = qrService.GenerateForItem(itemId);
+            // Generate QR and store - pass both orderId and itemId for full URL
+            var (url, png) = qrService.GenerateForItem(orderId, itemId);
             await items.SetQrAsync(itemId, url, png);
         }
         return orderId;
@@ -119,5 +119,3 @@ public class ProductionOrderCreateSpecItem
 {
     public int ProductId { get; set; }
 }
-
-

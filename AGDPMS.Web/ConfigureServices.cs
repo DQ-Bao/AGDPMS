@@ -29,7 +29,7 @@ public static class ConfigureServices
         services.AddScoped<ProductionOrderDataAccess>();
         services.AddScoped<ProductionItemDataAccess>();
         services.AddScoped<ProductionItemStageDataAccess>();
-        services.AddScoped<ProductionIssueReportDataAccess>();
+        services.AddScoped<StageReviewDataAccess>();
         services.AddScoped<ProjectDataAccess>();
         services.AddScoped<ProductDataAccess>();
         // production services
