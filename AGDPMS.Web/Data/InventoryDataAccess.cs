@@ -8,12 +8,8 @@ public class InventoryDataAccess(IDbConnection conn)
 {
     public Task<IEnumerable<MaterialType>> GetMaterialTypeAsync()
     {
-<<<<<<< HEAD
-        string query = @"
-=======
         string query =
             @"
->>>>>>> merging
             select
                 mt.id as Id,
                 mt.Name as Name
@@ -25,12 +21,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
     public async Task<IEnumerable<Material>> GetAllMaterialAsync()
     {
-<<<<<<< HEAD
-        string query_m = @"
-=======
         string query_m =
             @"
->>>>>>> merging
             select
                 m.id as Id,
                 m.name as Name,
@@ -43,21 +35,13 @@ public class InventoryDataAccess(IDbConnection conn)
             on m.type = mt.id;
         ";
 
-<<<<<<< HEAD
-        string query_ms = @"
-=======
         string query_ms =
             @"
->>>>>>> merging
             select
                 ms.id as Id,
                 ms.length as Length,
                 ms.width as Width,
-<<<<<<< HEAD
-                ms.stock as Stock,
-=======
                 ms.stock as Stocks,
->>>>>>> merging
                 ms.base_price as BasePrice
             from material_stock ms
             where ms.material_id = @MaterialId;
@@ -65,12 +49,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
         IEnumerable<Material> materials = await conn.QueryAsync<Material, MaterialType, Material>(
             query_m,
-<<<<<<< HEAD
-            (m, mt) => {
-=======
             (m, mt) =>
             {
->>>>>>> merging
                 m.Type = mt;
                 return m;
             }
@@ -78,14 +58,7 @@ public class InventoryDataAccess(IDbConnection conn)
 
         foreach (Material m in materials)
         {
-<<<<<<< HEAD
-            m.Stock = await conn.QueryAsync<MaterialStock>(
-                query_ms,
-                new { MaterialId = m.Id }
-            );
-=======
             m.Stocks = (await conn.QueryAsync<MaterialStock>(query_ms, new { MaterialId = m.Id })).ToList();
->>>>>>> merging
         }
 
         return materials;
@@ -116,12 +89,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
         var result = await conn.QueryAsync<Material, MaterialStock, MaterialType, Material>(
             query,
-<<<<<<< HEAD
-            (m, ms, mt) => {
-=======
             (m, ms, mt) =>
             {
->>>>>>> merging
                 Material material;
                 if (!dic.TryGetValue(m.Id, out material))
                 {
@@ -129,20 +98,6 @@ public class InventoryDataAccess(IDbConnection conn)
                     material.Type = mt;
                     dic.Add(material.Id, material);
                 }
-<<<<<<< HEAD
-                if (material.Stock == null)
-                {
-                    material.Stock = new List<MaterialStock>();
-                }
-
-                ((List<MaterialStock>)material.Stock).Add(ms);
-                return material;
-            },
-            new
-            {
-                Id = id
-            }
-=======
                 if (material.Stocks == null)
                 {
                     material.Stocks = new List<MaterialStock>();
@@ -152,7 +107,6 @@ public class InventoryDataAccess(IDbConnection conn)
                 return material;
             },
             new { Id = id }
->>>>>>> merging
         );
 
         return dic.Values;
@@ -160,12 +114,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
     public async Task<IEnumerable<Material>> GetMaterialByNameAsync(string name)
     {
-<<<<<<< HEAD
-        string query = @"
-=======
         string query =
             @"
->>>>>>> merging
         select
             m.id as Id,
             m.name as Name,
@@ -187,12 +137,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
         var result = await conn.QueryAsync<Material, MaterialStock, MaterialType, Material>(
             query,
-<<<<<<< HEAD
-            (m, ms, mt) => {
-=======
             (m, ms, mt) =>
             {
->>>>>>> merging
                 Material material;
                 if (!dic.TryGetValue(m.Id, out material))
                 {
@@ -200,20 +146,6 @@ public class InventoryDataAccess(IDbConnection conn)
                     material.Type = mt;
                     dic.Add(material.Id, material);
                 }
-<<<<<<< HEAD
-                if (material.Stock == null)
-                {
-                    material.Stock = new List<MaterialStock>();
-                }
-
-                ((List<MaterialStock>)material.Stock).Add(ms);
-                return material;
-            },
-            new
-            {
-                Name = name
-            }
-=======
                 if (material.Stocks == null)
                 {
                     material.Stocks = new List<MaterialStock>();
@@ -223,7 +155,6 @@ public class InventoryDataAccess(IDbConnection conn)
                 return material;
             },
             new { Name = name }
->>>>>>> merging
         );
 
         return dic.Values;
@@ -231,12 +162,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
     public async Task<IEnumerable<Material>> GetMaterialByTypeAsync(MaterialType type)
     {
-<<<<<<< HEAD
-        string query = @"
-=======
         string query =
             @"
->>>>>>> merging
         select
             m.id as Id,
             m.name as Name,
@@ -258,12 +185,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
         var result = await conn.QueryAsync<Material, MaterialStock, MaterialType, Material>(
             query,
-<<<<<<< HEAD
-            (m, ms, mt) => {
-=======
             (m, ms, mt) =>
             {
->>>>>>> merging
                 Material material;
                 if (!dic.TryGetValue(m.Id, out material))
                 {
@@ -271,20 +194,6 @@ public class InventoryDataAccess(IDbConnection conn)
                     material.Type = mt;
                     dic.Add(material.Id, material);
                 }
-<<<<<<< HEAD
-                if (material.Stock == null)
-                {
-                    material.Stock = new List<MaterialStock>();
-                }
-
-                ((List<MaterialStock>)material.Stock).Add(ms);
-                return material;
-            },
-            new
-            {
-                Type = type.Id
-            }
-=======
                 if (material.Stocks == null)
                 {
                     material.Stocks = new List<MaterialStock>();
@@ -294,7 +203,6 @@ public class InventoryDataAccess(IDbConnection conn)
                 return material;
             },
             new { Type = type.Id }
->>>>>>> merging
         );
 
         return dic.Values;
@@ -302,12 +210,8 @@ public class InventoryDataAccess(IDbConnection conn)
 
     public async Task UpdateMaterial(List<Material> materials)
     {
-<<<<<<< HEAD
-        string udpate_m = @"
-=======
         string udpate_m =
             @"
->>>>>>> merging
             udpate materials
             set
                 id = @Id,
@@ -317,12 +221,8 @@ public class InventoryDataAccess(IDbConnection conn)
             where material_id = @MaterialId and id = @Id;
         ";
 
-<<<<<<< HEAD
-        string update_ms = @"
-=======
         string update_ms =
             @"
->>>>>>> merging
             udpate material_stock
             set
                 length = @Length,
@@ -341,19 +241,11 @@ public class InventoryDataAccess(IDbConnection conn)
                     m.Id,
                     m.Name,
                     Type = m.Type.Id,
-<<<<<<< HEAD
-                    m.Weight
-                }
-            );
-
-            foreach (MaterialStock ms in m.Stock)
-=======
                     m.Weight,
                 }
             );
 
             foreach (MaterialStock ms in m.Stocks)
->>>>>>> merging
             {
                 await conn.ExecuteAsync(
                     update_ms,
@@ -364,39 +256,23 @@ public class InventoryDataAccess(IDbConnection conn)
                         ms.Stock,
                         ms.BasePrice,
                         MaterialId = m.Id,
-<<<<<<< HEAD
-                        ms.Id
-                    }
-                );
-            }
-
-=======
                         ms.Id,
                     }
                 );
             }
->>>>>>> merging
         }
     }
 
     public async Task<Material> CreateMaterialAsync(Material material)
     {
-<<<<<<< HEAD
-        string insert_m = @"
-=======
         string insert_m =
             @"
->>>>>>> merging
             insert into materials(id, name, type, weight)
             values (@Id, @Name, @Type, @Weight);
         ";
 
-<<<<<<< HEAD
-        string insert_ms = @"
-=======
         string insert_ms =
             @"
->>>>>>> merging
             insert into material_stock(material_id, length, width, stock, base_price)
             values (@MaterialId, @Length, @Width, @Stock, @BasePrice);
         ";
@@ -408,20 +284,10 @@ public class InventoryDataAccess(IDbConnection conn)
                 material.Id,
                 material.Name,
                 Type = material.Type.Id,
-<<<<<<< HEAD
-                material.Weight
-            }
-        );
-        await conn.ExecuteAsync(
-            insert_ms,
-            material.Stock
-        );
-=======
                 material.Weight,
             }
         );
         await conn.ExecuteAsync(insert_ms, material.Stocks);
->>>>>>> merging
 
         return material;
     }
