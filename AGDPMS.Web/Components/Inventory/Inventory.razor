@@ -70,13 +70,13 @@
                     @foreach(Material m in items)
                     {
                         <tr>
-                            <td rowspan="@(@m.Stock.Count() + 1)">@m.Id</td>
-                            <td rowspan="@(@m.Stock.Count() + 1)">@m.Name</td>
-                            <td rowspan="@(@m.Stock.Count() + 1)">@m.Type.Name</td>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Id</td>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Name</td>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Type.Name</td>
                             @* <td>@m.Stock</td> *@
                             @* <td>@m.Weight</td> *@
                         </tr>
-                        @foreach(MaterialStock ms in m.Stock)
+                        @foreach(MaterialStock ms in m.Stocks)
                         {
                             <tr>
                                 <td>@ms.Length</td>

@@ -41,7 +41,7 @@ public class InventoryDataAccess(IDbConnection conn)
                 ms.id as Id,
                 ms.length as Length,
                 ms.width as Width,
-                ms.stock as Stock,
+                ms.stock as Stocks,
                 ms.base_price as BasePrice
             from material_stock ms
             where ms.material_id = @MaterialId;
@@ -58,7 +58,7 @@ public class InventoryDataAccess(IDbConnection conn)
 
         foreach (Material m in materials)
         {
-            m.Stock = await conn.QueryAsync<MaterialStock>(query_ms, new { MaterialId = m.Id });
+            m.Stocks = (await conn.QueryAsync<MaterialStock>(query_ms, new { MaterialId = m.Id })).ToList();
         }
 
         return materials;
@@ -98,12 +98,12 @@ public class InventoryDataAccess(IDbConnection conn)
                     material.Type = mt;
                     dic.Add(material.Id, material);
                 }
-                if (material.Stock == null)
+                if (material.Stocks == null)
                 {
-                    material.Stock = new List<MaterialStock>();
+                    material.Stocks = new List<MaterialStock>();
                 }
 
-                ((List<MaterialStock>)material.Stock).Add(ms);
+                ((List<MaterialStock>)material.Stocks).Add(ms);
                 return material;
             },
             new { Id = id }
@@ -146,12 +146,12 @@ public class InventoryDataAccess(IDbConnection conn)
                     material.Type = mt;
                     dic.Add(material.Id, material);
                 }
-                if (material.Stock == null)
+                if (material.Stocks == null)
                 {
-                    material.Stock = new List<MaterialStock>();
+                    material.Stocks = new List<MaterialStock>();
                 }
 
-                ((List<MaterialStock>)material.Stock).Add(ms);
+                ((List<MaterialStock>)material.Stocks).Add(ms);
                 return material;
             },
             new { Name = name }
@@ -194,12 +194,12 @@ public class InventoryDataAccess(IDbConnection conn)
                     material.Type = mt;
                     dic.Add(material.Id, material);
                 }
-                if (material.Stock == null)
+                if (material.Stocks == null)
                 {
-                    material.Stock = new List<MaterialStock>();
+                    material.Stocks = new List<MaterialStock>();
                 }
 
-                ((List<MaterialStock>)material.Stock).Add(ms);
+                ((List<MaterialStock>)material.Stocks).Add(ms);
                 return material;
             },
             new { Type = type.Id }
@@ -245,7 +245,7 @@ public class InventoryDataAccess(IDbConnection conn)
                 }
             );
 
-            foreach (MaterialStock ms in m.Stock)
+            foreach (MaterialStock ms in m.Stocks)
             {
                 await conn.ExecuteAsync(
                     update_ms,
@@ -287,7 +287,7 @@ public class InventoryDataAccess(IDbConnection conn)
                 material.Weight,
             }
         );
-        await conn.ExecuteAsync(insert_ms, material.Stock);
+        await conn.ExecuteAsync(insert_ms, material.Stocks);
 
         return material;
     }
