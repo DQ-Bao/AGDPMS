@@ -320,7 +320,7 @@ create index if not exists "ix_review_criteria_review"
 
 -- INSERT --
 insert into roles ("name")
-values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA');
+values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA'), ('Production Manager');;
 
 insert into users ("fullname", "phone", "password_hash", "role_id", "need_change_password")
 values 
