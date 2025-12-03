@@ -1,7 +1,6 @@
 @page "/production/orders/{OrderId:int}/items/{ItemId:int}"
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Models.DTOs
-@using AGDPMS.Shared.Components.Production.Stages
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.Components.Forms
@@ -30,7 +29,7 @@
     {
         <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
-                <h5 class="mb-1">Item #@model.item?.LineNo - @(model.item?.ProductName ?? $"Sản phẩm {model.item?.ProductId}")</h5>
+                <h5 class="mb-1">Item #@model.item?.LineNo - @(model.item?.Code ?? "N/A") - @(model.item?.CavityName ?? model.item?.CavityCode ?? $"Cavity {model.item?.CavityId}")</h5>
                 <div class="text-secondary">Lệnh sản xuất: @model.order?.Code | Trạng thái: @GetOrderStatusDisplay()</div>
                 <div class="text-secondary small mt-1">
                     <span>Kế hoạch: Bắt đầu: @FormatDate(model.item?.PlannedStartDate) | Kết thúc: @FormatDate(model.item?.PlannedFinishDate)</span>
@@ -949,6 +948,10 @@
 
     private string GetStageStatus(StageDto stage)
     {
+        if (HasPendingReview(stage.Id))
+        {
+            return "Chờ kiểm tra QA";
+        }
         // Calculate status dynamically from actual_time_hours
         if (stage.IsCompleted)
         {
@@ -1104,8 +1107,10 @@
     private class ItemDto
     {
         public int Id { get; set; }
-        public int ProductId { get; set; }
-        public string? ProductName { get; set; }
+        public int CavityId { get; set; }
+        public string? CavityCode { get; set; }
+        public string? CavityName { get; set; }
+        public string Code { get; set; } = string.Empty;
         public int LineNo { get; set; }
         public string? QRCode { get; set; }
         public bool IsCompleted { get; set; }

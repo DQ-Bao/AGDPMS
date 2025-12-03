@@ -19,7 +19,8 @@ public enum StageStatus : short
 {
     NotStarted = 0,
     InProgress = 1,
-    Completed = 2,
+    WaitingForReview = 2,
+    Completed = 3
 }
 
 public enum IssueStatus : short

@@ -25,7 +25,7 @@ public static class ProductionOrdersEndpoints
             var spec = new ProductionOrderCreateSpec
             {
                 ProjectId = dto.ProjectId,
-                Items = dto.Items.Select(i => new ProductionOrderCreateSpecItem { ProductId = i.ProductId }).ToList()
+                Items = dto.Items.Select(i => new ProductionOrderCreateSpecItem { CavityId = i.CavityId, Quantity = i.Quantity }).ToList()
             };
             var id = await svc.CreateOrderAsync(spec, userId);
             return Results.Created($"/api/orders/{id}", new { id });
@@ -151,7 +151,7 @@ public static class ProductionOrdersEndpoints
             ProductionItemStageDataAccess stageAccess,
             StageTypeDataAccess stageTypeAccess,
             UserDataAccess userAccess,
-            ProductDataAccess productAccess) =>
+            CavityDataAccess cavityAccess) =>
         {
             var order = await orderAccess.GetByIdAsync(id);
             if (order is null) return Results.NotFound();
@@ -171,7 +171,7 @@ public static class ProductionOrdersEndpoints
                 { "FINISH_SILICON", 9 }
             };
             var allUsers = (await userAccess.GetAllAsync()).ToDictionary(u => u.Id);
-            var allProducts = (await productAccess.GetAllAsync()).ToDictionary(p => p.Id, p => p.Name);
+            var allCavities = (await cavityAccess.GetAllFromProjectAsync(order.ProjectId)).ToDictionary(c => c.Id);
             var itemsWithStages = new List<object>();
             var completionDates = new List<DateTime>();
             foreach (var it in items)
@@ -247,11 +247,14 @@ public static class ProductionOrdersEndpoints
                     completionDates.Add(it.CompletedAt.Value);
                 }
 
+                var cavity = allCavities.ContainsKey(it.CavityId) ? allCavities[it.CavityId] : null;
                 itemsWithStages.Add(new
                 {
                     it.Id,
-                    it.ProductId,
-                    ProductName = allProducts.ContainsKey(it.ProductId) ? allProducts[it.ProductId] : null,
+                    it.CavityId,
+                    CavityCode = cavity?.Code,
+                    CavityName = cavity != null ? $"{cavity.Code} - {cavity.Description ?? cavity.Location ?? ""}" : null,
+                    it.Code,
                     it.LineNo,
                     it.QRCode,
                     it.IsCompleted,

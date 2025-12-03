@@ -14,10 +14,30 @@ public static class LookupEndpoints
             return Results.Ok(list.Select(t => new { id = t.Id, name = t.Name }));
         });
 
-        group.MapGet("/products", async (int projectId, string? q, ProductDataAccess access) =>
+        group.MapGet("/cavities", async (int projectId, string? q, CavityDataAccess access) =>
         {
-            var list = await access.SearchByProjectAsync(projectId, q);
-            return Results.Ok(list.Select(t => new { id = t.Id, name = t.Name }));
+            var cavities = await access.GetAllFromProjectAsync(projectId);
+            var filtered = cavities;
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                var qLower = q.ToLower();
+                filtered = cavities.Where(c => 
+                    (c.Code?.ToLower().Contains(qLower) ?? false) ||
+                    (c.Description?.ToLower().Contains(qLower) ?? false) ||
+                    (c.Location?.ToLower().Contains(qLower) ?? false) ||
+                    (c.WindowType?.ToLower().Contains(qLower) ?? false)
+                );
+            }
+            return Results.Ok(filtered.Select(c => new { 
+                id = c.Id, 
+                code = c.Code,
+                description = c.Description,
+                location = c.Location,
+                windowType = c.WindowType,
+                width = c.Width,
+                height = c.Height,
+                quantity = c.Quantity
+            }));
         });
 
         group.MapGet("/qa-users", async (string? q, UserDataAccess access) =>

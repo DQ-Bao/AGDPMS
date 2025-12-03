@@ -4,7 +4,8 @@ public class ProductionOrderItem
 {
     public int Id { get; set; }
     public int ProductionOrderId { get; set; }
-    public int ProductId { get; set; }
+    public int CavityId { get; set; }
+    public string Code { get; set; } = string.Empty;
 
     public int LineNo { get; set; }
 

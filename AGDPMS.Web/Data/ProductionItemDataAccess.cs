@@ -7,7 +7,7 @@ namespace AGDPMS.Web.Data;
 public class ProductionItemDataAccess(IDbConnection conn)
 {
     public Task<ProductionOrderItem?> GetByIdAsync(int id) => conn.QueryFirstOrDefaultAsync<ProductionOrderItem>(@"
-        select id as Id, production_order_id as ProductionOrderId, product_id as ProductId,
+        select id as Id, production_order_id as ProductionOrderId, cavity_id as CavityId, code as Code,
                line_no as LineNo, status as Status,
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
@@ -22,15 +22,15 @@ public class ProductionItemDataAccess(IDbConnection conn)
     public async Task<int> CreateItemAsync(ProductionOrderItem item)
     {
         var id = await conn.ExecuteScalarAsync<int>(@"
-            insert into production_order_items(production_order_id, product_id, line_no, qr_code, qr_image, is_completed, created_at)
-            values (@ProductionOrderId, @ProductId, @LineNo, @QRCode, @QRImage, false, now())
+            insert into production_order_items(production_order_id, cavity_id, code, line_no, qr_code, qr_image, is_completed, created_at)
+            values (@ProductionOrderId, @CavityId, @Code, @LineNo, @QRCode, @QRImage, false, now())
             returning id",
-            new { item.ProductionOrderId, item.ProductId, item.LineNo, item.QRCode, item.QRImage });
+            new { item.ProductionOrderId, item.CavityId, item.Code, item.LineNo, item.QRCode, item.QRImage });
         return id;
     }
 
     public Task<IEnumerable<ProductionOrderItem>> ListByOrderAsync(int orderId) => conn.QueryAsync<ProductionOrderItem>(@"
-        select id as Id, production_order_id as ProductionOrderId, product_id as ProductId,
+        select id as Id, production_order_id as ProductionOrderId, cavity_id as CavityId, code as Code,
                line_no as LineNo, status as Status,
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
@@ -84,6 +84,13 @@ public class ProductionItemDataAccess(IDbConnection conn)
             updated_at = now()
         where id = @Id",
         new { Id = itemId, IsCompleted = isCompleted });
+
+    public Task UpdateCodeAsync(int itemId, string code) => conn.ExecuteAsync(@"
+        update production_order_items
+        set code = @Code,
+            updated_at = now()
+        where id = @Id",
+        new { Id = itemId, Code = code });
 }
 
 
