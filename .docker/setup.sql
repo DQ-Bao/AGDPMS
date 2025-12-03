@@ -190,12 +190,14 @@ create index if not exists "ix_production_orders_project_status" on production_o
 create table if not exists stage_types (
     "id" serial,
     "code" varchar(50) not null,
+    "machine_id" integer null,
     "name" varchar(250) not null,
     "is_active" boolean not null default true,
     "is_default" boolean not null default false,
     "created_at" timestamp null default now(),
     "updated_at" timestamp null,
     constraint "pk_stage_types" primary key ("id"),
+    constraint "fk_stage_types_machine" foreign key ("machine_id") references machines ("id"),
     constraint "uq_stage_types_code" unique ("code")
 );
 
