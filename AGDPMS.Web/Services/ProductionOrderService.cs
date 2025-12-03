@@ -24,21 +24,36 @@ public class ProductionOrderService(
 
         // line numbering starts at 1
         var line = 1;
+        var codeSequence = 1;
         foreach (var it in spec.Items)
         {
-            var itemId = await items.CreateItemAsync(new ProductionOrderItem
+            // Create N items where N = quantity
+            for (int i = 0; i < it.Quantity; i++)
             {
-                ProductionOrderId = orderId,
-                ProductId = it.ProductId,
-                LineNo = line++
-            });
-            // Initialize stages for item
-            await stageService.InitializeDefaultStagesForItemAsync(itemId);
-            // Generate QR and store - pass both orderId and itemId for full URL
-            var (url, png) = qrService.GenerateForItem(orderId, itemId);
-            await items.SetQrAsync(itemId, url, png);
+                var itemCode = GenerateItemCode(codeSequence++);
+                var itemId = await items.CreateItemAsync(new ProductionOrderItem
+                {
+                    ProductionOrderId = orderId,
+                    CavityId = it.CavityId,
+                    Code = itemCode,
+                    LineNo = line++
+                });
+                // Initialize stages for item
+                await stageService.InitializeDefaultStagesForItemAsync(itemId);
+                // Generate QR and store - pass both orderId and itemId for full URL
+                var (url, png) = qrService.GenerateForItem(orderId, itemId);
+                await items.SetQrAsync(itemId, url, png);
+            }
         }
         return orderId;
+    }
+
+    private string GenerateItemCode(int sequence)
+    {
+        // Generate S001, S002, S003... format (4 chars max)
+        if (sequence > 999)
+            throw new InvalidOperationException("Cannot generate more than 999 items per order");
+        return $"S{sequence:D3}";
     }
 
     public async Task SubmitAsync(int orderId)
@@ -117,5 +132,6 @@ public class ProductionOrderCreateSpec
 
 public class ProductionOrderCreateSpecItem
 {
-    public int ProductId { get; set; }
+    public int CavityId { get; set; }
+    public int Quantity { get; set; }
 }

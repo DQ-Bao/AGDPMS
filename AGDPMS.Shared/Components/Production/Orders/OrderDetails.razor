@@ -1,7 +1,6 @@
 @page "/production/orders/{Id:int}"
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Models.DTOs
-@using AGDPMS.Shared.Components.Production.Stages
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Net.Http
@@ -9,6 +8,7 @@
 @using System.Security.Claims
 @using System.Linq
 @using System.Text
+@using System.Text.RegularExpressions
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
@@ -94,6 +94,7 @@
         @if (model?.items != null)
         {
             <div class="mb-3">
+                <OrderStatusBar OrderId="@Id" />
                 <div class="small text-secondary mb-1">Tiến độ tổng thể: @CompletedItems/@TotalItems item</div>
                 <div class="progress" style="height: 30px;">
                     @{
@@ -142,8 +143,8 @@
             <table class="table table-sm align-middle">
                 <thead class="table-light">
                     <tr>
-                        <th>#</th>
-                        <th>Sản phẩm</th>
+                        <th>Mã</th>
+                        <th>Cavity</th>
                         <th>Kế hoạch</th>
                         <th>Thực tế</th>
                         <th>Chênh lệch</th>
@@ -164,11 +165,42 @@
                         }
                         var editingPlan = editingItemPlanId == it.Id;
                         var editingActual = editingItemActualId == it.Id;
+                        var editingCode = editingItemCodeId == it.Id;
                         <tr class="@rowClass">
-                            <td>@it.LineNo</td>
+                            <td>
+                                @if (CanEditItemCode() && editingCode)
+                                {
+                                    <div class="d-flex flex-column gap-1" @onclick:stopPropagation="true">
+                                        <input type="text" class="form-control form-control-sm" style="width:80px;" maxlength="4" 
+                                               @bind="editingItemCode" 
+                                               @bind:after="StateHasChanged" />
+                                        @if (!string.IsNullOrWhiteSpace(codeValidationError))
+                                        {
+                                            <small class="text-danger">@codeValidationError</small>
+                                        }
+                                        <div class="d-flex gap-1">
+                                            <button class="btn btn-sm btn-success" @onclick='@(() => SaveItemCode(it.Id))' @onclick:stopPropagation="true">✓</button>
+                                            <button class="btn btn-sm btn-secondary" @onclick='@(() => CancelItemCodeEdit())' @onclick:stopPropagation="true">✗</button>
+                                        </div>
+                                    </div>
+                                }
+                                else if (CanEditItemCode())
+                                {
+                                    <div style="cursor:pointer;" class="text-primary text-decoration-underline" 
+                                         @onclick='@(() => StartEditItemCode(it))' 
+                                         @onclick:stopPropagation="true" 
+                                         title="Click để chỉnh mã">
+                                        @it.Code
+                                    </div>
+                                }
+                                else
+                                {
+                                    <div>@it.Code</div>
+                                }
+                            </td>
                             <td>
                                 <a href="/production/orders/@Id/items/@it.Id" class="text-decoration-none">
-                                    @(string.IsNullOrWhiteSpace(it.ProductName) ? $"Sản phẩm {it.ProductId}" : it.ProductName)
+                                    @(string.IsNullOrWhiteSpace(it.CavityName) ? (it.CavityCode ?? $"Cavity {it.CavityId}") : it.CavityName)
                                 </a>
                                 @if (it.IsLate)
                                 {
@@ -273,6 +305,9 @@
     private int? editingItemActualId;
     private DateTime? editingItemActualStartDate;
     private DateTime? editingItemActualFinishDate;
+    private int? editingItemCodeId;
+    private string? editingItemCode;
+    private string? codeValidationError;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -376,6 +411,7 @@
     private bool CanEditItemPlan() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft;
     private bool CanEditItemActual() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanEditItemCompletion() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
+    private bool CanEditItemCode() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft;
 
     private bool CanCompleteItem(ItemDto item)
     {
@@ -483,6 +519,63 @@
             IsCompleted = !item.IsCompleted
         };
         await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/items/{item.Id}/completion", dto));
+    }
+
+    private void StartEditItemCode(ItemDto item)
+    {
+        editingItemCodeId = item.Id;
+        editingItemCode = item.Code;
+        codeValidationError = null;
+        StateHasChanged();
+    }
+
+    private void CancelItemCodeEdit()
+    {
+        editingItemCodeId = null;
+        editingItemCode = null;
+        codeValidationError = null;
+        StateHasChanged();
+    }
+
+    private async Task SaveItemCode(int itemId)
+    {
+        codeValidationError = null;
+        if (string.IsNullOrWhiteSpace(editingItemCode))
+        {
+            codeValidationError = "Mã không được để trống";
+            StateHasChanged();
+            return;
+        }
+        if (editingItemCode!.Length > 4)
+        {
+            codeValidationError = "Mã tối đa 4 ký tự";
+            StateHasChanged();
+            return;
+        }
+        if (!System.Text.RegularExpressions.Regex.IsMatch(editingItemCode, @"^[a-zA-Z0-9]+$"))
+        {
+            codeValidationError = "Mã chỉ được chứa chữ và số";
+            StateHasChanged();
+            return;
+        }
+        // Check uniqueness within order
+        if (model?.items != null && model.items.Any(i => i.Id != itemId && i.Code.Equals(editingItemCode, StringComparison.OrdinalIgnoreCase)))
+        {
+            codeValidationError = "Mã đã tồn tại trong lệnh này";
+            StateHasChanged();
+            return;
+        }
+        var dto = new UpdateItemCodeDto
+        {
+            Code = editingItemCode
+        };
+        var success = await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/items/{itemId}/code", dto));
+        if (success)
+        {
+            editingItemCodeId = null;
+            editingItemCode = null;
+            codeValidationError = null;
+        }
     }
 
     private void OpenCancelModal()
@@ -670,8 +763,10 @@
     private class ItemDto
     {
         public int Id { get; set; }
-        public int ProductId { get; set; }
-        public string? ProductName { get; set; }
+        public int CavityId { get; set; }
+        public string? CavityCode { get; set; }
+        public string? CavityName { get; set; }
+        public string Code { get; set; } = string.Empty;
         public int LineNo { get; set; }
         public string? QRCode { get; set; }
         public bool IsCompleted { get; set; }

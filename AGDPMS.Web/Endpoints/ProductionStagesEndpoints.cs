@@ -65,6 +65,31 @@ public static class ProductionStagesEndpoints
             return Results.Ok(it?.ProductionOrderId ?? 0);
         });
 
+        // Update item code (draft phase only)
+        itemGroup.MapPut("/{itemId:int}/code", async (int itemId, UpdateItemCodeDto dto, ProductionItemDataAccess itemAccess, ProductionOrderDataAccess orderAccess) =>
+        {
+            var item = await itemAccess.GetByIdAsync(itemId);
+            if (item is null) return Results.NotFound();
+            var order = await orderAccess.GetByIdAsync(item.ProductionOrderId);
+            if (order is null) return Results.NotFound();
+            if (order.Status != ProductionOrderStatus.Draft)
+                return Results.BadRequest("Code can only be updated in draft phase");
+            
+            // Validate code: 4 chars max, alphanumeric
+            if (string.IsNullOrWhiteSpace(dto.Code) || dto.Code.Length > 4)
+                return Results.BadRequest("Code must be 1-4 characters");
+            if (!System.Text.RegularExpressions.Regex.IsMatch(dto.Code, @"^[a-zA-Z0-9]+$"))
+                return Results.BadRequest("Code must contain only alphanumeric characters");
+            
+            // Check uniqueness within order
+            var existingItems = await itemAccess.ListByOrderAsync(item.ProductionOrderId);
+            if (existingItems.Any(i => i.Id != itemId && i.Code.Equals(dto.Code, StringComparison.OrdinalIgnoreCase)))
+                return Results.BadRequest("Code must be unique within the order");
+            
+            await itemAccess.UpdateCodeAsync(itemId, dto.Code);
+            return Results.Ok();
+        });
+
         // Get item details with stages
         app.MapGet("/api/items/{itemId:int}", async (
             int itemId,
@@ -72,7 +97,7 @@ public static class ProductionStagesEndpoints
             ProductionItemStageDataAccess stageAccess,
             StageTypeDataAccess stageTypeAccess,
             UserDataAccess userAccess,
-            ProductDataAccess productAccess,
+            CavityDataAccess cavityAccess,
             ProductionOrderDataAccess orderAccess) =>
         {
             var item = await itemAccess.GetByIdAsync(itemId);
@@ -94,7 +119,7 @@ public static class ProductionStagesEndpoints
                 { "FINISH_SILICON", 9 }
             };
             var allUsers = (await userAccess.GetAllAsync()).ToDictionary(u => u.Id);
-            var allProducts = (await productAccess.GetAllAsync()).ToDictionary(p => p.Id, p => p.Name);
+            var cavity = item != null ? (await cavityAccess.GetAllFromProjectAsync(order.ProjectId)).FirstOrDefault(c => c.Id == item.CavityId) : null;
             var stages = (await stageAccess.ListByItemAsync(itemId)).ToList();
             // Filter: Hide stages with planned_time_hours = 0 or NULL unless order is Draft
             var filteredStages = stages.Where(s =>
@@ -163,8 +188,10 @@ public static class ProductionStagesEndpoints
                 item = new
                 {
                     item.Id,
-                    item.ProductId,
-                    ProductName = allProducts.ContainsKey(item.ProductId) ? allProducts[item.ProductId] : null,
+                    item.CavityId,
+                    CavityCode = cavity?.Code,
+                    CavityName = cavity != null ? $"{cavity.Code} - {cavity.Description ?? cavity.Location ?? ""}" : null,
+                    item.Code,
                     item.LineNo,
                     item.QRCode,
                     item.IsCompleted,

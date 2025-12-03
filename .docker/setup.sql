@@ -7,7 +7,6 @@ drop table if exists production_item_stages;
 drop table if exists production_order_items;
 drop table if exists production_orders;
 drop table if exists stage_types;
-drop table if exists products;
 drop table if exists stock_import;
 drop table if exists material_planning_details;
 drop table if exists material_plannings;
@@ -150,16 +149,6 @@ create table if not exists stock_import (
     "date" date default now()
 );
 
-create table if not exists products (
-    "id" serial,
-    "name" varchar(250),
-    "project_id" integer null,
-    constraint "pk_products" primary key ("id"),
-    constraint "fk_products_project" foreign key ("project_id") references projects ("id")
-);
-
-create index if not exists "ix_products_project" on products ("project_id");
-
 -- production orders
 create table if not exists production_orders (
     "id" serial,
@@ -205,7 +194,8 @@ create table if not exists stage_types (
 create table if not exists production_order_items (
     "id" serial,
     "production_order_id" integer not null,
-    "product_id" integer not null,
+    "cavity_id" integer not null,
+    "code" varchar(4) not null,
     "line_no" integer not null,
     "status" smallint not null default 0,
     "planned_start_date" timestamp null,
@@ -221,8 +211,11 @@ create table if not exists production_order_items (
     "updated_at" timestamp null,
     constraint "pk_production_order_items" primary key ("id"),
     constraint "fk_order_items_order" foreign key ("production_order_id") references production_orders ("id"),
-    constraint "fk_order_items_product" foreign key ("product_id") references products ("id")
+    constraint "fk_order_items_cavity" foreign key ("cavity_id") references cavities ("id")
 );
+
+create unique index if not exists "uq_production_order_items_order_code"
+    on production_order_items ("production_order_id", "code");
 
 create unique index if not exists "uq_production_order_items_order_line_no"
     on production_order_items ("production_order_id", "line_no");
@@ -724,12 +717,122 @@ values
 ('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Deploying', 'rfq/imperial_docs.docx'),
 ('Homestay Phố Cổ', 'Hà Nội', 5, null, '2025-11-30', '2025-10-20 16:30:00', null, 'Planning', 'rfq/homestay_hanoi.docx');
 
--- Products dummy, linked to projects
-insert into products ("name", "project_id") values
-('Window Frame', 1),
-('Door Leaf', 1),
-('Glass Panel', 2),
-('Corner Bracket', 2);
+-- Cavities dummy data
+insert into cavities ("code", "project_id", "location", "quantity", "window_type", "description", "width", "height")
+values
+-- Project 1: Dự án Vinhome
+('S0S1', 1, 'Tầng 1 - Phòng khách', 2, 'Cửa đi mở quay', 'Cửa đi chính phòng khách', 900, 2100),
+('S2S3', 1, 'Tầng 1 - Phòng khách', 1, 'Cửa sổ mở quay', 'Cửa sổ phòng khách', 1200, 1500),
+('S3S4', 1, 'Tầng 2 - Phòng ngủ 1', 1, 'Cửa đi mở quay', 'Cửa phòng ngủ chính', 800, 2100),
+('S4S5', 1, 'Tầng 2 - Phòng ngủ 1', 2, 'Cửa sổ mở quay', 'Cửa sổ phòng ngủ', 1000, 1200),
+('S5S6', 1, 'Tầng 2 - Phòng ngủ 2', 1, 'Cửa đi mở quay', 'Cửa phòng ngủ 2', 800, 2100),
+-- Project 2: Dự án Ecopark
+('E0E1', 2, 'Tầng 1 - Phòng khách', 1, 'Cửa đi mở quay', 'Cửa đi chính', 1000, 2200),
+('E1E2', 2, 'Tầng 1 - Phòng khách', 3, 'Cửa sổ mở quay', 'Cửa sổ phòng khách', 1500, 1800),
+('E2E3', 2, 'Tầng 2 - Phòng ngủ', 1, 'Cửa đi mở quay', 'Cửa phòng ngủ', 800, 2100),
+-- Project 3: Dự án Biệt thự FLC
+('F0F1', 3, 'Mặt tiền - Tầng 1', 2, 'Cửa đi mở quay', 'Cửa đi chính mặt tiền', 1200, 2400),
+('F1F2', 3, 'Mặt tiền - Tầng 1', 4, 'Cửa sổ mở quay', 'Cửa sổ mặt tiền', 1800, 2000),
+('F2F3', 3, 'Sau nhà - Tầng 1', 1, 'Cửa đi mở quay', 'Cửa đi sau nhà', 900, 2100),
+-- Project 4: Khách sạn Imperial Huế
+('I0I1', 4, 'Phòng 101', 1, 'Cửa đi mở quay', 'Cửa phòng 101', 900, 2100),
+('I1I2', 4, 'Phòng 101', 1, 'Cửa sổ mở quay', 'Cửa sổ phòng 101', 1200, 1500),
+('I2I3', 4, 'Phòng 102', 1, 'Cửa đi mở quay', 'Cửa phòng 102', 900, 2100),
+('I3I4', 4, 'Phòng 102', 1, 'Cửa sổ mở quay', 'Cửa sổ phòng 102', 1200, 1500),
+-- Project 5: Homestay Phố Cổ
+('H0H1', 5, 'Tầng 1', 1, 'Cửa đi mở quay', 'Cửa đi chính', 800, 2000),
+('H1H2', 5, 'Tầng 1', 2, 'Cửa sổ mở quay', 'Cửa sổ tầng 1', 1000, 1200);
+
+-- Cavity BOMs dummy data
+-- C001: Cửa đi chính phòng khách (Project 1)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+union all
+select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+union all
+select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+union all
+select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C001' and c.project_id = 1;
+
+-- C002: Cửa sổ phòng khách (Project 1)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+union all
+select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+union all
+select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+union all
+select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C002' and c.project_id = 1;
+
+-- C101: Cửa đi chính (Project 2)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 1000, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+union all
+select c.id, 'C3303', 2, 2200, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+union all
+select c.id, 'C3319', 1, 1000, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+union all
+select c.id, 'C3295', 1, (1000 + 2200) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C101' and c.project_id = 2;
+
+-- C102: Cửa sổ phòng khách (Project 2)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+union all
+select c.id, 'C3202', 2, 1800, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+union all
+select c.id, 'C3033', 1, 1500, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+union all
+select c.id, 'C3295', 1, (1500 + 1800) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C102' and c.project_id = 2;
+
+-- C201: Cửa đi chính mặt tiền (Project 3)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+union all
+select c.id, 'C3303', 2, 2400, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+union all
+select c.id, 'C3319', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+union all
+select c.id, 'C3295', 1, (1200 + 2400) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'C201' and c.project_id = 3;
+
+-- C202: Cửa sổ mặt tiền (Project 3)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1800, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+union all
+select c.id, 'C3202', 2, 2000, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+union all
+select c.id, 'C3033', 1, 1800, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+union all
+select c.id, 'C3295', 1, (1800 + 2000) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'C202' and c.project_id = 3;
+
+-- C301: Cửa phòng 101 (Project 4)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+union all
+select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+union all
+select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+union all
+select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C301' and c.project_id = 4;
+
+-- C302: Cửa sổ phòng 101 (Project 4)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+union all
+select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+union all
+select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+union all
+select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C302' and c.project_id = 4;
+
+-- C401: Cửa đi chính (Project 5)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 800, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+union all
+select c.id, 'C3303', 2, 2000, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+union all
+select c.id, 'C3319', 1, 800, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+union all
+select c.id, 'C3295', 1, (800 + 2000) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C401' and c.project_id = 5;
 
 -- Seed default stage types (if not exists)
 insert into stage_types ("code", "name", "is_active", "is_default")
@@ -758,43 +861,51 @@ from (
 ) as v(project_id, code, status)
 where not exists (select 1 from production_orders o where o."code" = v.code);
 
--- Items for PO-ALPHA-001 (assumes products inserted above exist with given names)
-insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
-select o.id, p.id, 1, null, false, now()
+-- Items for PO-ALPHA-001 (using first cavity from project 1 if exists)
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S001', 1, null, false, now()
 from production_orders o
-join products p on p."name" = 'Window Frame'
+join cavities c on c.project_id = o.project_id
 where o."code" = 'PO-ALPHA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
 and not exists (
-  select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 1
-);
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S001'
+)
+limit 1;
 
-insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
-select o.id, p.id, 2, null, false, now()
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S002', 2, null, false, now()
 from production_orders o
-join products p on p."name" = 'Door Leaf'
+join cavities c on c.project_id = o.project_id
 where o."code" = 'PO-ALPHA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
 and not exists (
-  select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 2
-);
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S002'
+)
+limit 1;
 
--- Items for PO-BETA-001
-insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
-select o.id, p.id, 1, null, false, now()
+-- Items for PO-BETA-001 (using first cavity from project 2 if exists)
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S001', 1, null, false, now()
 from production_orders o
-join products p on p."name" = 'Glass Panel'
+join cavities c on c.project_id = o.project_id
 where o."code" = 'PO-BETA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
 and not exists (
-  select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 1
-);
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S001'
+)
+limit 1;
 
-insert into production_order_items ("production_order_id", "product_id", "line_no", "qr_code", "is_completed", "created_at")
-select o.id, p.id, 2, null, false, now()
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S002', 2, null, false, now()
 from production_orders o
-join products p on p."name" = 'Corner Bracket'
+join cavities c on c.project_id = o.project_id
 where o."code" = 'PO-BETA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
 and not exists (
-  select 1 from production_order_items i where i.production_order_id = o.id and i.product_id = p.id and i.line_no = 2
-);
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S002'
+)
+limit 1;
 
 -- Create default stages for all items in these orders
 insert into production_item_stages ("production_order_item_id", "stage_type_id", "is_completed", "created_at")
