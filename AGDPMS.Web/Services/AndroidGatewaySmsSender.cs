@@ -17,10 +17,10 @@ public class AndroidGatewaySmsSender : ISmsSender
     private readonly AndroidSmsGatewayOptions _opts;
     private readonly HttpClient _http;
     
-    public AndroidGatewaySmsSender(IOptions<AndroidSmsGatewayOptions> options, HttpClient http)
+    public AndroidGatewaySmsSender(IOptions<AndroidSmsGatewayOptions> options, IHttpClientFactory httpClientFactory)
     {
         _opts = options.Value;
-        _http = http;
+        _http = httpClientFactory.CreateClient();
         _http.BaseAddress = new Uri("https://api.sms-gate.app/3rdparty/v1/");
         var authBytes = Encoding.UTF8.GetBytes($"{_opts.Username}:{_opts.Password}");
         var authHeader = Convert.ToBase64String(authBytes);
