@@ -20,11 +20,11 @@ public class MaterialType
     public int Id { set; get; }
     public required string Name { set; get; }
 
-    public static readonly MaterialType Aluminum = new() { Id = 1, Name = "aluminum" };
-    public static readonly MaterialType Glass = new() { Id = 2, Name = "glass" };
-    public static readonly MaterialType Accessory = new() { Id = 3, Name = "accessory" };
-    public static readonly MaterialType Gasket = new() { Id = 4, Name = "gasket" };
-    public static readonly MaterialType Auxiliary = new() { Id = 5, Name = "auxiliary" };
+    public static readonly MaterialType Aluminum = new() { Id = 1, Name = "Nhôm" };
+    public static readonly MaterialType Glass = new() { Id = 2, Name = "Kính" };
+    public static readonly MaterialType Accessory = new() { Id = 3, Name = "Phụ kiện" };
+    public static readonly MaterialType Gasket = new() { Id = 4, Name = "Roăng" };
+    public static readonly MaterialType Auxiliary = new() { Id = 5, Name = "Vật tư phụ" };
     public static IEnumerable<MaterialType> All => [Aluminum, Glass, Accessory, Gasket, Auxiliary];
 
     public static MaterialType? FromId(int id) => All.FirstOrDefault(m => m.Id == id);
