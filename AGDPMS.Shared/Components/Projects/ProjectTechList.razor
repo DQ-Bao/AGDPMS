@@ -1,0 +1,76 @@
+﻿@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+
+@inject IProductService ProductService
+
+<StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
+<DataTable TItem="AppRFQ" TEdit="object" Items="Projects"
+           SearchBy="@(p => p.ProjectRFQName)"
+           FilterBy="@(p => p.Status.ToString())"
+           FilterOptions="@(Enum.GetValues<ProjectRFQStatus>().Select(s => (s.ToString(), GetStatusLabel(s))))">
+    <DataTemplate>
+        <Column Header="Tên dự án">
+            <CellTemplate><td>@context.ProjectRFQName</td></CellTemplate>
+        </Column>
+        <Column Header="Địa điểm">
+            <CellTemplate><td>@context.Location</td></CellTemplate>
+        </Column>
+        <Column Header="Chủ đầu tư">
+            <CellTemplate><td>@context.Client.Name</td></CellTemplate>
+        </Column>
+        <Column Header="Đơn vị thiết kế">
+            <CellTemplate><td>@context.DesignCompany</td></CellTemplate>
+        </Column>
+        <Column Header="Ngày hoàn thành">
+            <CellTemplate><td>@context.CompletionDate.ToString("yyyy-MM-dd")</td></CellTemplate>
+        </Column>
+        <Column Header="Trạng thái">
+            <CellTemplate>
+                <td>
+                    <span class="@GetStatusClass(context.Status)">
+                        @GetStatusLabel(@context.Status)
+                    </span>
+                </td>
+            </CellTemplate>
+        </Column>
+    </DataTemplate>
+    <ActionTemplate>
+        <a href="/projects/@context.Id" class="btn btn-outline-dark btn-sm">Chi tiết</a>
+    </ActionTemplate>
+</DataTable>
+
+@code {
+    private IEnumerable<AppRFQ> Projects { get; set; } = [];
+    private StatusMessage? StatusMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ProductService.GetAllProjectsAsync();
+        if (result.Success) Projects = result.Projects;
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private string GetStatusLabel(ProjectRFQStatus status) => status switch
+    {
+        ProjectRFQStatus.Planning => "Lên kế hoạch",
+        ProjectRFQStatus.Production => "Đang sản xuất",
+        ProjectRFQStatus.Deploying => "Đang lắp đặt",
+        ProjectRFQStatus.Completed => "Đã xong",
+        ProjectRFQStatus.Cancelled => "Bị hủy",
+        _ => status.ToString()
+    };
+
+    private string GetStatusClass(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Planning => "badge bg-secondary",
+            ProjectRFQStatus.Production => "badge bg-warning",
+            ProjectRFQStatus.Deploying => "badge bg-info",
+            ProjectRFQStatus.Completed => "badge bg-success",
+            ProjectRFQStatus.Cancelled => "badge bg-danger",
+            _ => "badge bg-light text-dark"
+        };
+    }
+}

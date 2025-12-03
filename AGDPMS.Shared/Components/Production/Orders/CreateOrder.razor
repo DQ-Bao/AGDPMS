@@ -1,0 +1,287 @@
+@page "/production/orders/create"
+@using AGDPMS.Shared.Models.DTOs
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="container py-3">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/production/orders">Production Orders</a></li>
+            <li class="breadcrumb-item active">Create</li>
+        </ol>
+    </nav>
+    <h4>Tạo lệnh sản xuất</h4>
+
+    <div class="mb-3" style="max-width:480px;">
+        <label class="form-label">Dự án</label>
+        <input class="form-control mb-2" placeholder="Tìm dự án..." @bind-value="projectSearch" @bind-value:event="oninput" @bind-value:after="LoadProjects" />
+        <div class="list-group" style="max-height:200px; overflow:auto;">
+            @foreach (var p in projects)
+            {
+                <button type="button" class="list-group-item list-group-item-action @(p.Id==projectId?"active":"")" @onclick="() => SelectProject(p.Id)">@p.Name</button>
+            }
+        </div>
+    </div>
+
+    @if (projectId is not null)
+    {
+        <div class="mb-3">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <label class="form-label mb-0">Cavity</label>
+                <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="ToggleSelectAll">
+                    @(allSelected ? "Bỏ chọn tất cả" : "Chọn tất cả")
+                </button>
+            </div>
+            <input class="form-control mb-2" placeholder="Tìm cavity..." @bind-value="cavitySearch" @bind-value:event="oninput" @bind-value:after="LoadCavities" />
+            <div class="table-responsive" style="max-height:40vh; overflow:auto;">
+                <table class="table table-sm align-middle">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:48px;"></th>
+                            <th>Mã</th>
+                            <th>Mô tả</th>
+                            <th>Vị trí</th>
+                            <th>Loại cửa sổ</th>
+                            <th>Kích thước</th>
+                            <th>Số lượng</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var c in cavities)
+                        {
+                            <tr>
+                                <td>
+                                    <input type="checkbox" class="form-check-input" checked="@selected.Contains(c.Id)" @onchange="(e)=>Toggle(c.Id,(bool)e.Value!)" />
+                                </td>
+                                <td>@c.Code</td>
+                                <td>@c.Description</td>
+                                <td>@c.Location</td>
+                                <td>@c.WindowType</td>
+                                <td>@($"{c.Width} x {c.Height}")</td>
+                                <td>
+                                    <input type="number" class="form-control form-control-sm" style="width:80px;" min="1" 
+                                           value="@GetQuantity(c.Id)" 
+                                           @onchange='@((ChangeEventArgs e) => SetQuantity(c.Id, int.TryParse(e.Value?.ToString(), out var qty) ? qty : 1))' />
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div>
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+            <button class="btn btn-primary" @onclick="Submit" disabled="@(!selected.Any() || isSubmitting)">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                }
+                Tạo lệnh
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    private List<Lookup> projects = new();
+    private List<CavityLookup> cavities = new();
+    private int? projectId;
+    private string? projectSearch;
+    private string? cavitySearch;
+    private HashSet<int> selected = new();
+    private Dictionary<int, int> quantities = new(); // cavityId -> quantity
+    private bool allSelected = true;
+    private string? errorMessage;
+    private bool isSubmitting = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadProjects();
+    }
+
+    private async Task LoadProjects()
+    {
+        try
+        {
+            var url = "/api/lookup/projects" + (string.IsNullOrWhiteSpace(projectSearch) ? string.Empty : $"?q={Uri.EscapeDataString(projectSearch!)}");
+            projects = await Http.GetFromJsonAsync<List<Lookup>>(url) ?? new();
+        }
+        catch
+        {
+            projects = new();
+        }
+        StateHasChanged();
+    }
+
+    private async Task LoadCavities()
+    {
+        if (projectId is null) { cavities = new(); StateHasChanged(); return; }
+        try
+        {
+            var url = $"/api/lookup/cavities?projectId={projectId}&q={Uri.EscapeDataString(cavitySearch ?? string.Empty)}";
+            var response = await Http.GetFromJsonAsync<List<CavityLookup>>(url) ?? new();
+            cavities = response;
+            // Select all by default and set default quantities
+            if (allSelected)
+            {
+                selected.Clear();
+                foreach (var c in cavities)
+                {
+                    selected.Add(c.Id);
+                    if (!quantities.ContainsKey(c.Id))
+                    {
+                        quantities[c.Id] = c.Quantity;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            cavities = new();
+        }
+        StateHasChanged();
+    }
+
+    private async Task SelectProject(int id)
+    {
+        projectId = id;
+        selected.Clear();
+        quantities.Clear();
+        allSelected = true;
+        errorMessage = null;
+        await LoadCavities();
+        StateHasChanged();
+    }
+
+    private void Toggle(int cavityId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            selected.Add(cavityId);
+            if (!quantities.ContainsKey(cavityId))
+            {
+                var cavity = cavities.FirstOrDefault(c => c.Id == cavityId);
+                quantities[cavityId] = cavity?.Quantity ?? 1;
+            }
+        }
+        else
+        {
+            selected.Remove(cavityId);
+        }
+        UpdateAllSelectedState();
+        StateHasChanged();
+    }
+
+    private void ToggleSelectAll()
+    {
+        allSelected = !allSelected;
+        if (allSelected)
+        {
+            foreach (var c in cavities)
+            {
+                selected.Add(c.Id);
+                if (!quantities.ContainsKey(c.Id))
+                {
+                    quantities[c.Id] = c.Quantity;
+                }
+            }
+        }
+        else
+        {
+            selected.Clear();
+        }
+        StateHasChanged();
+    }
+
+    private void UpdateAllSelectedState()
+    {
+        allSelected = cavities.Count > 0 && selected.Count == cavities.Count;
+    }
+
+    private int GetQuantity(int cavityId)
+    {
+        return quantities.GetValueOrDefault(cavityId, 1);
+    }
+
+    private void SetQuantity(int cavityId, int quantity)
+    {
+        if (quantity < 1) quantity = 1;
+        quantities[cavityId] = quantity;
+        StateHasChanged();
+    }
+
+    private async Task Submit()
+    {
+        errorMessage = null;
+        if (projectId is null || !selected.Any())
+        {
+            errorMessage = "Vui lòng chọn dự án và ít nhất một cavity.";
+            StateHasChanged();
+            return;
+        }
+        isSubmitting = true;
+        StateHasChanged();
+        try
+        {
+            var dto = new ProductionOrderCreateDto
+            {
+                ProjectId = projectId.Value,
+                Items = selected.Select(id => new ProductionOrderCreateItemDto 
+                { 
+                    CavityId = id,
+                    Quantity = GetQuantity(id)
+                }).ToList()
+            };
+            var url = "/api/orders";
+            var res = await Http.PostAsJsonAsync(url, dto);
+            if (res.IsSuccessStatusCode)
+            {
+                var body = await res.Content.ReadFromJsonAsync<CreateResult>();
+                if (body is not null)
+                {
+                    Nav.NavigateTo($"/production/orders/{body.id}");
+                }
+                else
+                {
+                    errorMessage = "Tạo lệnh thất bại: Phản hồi không hợp lệ.";
+                    isSubmitting = false;
+                    StateHasChanged();
+                }
+            }
+            else
+            {
+                var errorText = await res.Content.ReadAsStringAsync();
+                if (res.StatusCode == System.Net.HttpStatusCode.Unauthorized || res.StatusCode == System.Net.HttpStatusCode.Forbidden)
+                {
+                    errorMessage = $"Không có quyền. Hãy đăng nhập bằng tài khoản Trưởng bộ phận sản xuất. Mã trạng thái: {res.StatusCode}";
+                }
+                else if (res.StatusCode == System.Net.HttpStatusCode.NotFound)
+                {
+                    var content = await res.Content.ReadAsStringAsync();
+                    errorMessage = $"Không tìm thấy API (404). URL: {url}. Phản hồi: {content}. Vui lòng kiểm tra dịch vụ backend và quyền Trưởng bộ phận sản xuất.";
+                }
+                else
+                {
+                    errorMessage = $"Lỗi: {res.StatusCode} - {errorText}";
+                }
+                isSubmitting = false;
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lỗi: {ex.Message}";
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private record Lookup(int Id, string? Name);
+    private record CavityLookup(int Id, string Code, string? Description, string? Location, string? WindowType, double Width, double Height, int Quantity);
+    private record CreateResult(int id);
+}
+
+

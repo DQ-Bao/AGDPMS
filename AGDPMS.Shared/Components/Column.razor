@@ -1,0 +1,20 @@
+﻿@typeparam TItem
+@typeparam TEdit
+
+@code {
+    [CascadingParameter] public DataTable<TItem, TEdit>? Table { get; set; }
+    [Parameter] public string Header { get; set; } = string.Empty;
+    [Parameter, EditorRequired] public RenderFragment<TItem> CellTemplate { get; set; }
+    [Parameter] public RenderFragment<TEdit>? EditTemplate { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (Table is null) throw new InvalidOperationException($"{nameof(Column<TItem, TEdit>)} must be used within a {nameof(DataTable<TItem, TEdit>)}.");
+        Table.Columns.Add(new DataTable<TItem, TEdit>.ColumnDefinition<TItem, TEdit>
+        {
+            Header = Header,
+            CellTemplate = CellTemplate,
+            EditTemplate = EditTemplate
+        });
+    }
+}

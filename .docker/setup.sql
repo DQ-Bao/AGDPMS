@@ -1,3 +1,12 @@
+set client_encoding to 'utf8';
+
+drop table if exists stage_review_criteria_results;
+drop table if exists stage_reviews;
+drop table if exists stage_criteria;
+drop table if exists production_item_stages;
+drop table if exists production_order_items;
+drop table if exists production_orders;
+drop table if exists stage_types;
 drop table if exists stock_import;
 drop table if exists material_planning_details;
 drop table if exists material_plannings;
@@ -14,64 +23,64 @@ drop table if exists users;
 drop table if exists roles;
 
 create table if not exists roles ( 
-	"id" serial primary key,
-	"name" varchar(250) not null unique
+    "id" serial primary key,
+    "name" varchar(250) not null unique
 );
 
 create table if not exists users ( 
-	"id" serial primary key,
-	"fullname" varchar(250) not null,
-	"phone" varchar(20) not null unique,
-	"password_hash" text not null,
-	"created_at" timestamp null default now(),
-	"need_change_password" boolean not null default true,
-	"role_id" integer not null references roles("id"),
+    "id" serial primary key,
+    "fullname" varchar(250) not null,
+    "phone" varchar(20) not null unique,
+    "password_hash" text not null,
+    "created_at" timestamp null default now(),
+    "need_change_password" boolean not null default true,
+    "role_id" integer not null references roles("id"),
     "active" boolean not null default true,
     "email" varchar(250),
     "date_of_birth" date
 );
 
 create table if not exists material_type (
-	"id" serial primary key,
-	"name" varchar(250) not null unique
+    "id" serial primary key,
+    "name" varchar(250) not null unique
 );
 
 create table if not exists materials (
     "id" varchar(250) primary key,
     "name" varchar(250) not null,
     "type" integer references material_type("id"),
-	"weight" numeric(10,3)
+    "weight" numeric(10,3)
 );
 
 create table if not exists material_stock (
-	"id" serial primary key,
-	"material_id" varchar(250) not null references materials("id"),
-	"length" numeric(10,3) not null default 0,
-	"width" numeric(10,3) not null default 0,
-	"stock" int not null default 0,
-	"base_price" numeric(20,0) not null default 0
+    "id" serial primary key,
+    "material_id" varchar(250) not null references materials("id"),
+    "length" numeric(10,3) not null default 0,
+    "width" numeric(10,3) not null default 0,
+    "stock" int not null default 0,
+    "base_price" numeric(20,0) not null default 0
 );
 
 create table if not exists clients ( 
-  "id" serial primary key,
-  "name" varchar(250) not null,
-  "address" varchar(250),
-  "phone" varchar(250),
-  "email" varchar(250),
-  "sales_in_charge_id" integer references users("id")
+    "id" serial primary key,
+    "name" varchar(250) not null,
+    "address" varchar(250),
+    "phone" varchar(250),
+    "email" varchar(250),
+    "sales_in_charge_id" integer references users("id")
 );
 
 create table if not exists projects (
-  "id" serial primary key,
-  "name" varchar(250) not null,
-  "location" varchar(250) not null,
-  "client_id" integer not null references clients("id"),
-  "design_company" varchar(250),
-  "completion_date" date not null,
-  "created_at" timestamp default now(),
-  "design_file_path" varchar(250),
-  "status" varchar(250) not null default 'Planning' check ("status" in ('Planning', 'Production', 'Deploying', 'Completed', 'Cancelled')),
-  "document_path" varchar(250)
+    "id" serial primary key,
+    "name" varchar(250) not null,
+    "location" varchar(250) not null,
+    "client_id" integer not null references clients("id"),
+    "design_company" varchar(250),
+    "completion_date" date not null,
+    "created_at" timestamp default now(),
+    "design_file_path" varchar(250),
+    "status" varchar(250) not null default 'Planning' check ("status" in ('Planning', 'Production', 'Deploying', 'Completed', 'Cancelled')),
+    "document_path" varchar(250)
 );
 
 create table if not exists cavities (
@@ -98,37 +107,37 @@ create table if not exists cavity_boms (
 );
 
 create table if not exists machine_types (
-  "id" serial primary key,
-  "name" varchar(250) not null unique
+    "id" serial primary key,
+    "name" varchar(250) not null unique
 );
 
 create table if not exists machines (
-  "id" serial primary key,
-  "name" varchar(250) not null,
-  "machine_type_id" integer not null references machine_types("id"),
-  "status" varchar(50) not null default 'Operational' check ("status" in ('Operational', 'NeedsMaintenance', 'Broken')),
-  "entry_date" date not null,
-  "last_maintenance_date" date null,
-  "expected_completion_date" date null,
-  "capacity_value" numeric(10,2), -- <<  công suất 
-  "capacity_unit" varchar(50) -- <<  đơn vị (sản phẩm/phút, kg/giờ, mm/phút)
+    "id" serial primary key,
+    "name" varchar(250) not null,
+    "machine_type_id" integer not null references machine_types("id"),
+    "status" varchar(50) not null default 'Operational' check ("status" in ('Operational', 'NeedsMaintenance', 'Broken')),
+    "entry_date" date not null,
+    "last_maintenance_date" date null,
+    "expected_completion_date" date null,
+    "capacity_value" numeric(10,2), -- <<  công suất 
+    "capacity_unit" varchar(50) -- <<  đơn vị (sản phẩm/phút, kg/giờ, mm/phút)
 );
 
 create table if not exists material_plannings (
-	"id" serial primary key,
-	"made_by" integer not null references users("id"),
-	"project_id" integer not null references projects("id"),
-	"status" varchar(250) not null,
-	"created_at" timestamp null default now()
+    "id" serial primary key,
+    "made_by" integer not null references users("id"),
+    "project_id" integer not null references projects("id"),
+    "status" varchar(250) not null,
+    "created_at" timestamp null default now()
 );
 
 create table if not exists material_planning_details (
-	"id" serial primary key,
-	"planning_id" integer not null references material_plannings("id"),
-	"material_id" varchar(250) not null references materials("id"),
-	"quantity" integer not null,
-	"unit" varchar(250),
-	"note" text
+    "id" serial primary key,
+    "planning_id" integer not null references material_plannings("id"),
+    "material_id" varchar(250) not null references materials("id"),
+    "quantity" integer not null,
+    "unit" varchar(250),
+    "note" text
 );
 
 create table if not exists stock_import (
@@ -140,15 +149,184 @@ create table if not exists stock_import (
     "date" date default now()
 );
 
+-- production orders
+create table if not exists production_orders (
+    "id" serial,
+    "project_id" integer not null,
+    "code" varchar(50),
+    "status" smallint not null,
+    "is_cancelled" boolean not null default false,
+    "planned_start_date" timestamp null,
+    "planned_finish_date" timestamp null,
+    "submitted_at" timestamp null,
+    "director_decision_at" timestamp null,
+    "qa_machines_checked_at" timestamp null,
+    "qa_material_checked_at" timestamp null,
+    "started_at" timestamp null,
+    "finished_at" timestamp null,
+    "created_at" timestamp null default now(),
+    "created_by" integer null,
+    "updated_at" timestamp null,
+    "updated_by" integer null,
+    constraint "pk_production_orders" primary key ("id"),
+    constraint "fk_production_orders_project" foreign key ("project_id") references projects ("id"),
+    constraint "uq_production_orders_code" unique ("code")
+);
+
+create index if not exists "ix_production_orders_project_status" on production_orders ("project_id", "status");
+
+-- stage types (Vietnamese names for UI, English codes)
+create table if not exists stage_types (
+    "id" serial,
+    "code" varchar(50) not null,
+    "machine_id" integer null,
+    "name" varchar(250) not null,
+    "is_active" boolean not null default true,
+    "is_default" boolean not null default false,
+    "created_at" timestamp null default now(),
+    "updated_at" timestamp null,
+    constraint "pk_stage_types" primary key ("id"),
+    constraint "fk_stage_types_machine" foreign key ("machine_id") references machines ("id"),
+    constraint "uq_stage_types_code" unique ("code")
+);
+
+-- production order items
+create table if not exists production_order_items (
+    "id" serial,
+    "production_order_id" integer not null,
+    "cavity_id" integer not null,
+    "code" varchar(4) not null,
+    "line_no" integer not null,
+    "status" smallint not null default 0,
+    "planned_start_date" timestamp null,
+    "planned_finish_date" timestamp null,
+    "actual_start_date" timestamp null,
+    "actual_finish_date" timestamp null,
+    "qr_code" varchar(255) null,
+    "qr_image" bytea null,
+    "is_completed" boolean not null default false,
+    "completed_at" timestamp null,
+    "is_canceled" boolean not null default false,
+    "created_at" timestamp null default now(),
+    "updated_at" timestamp null,
+    constraint "pk_production_order_items" primary key ("id"),
+    constraint "fk_order_items_order" foreign key ("production_order_id") references production_orders ("id"),
+    constraint "fk_order_items_cavity" foreign key ("cavity_id") references cavities ("id")
+);
+
+create unique index if not exists "uq_production_order_items_order_code"
+    on production_order_items ("production_order_id", "code");
+
+create unique index if not exists "uq_production_order_items_order_line_no"
+    on production_order_items ("production_order_id", "line_no");
+
+create index if not exists "ix_production_order_items_order"
+    on production_order_items ("production_order_id");
+
+-- production item stages
+create table if not exists production_item_stages (
+    "id" serial,
+    "production_order_item_id" integer not null,
+    "stage_type_id" integer not null,
+    "assigned_qa_user_id" integer null,
+    "planned_start_date" timestamp null,
+    "planned_finish_date" timestamp null,
+    "actual_start_date" timestamp null,
+    "actual_finish_date" timestamp null,
+    "planned_time_hours" numeric(10,2) null,
+    "actual_time_hours" numeric(10,2) null,
+    "is_completed" boolean not null default false,
+    "completed_at" timestamp null,
+    "note" text null,
+    "created_at" timestamp null default now(),
+    "updated_at" timestamp null,
+    constraint "pk_production_item_stages" primary key ("id"),
+    constraint "fk_item_stages_item" foreign key ("production_order_item_id") references production_order_items ("id"),
+    constraint "fk_item_stages_stage_type" foreign key ("stage_type_id") references stage_types ("id"),
+    constraint "uq_item_stage_per_type" unique ("production_order_item_id", "stage_type_id")
+);
+
+create index if not exists "ix_item_stages_item"
+    on production_item_stages ("production_order_item_id");
+
+-- stage criteria for QA review
+create table if not exists stage_criteria (
+    "id" serial,
+    "stage_type_id" integer not null,
+    "code" varchar(50) not null,
+    "name" varchar(250) not null,
+    "description" text null,
+    "check_type" varchar(50) not null default 'boolean' check ("check_type" in ('boolean', 'numeric', 'text', 'select')),
+    "required" boolean not null default true,
+    "order_index" integer not null default 0,
+    "is_active" boolean not null default true,
+    "created_at" timestamp null default now(),
+    "updated_at" timestamp null,
+    constraint "pk_stage_criteria" primary key ("id"),
+    constraint "fk_stage_criteria_stage_type" foreign key ("stage_type_id") references stage_types ("id"),
+    constraint "uq_stage_criteria_code" unique ("stage_type_id", "code")
+);
+
+create index if not exists "ix_stage_criteria_stage_type"
+    on stage_criteria ("stage_type_id", "order_index");
+
+-- stage reviews for QA review process
+create table if not exists stage_reviews (
+    "id" serial,
+    "production_item_stage_id" integer not null,
+    "requested_by_user_id" integer not null,
+    "reviewed_by_user_id" integer null,
+    "status" varchar(50) not null default 'pending' check ("status" in ('pending', 'in_progress', 'passed', 'failed')),
+    "notes" text null,
+    "requested_at" timestamp null default now(),
+    "reviewed_at" timestamp null,
+    "created_at" timestamp null default now(),
+    "updated_at" timestamp null,
+    constraint "pk_stage_reviews" primary key ("id"),
+    constraint "fk_stage_reviews_stage" foreign key ("production_item_stage_id") references production_item_stages ("id"),
+    constraint "fk_stage_reviews_requested_by" foreign key ("requested_by_user_id") references users ("id"),
+    constraint "fk_stage_reviews_reviewed_by" foreign key ("reviewed_by_user_id") references users ("id")
+);
+
+create index if not exists "ix_stage_reviews_stage"
+    on stage_reviews ("production_item_stage_id", "created_at" desc);
+
+-- stage review criteria results
+create table if not exists stage_review_criteria_results (
+    "id" serial,
+    "stage_review_id" integer not null,
+    "stage_criteria_id" integer not null,
+    "is_passed" boolean null,
+    "value" text null,
+    "notes" text null,
+    "severity" varchar(50) null check ("severity" in ('low', 'medium', 'high', 'critical')),
+    "content" text null,
+    "attachments" text null,
+    "created_at" timestamp null default now(),
+    "updated_at" timestamp null,
+    constraint "pk_stage_review_criteria_results" primary key ("id"),
+    constraint "fk_review_criteria_review" foreign key ("stage_review_id") references stage_reviews ("id") on delete cascade,
+    constraint "fk_review_criteria_criteria" foreign key ("stage_criteria_id") references stage_criteria ("id"),
+    constraint "uq_review_criteria" unique ("stage_review_id", "stage_criteria_id")
+);
+
+create index if not exists "ix_review_criteria_review"
+    on stage_review_criteria_results ("stage_review_id");
+
 -- INSERT --
 insert into roles ("name")
-values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA');
+values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA'), ('Production Manager');;
 
-insert into users ("fullname", "phone", "password_hash", "role_id")
-values ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1);
+insert into users ("fullname", "phone", "password_hash", "role_id", "need_change_password")
+values 
+('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1, false),
+('Nguyễn Bảo Khánh', '0966699704', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 1, false),
+('Nguyễn Bảo Khánh', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3, false),
+('QA Tester', '0900000000', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
+('Production Manager', '0900000001', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 6, false);
 
 insert into material_type ("name")
-values ('aluminum'), ('glass'), ('accessory'), ('gasket'), ('auxiliary');
+values ('Nhôm'), ('Kính'), ('Phụ kiện'), ('Roăng'), ('Vật tư phụ');
 
 insert into materials ("id", "name", "weight", "type")
 values
@@ -486,6 +664,43 @@ values
 ('B3732', 'Khung đứng', 0.689, 1),
 ('B3733', 'Nẹp kính', 0.136, 1);
 
+insert into material_stock("material_id", "length", "base_price")
+values
+('C3209', 6000, 88000),
+('C3295', 6000, 88000),
+('C3313', 6000, 88000),
+('C3328', 6000, 88000),
+('C22903', 6000, 88000),
+('C3303', 6000, 88000),
+('C3329', 6000, 88000),
+('C3296', 6000, 88000),
+('C3203', 6000, 88000),
+('C3318', 6000, 88000),
+('C3202', 6000, 88000),
+('C3300', 6000, 88000),
+('C3304', 6000, 88000),
+--('C3208', 6000, 88000),
+('D1543A', 6000, 88000),
+('D1555A', 6000, 88000),
+('D1544A', 6000, 88000),
+('D1546A', 6000, 88000),
+('D1547A', 6000, 88000),
+('D1942', 6000, 88000),
+('D1541A', 6000, 88000),
+('D23156', 6000, 88000),
+('D23157', 6000, 88000),
+('D23151', 6000, 88000),
+('C3236', 6000, 88000),
+('F606', 6000, 88000),
+('F605', 6000, 88000),
+('F523', 6000, 88000),
+('F560', 6000, 88000),
+('F607', 6000, 88000),
+('F2435', 6000, 88000),
+('F520', 6000, 88000),
+('F521', 6000, 88000);
+--('F431', 6000, 88000);
+
 insert into clients ("name", "address", "phone", "email", "sales_in_charge_id")
 values
 ('Albert Cook', '123 Đường ABC, Hà Nội', '090-123-4567', 'albert.cook@example.com', null),
@@ -502,11 +717,464 @@ values
 ('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Deploying', 'rfq/imperial_docs.docx'),
 ('Homestay Phố Cổ', 'Hà Nội', 5, null, '2025-11-30', '2025-10-20 16:30:00', null, 'Planning', 'rfq/homestay_hanoi.docx');
 
-insert into machine_types ("name") 
-values  ('Máy Cắt'), ('Máy Phay Ổ Khóa'), ('Máy Tiện Tự Động');
-
-insert into machines ("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
+-- Cavities dummy data
+insert into cavities ("code", "project_id", "location", "quantity", "window_type", "description", "width", "height")
 values
-('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, 5, 'mm/phút', NULL),
+-- Project 1: Dự án Vinhome
+('S0S1', 1, 'Tầng 1 - Phòng khách', 2, 'Cửa đi mở quay', 'Cửa đi chính phòng khách', 900, 2100),
+('S2S3', 1, 'Tầng 1 - Phòng khách', 1, 'Cửa sổ mở quay', 'Cửa sổ phòng khách', 1200, 1500),
+('S3S4', 1, 'Tầng 2 - Phòng ngủ 1', 1, 'Cửa đi mở quay', 'Cửa phòng ngủ chính', 800, 2100),
+('S4S5', 1, 'Tầng 2 - Phòng ngủ 1', 2, 'Cửa sổ mở quay', 'Cửa sổ phòng ngủ', 1000, 1200),
+('S5S6', 1, 'Tầng 2 - Phòng ngủ 2', 1, 'Cửa đi mở quay', 'Cửa phòng ngủ 2', 800, 2100),
+-- Project 2: Dự án Ecopark
+('E0E1', 2, 'Tầng 1 - Phòng khách', 1, 'Cửa đi mở quay', 'Cửa đi chính', 1000, 2200),
+('E1E2', 2, 'Tầng 1 - Phòng khách', 3, 'Cửa sổ mở quay', 'Cửa sổ phòng khách', 1500, 1800),
+('E2E3', 2, 'Tầng 2 - Phòng ngủ', 1, 'Cửa đi mở quay', 'Cửa phòng ngủ', 800, 2100),
+-- Project 3: Dự án Biệt thự FLC
+('F0F1', 3, 'Mặt tiền - Tầng 1', 2, 'Cửa đi mở quay', 'Cửa đi chính mặt tiền', 1200, 2400),
+('F1F2', 3, 'Mặt tiền - Tầng 1', 4, 'Cửa sổ mở quay', 'Cửa sổ mặt tiền', 1800, 2000),
+('F2F3', 3, 'Sau nhà - Tầng 1', 1, 'Cửa đi mở quay', 'Cửa đi sau nhà', 900, 2100),
+-- Project 4: Khách sạn Imperial Huế
+('I0I1', 4, 'Phòng 101', 1, 'Cửa đi mở quay', 'Cửa phòng 101', 900, 2100),
+('I1I2', 4, 'Phòng 101', 1, 'Cửa sổ mở quay', 'Cửa sổ phòng 101', 1200, 1500),
+('I2I3', 4, 'Phòng 102', 1, 'Cửa đi mở quay', 'Cửa phòng 102', 900, 2100),
+('I3I4', 4, 'Phòng 102', 1, 'Cửa sổ mở quay', 'Cửa sổ phòng 102', 1200, 1500),
+-- Project 5: Homestay Phố Cổ
+('H0H1', 5, 'Tầng 1', 1, 'Cửa đi mở quay', 'Cửa đi chính', 800, 2000),
+('H1H2', 5, 'Tầng 1', 2, 'Cửa sổ mở quay', 'Cửa sổ tầng 1', 1000, 1200);
+
+-- Cavity BOMs dummy data
+-- C001: Cửa đi chính phòng khách (Project 1)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+union all
+select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+union all
+select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+union all
+select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C001' and c.project_id = 1;
+
+-- C002: Cửa sổ phòng khách (Project 1)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+union all
+select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+union all
+select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+union all
+select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C002' and c.project_id = 1;
+
+-- C101: Cửa đi chính (Project 2)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 1000, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+union all
+select c.id, 'C3303', 2, 2200, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+union all
+select c.id, 'C3319', 1, 1000, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+union all
+select c.id, 'C3295', 1, (1000 + 2200) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C101' and c.project_id = 2;
+
+-- C102: Cửa sổ phòng khách (Project 2)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+union all
+select c.id, 'C3202', 2, 1800, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+union all
+select c.id, 'C3033', 1, 1500, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+union all
+select c.id, 'C3295', 1, (1500 + 1800) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C102' and c.project_id = 2;
+
+-- C201: Cửa đi chính mặt tiền (Project 3)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+union all
+select c.id, 'C3303', 2, 2400, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+union all
+select c.id, 'C3319', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+union all
+select c.id, 'C3295', 1, (1200 + 2400) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'C201' and c.project_id = 3;
+
+-- C202: Cửa sổ mặt tiền (Project 3)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1800, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+union all
+select c.id, 'C3202', 2, 2000, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+union all
+select c.id, 'C3033', 1, 1800, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+union all
+select c.id, 'C3295', 1, (1800 + 2000) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'C202' and c.project_id = 3;
+
+-- C301: Cửa phòng 101 (Project 4)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+union all
+select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+union all
+select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+union all
+select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C301' and c.project_id = 4;
+
+-- C302: Cửa sổ phòng 101 (Project 4)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+union all
+select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+union all
+select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+union all
+select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C302' and c.project_id = 4;
+
+-- C401: Cửa đi chính (Project 5)
+insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
+select c.id, 'C3328', 2, 800, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+union all
+select c.id, 'C3303', 2, 2000, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+union all
+select c.id, 'C3319', 1, 800, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+union all
+select c.id, 'C3295', 1, (800 + 2000) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C401' and c.project_id = 5;
+
+-- Seed default stage types (if not exists)
+insert into stage_types ("code", "name", "is_active", "is_default")
+select v.code, v.name, true, true
+from (
+  values
+      ('CUT_AL', 'Cắt nhôm'),
+      ('MILL_LOCK', 'Phay ổ khóa'),
+      ('DOOR_CORNER_CUT', 'Cắt góc cửa'),
+      ('ASSEMBLE_FRAME', 'Ghép khung'),
+      ('GLASS_INSTALL', 'Lắp kính'),
+      ('PRESS_GASKET', 'Ép gioăng'),
+      ('INSTALL_ACCESSORIES', 'Bắn phụ kiện'),
+      ('CUT_FLUSH', 'Cắt sập'),
+      ('FINISH_SILICON', 'Hoàn thiện silicon')
+) as v(code, name)
+where not exists (select 1 from stage_types s where s."code" = v.code);
+
+-- Orders
+insert into production_orders ("project_id", "code", "status", "is_cancelled", "created_at")
+select v.project_id, v.code, v.status, false, now()
+from (
+  values
+      (1, 'PO-ALPHA-001', 0),
+      (2, 'PO-BETA-001',  0)
+) as v(project_id, code, status)
+where not exists (select 1 from production_orders o where o."code" = v.code);
+
+-- Items for PO-ALPHA-001 (using first cavity from project 1 if exists)
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S001', 1, null, false, now()
+from production_orders o
+join cavities c on c.project_id = o.project_id
+where o."code" = 'PO-ALPHA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
+and not exists (
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S001'
+)
+limit 1;
+
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S002', 2, null, false, now()
+from production_orders o
+join cavities c on c.project_id = o.project_id
+where o."code" = 'PO-ALPHA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
+and not exists (
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S002'
+)
+limit 1;
+
+-- Items for PO-BETA-001 (using first cavity from project 2 if exists)
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S001', 1, null, false, now()
+from production_orders o
+join cavities c on c.project_id = o.project_id
+where o."code" = 'PO-BETA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
+and not exists (
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S001'
+)
+limit 1;
+
+insert into production_order_items ("production_order_id", "cavity_id", "code", "line_no", "qr_code", "is_completed", "created_at")
+select o.id, c.id, 'S002', 2, null, false, now()
+from production_orders o
+join cavities c on c.project_id = o.project_id
+where o."code" = 'PO-BETA-001'
+and c.id = (select min(id) from cavities where project_id = o.project_id)
+and not exists (
+  select 1 from production_order_items i where i.production_order_id = o.id and i.code = 'S002'
+)
+limit 1;
+
+-- Create default stages for all items in these orders
+insert into production_item_stages ("production_order_item_id", "stage_type_id", "is_completed", "created_at")
+select i.id, st.id, false, now()
+from production_order_items i
+join production_orders o on o.id = i.production_order_id
+join stage_types st on st.is_default = true
+where o."code" in ('PO-ALPHA-001','PO-BETA-001')
+and not exists (
+  select 1 from production_item_stages s where s.production_order_item_id = i.id and s.stage_type_id = st.id
+);
+
+-- Update PO-ALPHA-001 to InProduction status with planned dates
+update production_orders
+set status = 5, -- InProduction
+  planned_start_date = '2025-11-01 08:00:00',
+  planned_finish_date = '2025-11-15 17:00:00',
+  submitted_at = '2025-10-25 09:00:00',
+  director_decision_at = '2025-10-26 10:00:00',
+  qa_machines_checked_at = '2025-10-27 11:00:00',
+  qa_material_checked_at = '2025-10-28 12:00:00',
+  started_at = '2025-11-01 08:00:00',
+  updated_at = now()
+where code = 'PO-ALPHA-001';
+
+-- Update items for PO-ALPHA-001 with planned dates
+update production_order_items
+set planned_start_date = '2025-11-01 08:00:00',
+  planned_finish_date = '2025-11-15 17:00:00',
+  updated_at = now()
+where production_order_id = (select id from production_orders where code = 'PO-ALPHA-001');
+
+-- Update stages for PO-ALPHA-001 items with planned dates and hours
+-- Stage order: CUT_AL, MILL_LOCK, DOOR_CORNER_CUT, ASSEMBLE_FRAME, GLASS_INSTALL, PRESS_GASKET, INSTALL_ACCESSORIES, CUT_FLUSH, FINISH_SILICON
+WITH src AS (
+  SELECT 
+      pis.id,
+      i.planned_start_date,
+      st.code
+  FROM production_item_stages pis
+  JOIN production_order_items i ON i.id = pis.production_order_item_id
+  JOIN production_orders o ON o.id = i.production_order_id
+  JOIN stage_types st ON st.id = pis.stage_type_id
+  WHERE o.code = 'PO-ALPHA-001'
+)
+UPDATE production_item_stages AS pis
+SET 
+  planned_start_date = src.planned_start_date + (
+      CASE 
+          WHEN src.code = 'CUT_AL' THEN interval '0 days'
+          WHEN src.code = 'MILL_LOCK' THEN interval '0 days'
+          WHEN src.code = 'DOOR_CORNER_CUT' THEN interval '1 day'
+          WHEN src.code = 'ASSEMBLE_FRAME' THEN interval '2 days'
+          WHEN src.code = 'GLASS_INSTALL' THEN interval '3 days'
+          WHEN src.code = 'PRESS_GASKET' THEN interval '3 days'
+          WHEN src.code = 'INSTALL_ACCESSORIES' THEN interval '4 days'
+          WHEN src.code = 'CUT_FLUSH' THEN interval '4 days'
+          WHEN src.code = 'FINISH_SILICON' THEN interval '5 days'
+          ELSE interval '0 days'
+      END
+  ),
+  updated_at = now()
+FROM src
+WHERE pis.id = src.id;
+
+INSERT INTO machine_types ("name") 
+VALUES 
+('Máy Cắt'),
+('Máy Phay Ổ Khóa'),
+('Máy Tiện Tự Động');
+
+INSERT INTO machines 
+("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
+VALUES
+('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, NULL,'mm/phút', NULL),
 ('Máy Cắt Góc', 1, 'Operational', '2025-02-20', NULL, 5, 'mm', NULL),
 ('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);
+
+-- Stage Criteria for QA Review
+-- Tiêu chí cho giai đoạn Cắt nhôm (CUT_AL)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'CUT_AL_01', 'Kích thước đúng theo bản vẽ', 'Kiểm tra kích thước thanh nhôm sau khi cắt có đúng theo bản vẽ thiết kế', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'CUT_AL'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'CUT_AL_02', 'Độ dài chính xác (±0.5mm)', 'Kiểm tra độ dài thanh nhôm có nằm trong dung sai cho phép', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'CUT_AL'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'CUT_AL_03', 'Độ vuông góc (90° ±0.5°)', 'Kiểm tra góc cắt có vuông góc không', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'CUT_AL'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'CUT_AL_04', 'Bề mặt cắt không có vết nứt', 'Kiểm tra bề mặt cắt không có vết nứt, vỡ', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'CUT_AL'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'CUT_AL_05', 'Số lượng thanh đúng', 'Kiểm tra số lượng thanh nhôm đã cắt đúng theo yêu cầu', 'numeric', true, 5
+FROM stage_types st WHERE st.code = 'CUT_AL'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Phay ổ khóa (MILL_LOCK)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'MILL_LOCK_01', 'Vị trí ổ khóa đúng', 'Kiểm tra vị trí phay ổ khóa có đúng theo bản vẽ', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'MILL_LOCK'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'MILL_LOCK_02', 'Kích thước ổ khóa chính xác', 'Kiểm tra kích thước ổ khóa có đúng theo yêu cầu', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'MILL_LOCK'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'MILL_LOCK_03', 'Độ sâu phay đúng (±0.2mm)', 'Kiểm tra độ sâu phay ổ khóa có đúng', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'MILL_LOCK'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'MILL_LOCK_04', 'Bề mặt phay nhẵn, không có ba via', 'Kiểm tra bề mặt phay không có ba via, gờ', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'MILL_LOCK'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Cắt góc cửa (DOOR_CORNER_CUT)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'DOOR_CORNER_01', 'Góc cắt đúng (45° ±0.5°)', 'Kiểm tra góc cắt có đúng 45 độ', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'DOOR_CORNER_02', 'Độ khớp góc tốt', 'Kiểm tra khi ghép góc, khe hở không quá 0.3mm', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'DOOR_CORNER_03', 'Bề mặt cắt không có vết nứt', 'Kiểm tra bề mặt cắt góc không có vết nứt', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Ghép khung (ASSEMBLE_FRAME)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ASSEMBLE_01', 'Khung vuông góc', 'Kiểm tra khung có vuông góc, không bị vênh', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ASSEMBLE_02', 'Ke góc được bắn đúng vị trí', 'Kiểm tra ke góc được bắn đúng vị trí và chắc chắn', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ASSEMBLE_03', 'Kích thước khung đúng (±1mm)', 'Kiểm tra kích thước khung có đúng theo bản vẽ', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ASSEMBLE_04', 'Không có khe hở lớn giữa các thanh', 'Kiểm tra khe hở giữa các thanh không quá 0.5mm', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ASSEMBLE_05', 'Độ phẳng của khung', 'Kiểm tra khung không bị cong vênh, độ phẳng trong phạm vi cho phép', 'boolean', true, 5
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Lắp kính (GLASS_INSTALL)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GLASS_01', 'Kích thước kính đúng', 'Kiểm tra kích thước kính có đúng theo bản vẽ', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GLASS_02', 'Kính không có vết nứt, vỡ', 'Kiểm tra kính không có vết nứt, vỡ, xước', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GLASS_03', 'Kính được lắp chắc chắn', 'Kiểm tra kính được lắp chắc chắn, không bị lỏng', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GLASS_04', 'Khe hở đều xung quanh', 'Kiểm tra khe hở giữa kính và khung đều nhau (2-3mm)', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Ép gioăng (PRESS_GASKET)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GASKET_01', 'Gioăng được ép đều', 'Kiểm tra gioăng được ép đều, không bị nhăn', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'PRESS_GASKET'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GASKET_02', 'Gioăng không bị đứt, rách', 'Kiểm tra gioăng không bị đứt, rách trong quá trình ép', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'PRESS_GASKET'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GASKET_03', 'Gioăng khít với kính', 'Kiểm tra gioăng khít với kính, không có khe hở', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'PRESS_GASKET'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GASKET_04', 'Gioăng đúng loại, màu sắc', 'Kiểm tra gioăng đúng loại và màu sắc theo yêu cầu', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'PRESS_GASKET'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Bắn phụ kiện (INSTALL_ACCESSORIES)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ACCESSORY_01', 'Phụ kiện đúng loại, số lượng', 'Kiểm tra phụ kiện đúng loại và đủ số lượng', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ACCESSORY_02', 'Vị trí lắp đặt đúng', 'Kiểm tra vị trí lắp đặt phụ kiện đúng theo bản vẽ', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ACCESSORY_03', 'Phụ kiện được bắn chắc chắn', 'Kiểm tra phụ kiện được bắn chắc chắn, không bị lỏng', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ACCESSORY_04', 'Không có vết xước, móp', 'Kiểm tra phụ kiện và bề mặt nhôm không bị xước, móp', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Cắt sập (CUT_FLUSH)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'FLUSH_01', 'Cắt sập đều, phẳng', 'Kiểm tra cắt sập đều, phẳng, không bị lệch', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'CUT_FLUSH'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'FLUSH_02', 'Không có vết cắt thừa', 'Kiểm tra không có vết cắt thừa, ba via', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'CUT_FLUSH'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'FLUSH_03', 'Bề mặt cắt nhẵn', 'Kiểm tra bề mặt cắt nhẵn, không có vết xước', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'CUT_FLUSH'
+ON CONFLICT DO NOTHING;
+
+-- Tiêu chí cho giai đoạn Hoàn thiện silicon (FINISH_SILICON)
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_01', 'Silicon được bơm đều', 'Kiểm tra silicon được bơm đều, không bị đứt quãng', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'FINISH_SILICON'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_02', 'Độ dày silicon đúng (3-5mm)', 'Kiểm tra độ dày lớp silicon có đúng yêu cầu', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'FINISH_SILICON'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_03', 'Silicon không bị bong, nứt', 'Kiểm tra silicon không bị bong, nứt sau khi khô', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'FINISH_SILICON'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_04', 'Bề mặt silicon nhẵn, đẹp', 'Kiểm tra bề mặt silicon nhẵn, đẹp, không có bọt khí', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'FINISH_SILICON'
+ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_05', 'Màu silicon đúng yêu cầu', 'Kiểm tra màu silicon đúng theo yêu cầu khách hàng', 'boolean', true, 5
+FROM stage_types st WHERE st.code = 'FINISH_SILICON'
+ON CONFLICT DO NOTHING;
