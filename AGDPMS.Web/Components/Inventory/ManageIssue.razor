@@ -1,4 +1,4 @@
-﻿@page "/inventory/stock"
+﻿@page "/inventory/issue"
 @rendermode InteractiveServer
 
 @using AGDPMS.Shared.Models
@@ -11,7 +11,7 @@
 
 <PageTitle>Kho</PageTitle>
 
-<h3>Quản lý kho</h3>
+<h3>Quản lý xuất kho</h3>
 
 <div class="card mb-3">
     <h5 class="card-header">Bộ lọc tìm kiếm</h5>
@@ -20,7 +20,7 @@
             <label class="col-form-label col-2"><span class="align-middle">Mã hoặc tên</span></label>
             <div class="col-10">
                 <input type="search"
-                       class="form-row form-control col-10" 
+                       class="form-row form-control col-10"
                        placeholder="Tìm kiếm theo mã hoặc tên"
                        value="@search_term" @oninput="Search" />
             </div>
@@ -39,8 +39,8 @@
         </div>
         <div class="form-check">
             <input class="form-check-input form-row"
-                   type="checkbox" 
-                   checked="@show_only_with_stocks" 
+                   type="checkbox"
+                   checked="@show_only_with_stocks"
                    @oninput="OnSelectCheckBox" />
             <label class="form-check-label">Chỉ hiển thị vật tư còn trong kho</label>
         </div>
@@ -87,19 +87,19 @@
                         <th>Tên</th>
                         <th>Loại vật tư</th>
                         <th>Kích thước</th>
-                        <th>Tồn kho</th>
+                        <th>Số lượng</th>
                         <th>Giá</th>
                     </tr>
                 </thead>
                 <tbody class="table-border-bottom-0">
-                    @foreach(Material m in items)
+                    @foreach (Material m in items)
                     {
                         <tr>
                             <td rowspan="@(@m.Stocks.Count() + 1)">@m.Id</td>
                             <td rowspan="@(@m.Stocks.Count() + 1)">@m.Name</td>
                             <td rowspan="@(@m.Stocks.Count() + 1)">@m.Type.Name</td>
                         </tr>
-                        @foreach(MaterialStock ms in m.Stocks)
+                        @foreach (MaterialStock ms in m.Stocks)
                         {
                             <tr>
                                 <td>@ms.Length</td>
@@ -141,7 +141,7 @@
         if (mt_res.Success)
         {
             material_types = mt_res.MaterialTypes;
-            // select_value = 
+            // select_value =
         }
         m_res = await inventoryService.GetMaterial();
         if (m_res.Success)

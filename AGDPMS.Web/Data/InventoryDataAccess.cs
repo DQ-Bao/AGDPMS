@@ -208,6 +208,8 @@ public class InventoryDataAccess(IDbConnection conn)
         return dic.Values;
     }
 
+    //public async Task<MaterialEstimate> GetMaterialEstimate()
+
     public async Task UpdateMaterial(List<Material> materials)
     {
         string udpate_m =
@@ -291,4 +293,5 @@ public class InventoryDataAccess(IDbConnection conn)
 
         return material;
     }
+
 }
