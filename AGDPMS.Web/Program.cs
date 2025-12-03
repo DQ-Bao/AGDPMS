@@ -37,38 +37,6 @@ builder.Services.AddScoped(sp =>
     return client;
 });
 
-// Configure HttpClient for Blazor Server with cookie forwarding
-builder.Services.AddTransient<CookieForwardingHandler>();
-builder
-    .Services.AddHttpClient("BlazorServer")
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler())
-    .AddHttpMessageHandler<CookieForwardingHandler>();
-
-builder.Services.AddScoped(sp =>
-{
-    var nav = sp.GetRequiredService<NavigationManager>();
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var client = factory.CreateClient("BlazorServer");
-    client.BaseAddress = new Uri(nav.BaseUri);
-    return client;
-});
-
-// Configure HttpClient for Blazor Server with cookie forwarding
-builder.Services.AddTransient<CookieForwardingHandler>();
-builder
-    .Services.AddHttpClient("BlazorServer")
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler())
-    .AddHttpMessageHandler<CookieForwardingHandler>();
-
-builder.Services.AddScoped(sp =>
-{
-    var nav = sp.GetRequiredService<NavigationManager>();
-    var factory = sp.GetRequiredService<IHttpClientFactory>();
-    var client = factory.CreateClient("BlazorServer");
-    client.BaseAddress = new Uri(nav.BaseUri);
-    return client;
-});
-
 builder.Services.AddCookieAndJwtAuth(opts => opts.Key = builder.Configuration["Jwt:Key"]!);
 
 builder.Services.AddSmsSender(opts =>
