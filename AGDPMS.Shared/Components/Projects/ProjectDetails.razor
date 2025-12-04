@@ -135,7 +135,7 @@
             <StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
             <div class="mb-3 d-flex align-items-center">
                 <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#materialRequestModal">Tạo yêu cầu nhập vật tư</button>
-                <button type="button" class="btn btn-success">Báo giá</button>
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#quotationModal">Báo giá</button>
             </div>
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingProfile">
@@ -641,6 +641,106 @@
         </div>
     </div>
 </div>
+<div class="modal fade" id="quotationModal" tabindex="-1" aria-labelledby="quotationModal" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="quotationModalLabel">Tạo báo giá</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+            </div>
+            <div class="modal-body">
+                @if (Quotation is not null)
+                {
+                   <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Ký hiệu</th>
+                                <th>Nội dung</th>
+                                <th>Rộng x Cao (mm)</th>
+                                <th>Số lượng</th>
+                                <th>Khối lượng (kg)</th>
+                                <th>Đơn giá (VND)</th>
+                                <th>Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Quotation.Details)
+                            {
+                                <tr>
+                                    <td>@item.Code</td>
+                                    <td>@item.Description</td>
+                                    <td>@item.Width x @item.Height</td>
+                                    <td>@item.Quantity</td>
+                                    <td>@((item.Weight * item.Quantity).ToString("N3"))</td>
+                                    <td>@item.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                    <td>@item.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                        <tfoot class="table-light fw-bold">
+                            <tr>
+                                <td colspan="4"></td>
+                                <td>@Quotation.TotalWeight.ToString("N3")</td>
+                                <td></td>
+                                <td>@Quotation.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                            </tr>
+                        </tfoot>
+                   </table>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Phí nhân công/cửa</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" @bind="LaborCost" />
+                            <span class="input-group-text">VND</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">% lợi nhuận/cửa</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" @bind="ProfitPercentage" />
+                            <span class="input-group-text">VND</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">% thuế/cửa</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" @bind="TaxPercentage" />
+                            <span class="input-group-text">VND</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Phí vận chuyển/cửa</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" @bind="TransportCost" />
+                            <span class="input-group-text">VND</span>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Dự trù</label>
+                        <div class="input-group">
+                            <input type="number" class="form-control" @bind="Contingency" />
+                            <span class="input-group-text">VND</span>
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                @if (Quotation is not null)
+                {
+                    <button type="button" @onclick="() => Quotation = null" class="btn btn-primary">Xóa</button>
+                    <button type="button" class="btn btn-success">Xuất Excel</button>
+                }
+                else
+                {
+                    <button type="button" @onclick="HandleCalculateQuotation" class="btn btn-primary">Tính báo giá</button>
+                }
+            </div>
+        </div>
+    </div>
+</div>
 
 @code {
     [Parameter] public int ProjectId { get; set; }
@@ -675,6 +775,14 @@
 
     private string? EditingOtherMaterialStockPriceRow { get; set; }
     private decimal EditingOtherMaterialStockPrice { get; set; }
+
+    private decimal LaborCost { get; set; }
+    private decimal ProfitPercentage { get; set; }
+    private decimal TaxPercentage { get; set; }
+    private decimal TransportCost { get; set; }
+    private decimal Contingency { get; set; }
+
+    private Quotation? Quotation { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
@@ -939,6 +1047,13 @@
         }
         var result = await ProductService.CreateMaterialPlanningAsync(planning);
         if (result.Success) StatusMessage = StatusMessage.Success("Tạo yêu cầu thành công");
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private async Task HandleCalculateQuotation()
+    {
+        var result = await ProductService.CalculateQuotationAsync(ProjectId, LaborCost, ProfitPercentage, TaxPercentage, TransportCost, Contingency);
+        if (result.Success) Quotation = result.Quotation;
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
