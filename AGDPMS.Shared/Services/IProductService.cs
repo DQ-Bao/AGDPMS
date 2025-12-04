@@ -16,6 +16,7 @@ public interface IProductService
     Task<AddOrUpdateProfileMaterialBasePriceResult> AddOrUpdateProfileMaterialBasePriceAsync(string materialId, double stockLength, int stockId, decimal price);
     Task<AddOrUpdateGlassMaterialBasePriceResult> AddOrUpdateGlassMaterialBasePriceAsync(string materialId, double stockWidth, double stockLength, int stockId, decimal price);
     Task<AddOrUpdateOtherMaterialBasePriceResult> AddOrUpdateOtherMaterialBasePriceAsync(string materialId, int stockId, decimal price);
+    Task<CreateMaterialPlanningResult> CreateMaterialPlanningAsync(MaterialPlanning planning);
 }
 
 public sealed class GetAllProjectsResult
@@ -91,6 +92,12 @@ public sealed class AddOrUpdateGlassMaterialBasePriceResult
 }
 
 public sealed class AddOrUpdateOtherMaterialBasePriceResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+}
+
+public sealed class CreateMaterialPlanningResult
 {
     public required bool Success { get; set; }
     public string? ErrorMessage { get; set; }

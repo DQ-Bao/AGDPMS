@@ -5,9 +5,15 @@
 @using AGDPMS.Shared.Services
 @using System.ComponentModel.DataAnnotations
 @using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+
+@attribute [Authorize(Roles = "Director,Technician")]
 
 @inject WStarService WStarService
 @inject IProductService ProductService
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="mb-3">
     <a href="/projects" class="text-decoration-none d-inline-flex align-items-center text-primary">
@@ -630,7 +636,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Gửi</button>
+                <button type="button" @onclick="HandleSendMaterialRequest" class="btn btn-primary" data-bs-dismiss="modal">Gửi</button>
             </div>
         </div>
     </div>
@@ -884,11 +890,63 @@
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
 
+    private async Task HandleSendMaterialRequest()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (!int.TryParse(authState.User.FindFirst(ClaimTypes.NameIdentifier)!.Value, out var userId)) return;
+        var planning = new MaterialPlanning { UserId = userId, ProjectId = ProjectId };
+        foreach (var p in Profiles)
+        {
+            foreach (var su in p.StockUsages)
+            {
+                if (su.Need <= 0) continue;
+                planning.Details.Add(new()
+                {
+                    Material = p,
+                    Length = su.StockLength,
+                    Quantity = su.Need,
+                    Unit = "mm"
+                });
+            }
+        }
+        foreach (var g in Glasses)
+        {
+            foreach (var cut in g.Cuts)
+            {
+                if (cut.Need <= 0) continue;
+                planning.Details.Add(new()
+                {
+                    Material = g,
+                    Length = cut.Length,
+                    Width = cut.Width,
+                    Quantity = cut.Need,
+                    Unit = "mm"
+                });
+            }
+        }
+        foreach (var m in OtherMaterials)
+        {
+            var missing = m.GasketLength is null ? m.Need : m.NeedGasketLength;
+            if (missing <= 0) continue;
+            planning.Details.Add(new MaterialPlanningDetails
+            {
+                Material = m,
+                Length = m.GasketLength is null ? 0 : m.NeedGasketLength,
+                Width = 0,
+                Quantity = m.GasketLength is null ? m.Need : 1,
+                Unit = m.Unit ?? ""
+            });
+        }
+        var result = await ProductService.CreateMaterialPlanningAsync(planning);
+        if (result.Success) StatusMessage = StatusMessage.Success("Tạo yêu cầu thành công");
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
     private sealed class SummarizeAluminumModel
     {
         [Required]
         [Range(1, int.MaxValue, ErrorMessage = "Độ dài lõi thép phải lớn hơn 0")]
-        public int StockLength { get; set; } = 5800;
+        public int StockLength { get; set; } = 6000;
     }
 
     private sealed class UpdateCavityModel

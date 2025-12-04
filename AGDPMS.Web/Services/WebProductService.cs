@@ -304,4 +304,17 @@ internal class WebProductService(
             return new AddOrUpdateOtherMaterialBasePriceResult { Success = false, ErrorMessage = ex.Message };
         }
     }
+
+    public async Task<CreateMaterialPlanningResult> CreateMaterialPlanningAsync(MaterialPlanning planning)
+    {
+        try
+        {
+            await cavityDataAccess.CreateMaterialPlanningAsync(planning);
+            return new CreateMaterialPlanningResult { Success = true };
+        }
+        catch (Exception ex)
+        {
+            return new CreateMaterialPlanningResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
 }

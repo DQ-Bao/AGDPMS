@@ -207,6 +207,31 @@ public class CavityDataAccess(IDbConnection conn)
             where id = @StockId",
             new { StockId = stockId, Price = price }, tran);
 
+    // Move this to inventory data access
+    public async Task CreateMaterialPlanningAsync(MaterialPlanning planning, IDbTransaction? tran = null)
+    {
+        var pId = await conn.ExecuteScalarAsync<int>(@"
+            insert into material_plannings(made_by, project_id)
+            values (@UserId, @ProjectId)
+            returning id", new { planning.UserId, planning.ProjectId }, tran);
+        foreach (var d in planning.Details)
+        {
+            await conn.ExecuteAsync(@"
+                insert into material_planning_details(planning_id, material_id, length, width, quantity, unit, note)
+                values (@PlanningId, @MaterialId, @Length, @Width, @Quantity, @Unit, @Note)",
+                new
+                {
+                    PlanningId = pId,
+                    MaterialId = d.Material.Id,
+                    d.Length,
+                    d.Width,
+                    d.Quantity,
+                    d.Unit,
+                    d.Note
+                }, tran);
+        }
+    }
+
     public async Task<string?> AddOrUpdateBatchAsync(IEnumerable<Cavity> cavities)
     {
         if (conn.State != ConnectionState.Open) conn.Open();

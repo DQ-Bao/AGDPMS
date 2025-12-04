@@ -125,7 +125,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "aluminum"))
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type == MaterialType.Aluminum))
                                 {
                                     <tr>
                                         <td>@bom.Material.Name</td>
@@ -162,7 +162,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "accessory"))
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type == MaterialType.Accessory))
                                 {
                                     <tr>
                                         <td>@bom.Material.Name</td>
@@ -200,7 +200,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "glass"))
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type == MaterialType.Glass))
                                 {
                                     <tr>
                                         <td>@bom.Material.Name</td>
@@ -239,7 +239,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "gasket"))
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type == MaterialType.Gasket))
                                 {
                                     <tr>
                                         <td>@bom.Material.Name</td>
@@ -276,7 +276,7 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type?.Name == "auxiliary"))
+                                @foreach (var bom in Cavity.BOMs.Where(b => b.Material.Type == MaterialType.Auxiliary))
                                 {
                                     <tr>
                                         <td>@bom.Material.Name</td>
