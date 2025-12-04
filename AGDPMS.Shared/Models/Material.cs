@@ -2,8 +2,8 @@
 
 public class Material
 {
-    public required string Id { set; get; }
-    public required string Name { set; get; }
+    public required string Id { set; get; } = string.Empty;
+    public required string Name { set; get; } = string.Empty;
     public required MaterialType? Type { set; get; }
     public double Weight { set; get; }
     public List<MaterialStock> Stocks { set; get; } = [];

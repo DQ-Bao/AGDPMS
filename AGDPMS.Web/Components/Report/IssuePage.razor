@@ -42,7 +42,7 @@
 @code {
     // Excel represented as List<List<string>>
     private List<List<string>> excelData = new();
-    private Issue issue = new Issue();
+    private StockIssue issue = new StockIssue();
 
     protected override void OnInitialized()
     {
@@ -64,6 +64,6 @@
 
     private void GenerateIssue()
     {
-        reportService.GenerateIssue(new List<StockTransaction>());
+        reportService.GenerateIssue(new List<StockIssue>());
     }
 }

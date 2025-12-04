@@ -9,7 +9,7 @@
 
 @inject IInventoryService inventoryService
 
-<PageTitle>Kho</PageTitle>
+<PageTitle>Quản lý nhập kho</PageTitle>
 
 <h3>Quản lý nhập kho</h3>
 
@@ -19,9 +19,9 @@
         <div class="row">
             <div class="col-6">
                 <input type="search"
-                       class="form-row form-control col-10"
-                       placeholder="Tìm kiếm theo mã hoặc tên"
-                       value="@search_term" @oninput="Search" />
+                        class="form-row form-control col-10"
+                        placeholder="Tìm kiếm theo mã hoặc tên"
+                        value="@search_term" @oninput="Search" />
             </div>
             <label class="col-1" for="from">Từ</label>
             <div class="col-2">
@@ -40,17 +40,14 @@
     @* <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Kho </h4> *@
     <div>
         <button class="btn btn-primary me-2">
-            <i class="me-1"></i> Thêm vật tư mới
-        </button>
-        <button class="btn btn-primary">
-            <i class="me-1">Sửa thông tin vật tư </i>
+            <i class="me-1"></i> Tạo phiếu nhập kho
         </button>
     </div>
 </div>
 
 <div class="card">
     <h5 class="card-header">
-        Danh sách vật tư (Số lượng: @(items.Count()))
+        Phiếu nhập kho (Số lượng: @(items.Count()))
     </h5>
     <div class="table-responsive text-nowrap">
         @if (is_loading)

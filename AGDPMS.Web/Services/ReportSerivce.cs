@@ -20,7 +20,7 @@ public class ReportSerivce : IReportService
             Directory.CreateDirectory(exports);
     }
 
-    public string GenerateReceipt(IEnumerable<StockTransaction> transactions)
+    public string GenerateReceipt(IEnumerable<StockReceipt> transactions)
     {
         using var wb = new XLWorkbook(receipt);
         var ws = wb.Worksheet(1);
@@ -38,12 +38,8 @@ public class ReportSerivce : IReportService
         wb.SaveAs(filePath);
         return filePath;
     }
-    public string GenerateReceipt(Receipt receipt)
-    {
-        throw new NotImplementedException();
-    }
 
-    public string GenerateIssue(IEnumerable<StockTransaction> transactions)
+    public string GenerateIssue(IEnumerable<StockIssue> transactions)
     {
         using var wb = new XLWorkbook(issue);
         var ws = wb.Worksheet(1);
@@ -53,11 +49,6 @@ public class ReportSerivce : IReportService
         string filePath = Path.Combine(exports, $"xuat_kho_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx");
         wb.SaveAs(filePath);
         return filePath;
-    }
-
-    public string GenerateIssue(Issue issue)
-    {
-        throw new NotImplementedException();
     }
 
     public string GenerateQuotation(Quotation quotationData)

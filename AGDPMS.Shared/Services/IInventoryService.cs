@@ -15,6 +15,7 @@ public interface IInventoryService
     Task<GetMaterialResult> GetMaterialById(string id);
     Task<GetMaterialResult> GetMaterialByType(MaterialType type);
     Task<GetMaterialResult> GetMaterialByName(string name);
+    Task<BaseResult> AddMaterial(Material material);
 
 }
 

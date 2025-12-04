@@ -208,7 +208,17 @@ public class InventoryDataAccess(IDbConnection conn)
         return dic.Values;
     }
 
-    //public async Task<MaterialEstimate> GetMaterialEstimate()
+    public Task<IEnumerable<StockIssue>> GetStockImportAsync()
+    {
+        string query =
+            @"
+            select
+                mt.id as Id,
+                mt.Name as Name
+            from material_type mt;
+        ";
+        return conn.QueryAsync<StockIssue>(query);
+    }
 
     public async Task UpdateMaterial(List<Material> materials)
     {
