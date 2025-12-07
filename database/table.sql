@@ -56,7 +56,7 @@ create table if not exists material_stock (
 	"length" numeric(10,3) default 0,
 	"width" numeric(10,3) default 0,
 	"stock" int not null default 0,
-	"base_price" numeric(20,0) not null default 0
+	"base_price" numeric(20,0) not null default 0,
 	constraint "fk_material_type" foreign key ("material_id") references materials("id")
 );
 
