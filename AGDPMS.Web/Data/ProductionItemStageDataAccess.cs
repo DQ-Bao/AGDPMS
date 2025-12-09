@@ -12,6 +12,7 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                planned_time_hours as PlannedTimeHours, actual_time_hours as ActualTimeHours,
+               planned_units as PlannedUnits, actual_units as ActualUnits,
                is_completed as IsCompleted, completed_at as CompletedAt,
                note as Note, created_at as CreatedAt, updated_at as UpdatedAt
         from production_item_stages
@@ -25,6 +26,7 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                planned_time_hours as PlannedTimeHours, actual_time_hours as ActualTimeHours,
+               planned_units as PlannedUnits, actual_units as ActualUnits,
                is_completed as IsCompleted, completed_at as CompletedAt,
                note as Note, created_at as CreatedAt, updated_at as UpdatedAt
         from production_item_stages
@@ -72,4 +74,18 @@ public class ProductionItemStageDataAccess(IDbConnection conn)
         set assigned_qa_user_id = @QaUserId, updated_at = now()
         where production_order_item_id = @ItemId",
         new { ItemId = itemId, QaUserId = qaUserId });
+
+    public Task UpdatePlannedUnitsAsync(int stageId, int plannedUnits) => conn.ExecuteAsync(@"
+        update production_item_stages
+        set planned_units = @PlannedUnits,
+            updated_at = now()
+        where id = @Id",
+        new { Id = stageId, PlannedUnits = plannedUnits });
+
+    public Task UpdateActualUnitsAsync(int stageId, int actualUnits) => conn.ExecuteAsync(@"
+        update production_item_stages
+        set actual_units = @ActualUnits,
+            updated_at = now()
+        where id = @Id",
+        new { Id = stageId, ActualUnits = actualUnits });
 }

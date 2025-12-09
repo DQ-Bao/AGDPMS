@@ -13,6 +13,8 @@ public class ProductionItemStage
     public DateTime? ActualFinishDate { get; set; }
     public decimal? PlannedTimeHours { get; set; }
     public decimal? ActualTimeHours { get; set; }
+    public int? PlannedUnits { get; set; }
+    public int? ActualUnits { get; set; }
     public bool IsCompleted { get; set; }
     public DateTime? CompletedAt { get; set; }
 

@@ -13,6 +13,7 @@ public class ProductionItemDataAccess(IDbConnection conn)
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                qr_code as QRCode, qr_image as QRImage,
                is_completed as IsCompleted, completed_at as CompletedAt,
+               is_stored as IsStored,
                is_canceled as IsCanceled,
                created_at as CreatedAt, updated_at as UpdatedAt
         from production_order_items
@@ -36,6 +37,7 @@ public class ProductionItemDataAccess(IDbConnection conn)
                actual_start_date as ActualStartDate, actual_finish_date as ActualFinishDate,
                qr_code as QRCode, qr_image as QRImage,
                is_completed as IsCompleted, completed_at as CompletedAt,
+               is_stored as IsStored,
                is_canceled as IsCanceled,
                created_at as CreatedAt, updated_at as UpdatedAt
         from production_order_items
@@ -91,6 +93,13 @@ public class ProductionItemDataAccess(IDbConnection conn)
             updated_at = now()
         where id = @Id",
         new { Id = itemId, Code = code });
+
+    public Task SetStoredAsync(int itemId, bool isStored) => conn.ExecuteAsync(@"
+        update production_order_items
+        set is_stored = @IsStored,
+            updated_at = now()
+        where id = @Id",
+        new { Id = itemId, IsStored = isStored });
 }
 
 

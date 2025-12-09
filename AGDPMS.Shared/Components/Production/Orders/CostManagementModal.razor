@@ -1,0 +1,271 @@
+@using AGDPMS.Shared.Models.DTOs
+@inject HttpClient Http
+
+<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Quản lý chi phí dự án</h5>
+                <div class="d-flex align-items-center gap-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="includeLaborCost" @bind="includeLaborCost" @bind:after="OnIncludeLaborCostChanged" />
+                        <label class="form-check-label" for="includeLaborCost">
+                            Bao gồm chi phí nhân công
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="OpenSettingsModal">
+                        <i class="bi bi-gear"></i> Cài đặt
+                    </button>
+                    <button type="button" class="btn-close" @onclick="Close"></button>
+                </div>
+            </div>
+            <div class="modal-body">
+                @if (isLoading)
+                {
+                    <div>Đang tải dữ liệu chi phí...</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+                else if (model is null)
+                {
+                    <div class="text-muted">Không có dữ liệu chi phí.</div>
+                }
+                else
+                {
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">PV (Giá trị kế hoạch)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.PV)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-success">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">EV (Giá trị đạt được)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.EV)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-warning">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">AC (Chi phí thực tế)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.AC)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-secondary">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">BAC (Ngân sách ban đầu)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.BAC)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="card @(model.CV >= 0 ? "border-success" : "border-danger")">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">CV (Chênh lệch chi phí)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.CV)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card @(model.SV >= 0 ? "border-success" : "border-danger")">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">SV (Chênh lệch tiến độ)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.SV)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">CPI (Hiệu suất chi phí)</div>
+                                    <div class="fw-bold">@FormatRatio(model.CPI)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">SPI (Hiệu suất tiến độ)</div>
+                                    <div class="fw-bold">@FormatRatio(model.SPI)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-3">
+                            <div class="card border-secondary">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">EAC (Dự toán khi hoàn thành)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.EAC)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-secondary">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">ETC (Chi phí còn lại)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.ETC)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card @(model.VAC >= 0 ? "border-success" : "border-danger")">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">VAC (Chênh lệch ngân sách)</div>
+                                    <div class="fw-bold">@FormatCurrency(model.VAC)</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card border-info">
+                                <div class="card-body py-2">
+                                    <div class="small text-muted">TCPI</div>
+                                    <div class="fw-bold">@FormatRatio(model.TCPI)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6>Chi phí tổng hợp</h6>
+                        <div class="row small text-secondary">
+                            <div class="col-md-3">Chi phí nhân công kế hoạch: <strong>@FormatCurrency(model.PlannedLaborCost)</strong></div>
+                            <div class="col-md-3">Chi phí nhân công thực tế: <strong>@FormatCurrency(model.ActualLaborCost)</strong></div>
+                            <div class="col-md-3">Chi phí vật tư kế hoạch: <strong>@FormatCurrency(model.PlannedMaterialCost)</strong></div>
+                            <div class="col-md-3">Chi phí vật tư thực tế: <strong>@FormatCurrency(model.ActualMaterialCost)</strong></div>
+                        </div>
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 40vh; overflow:auto;">
+                        <table class="table table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Mã item</th>
+                                    <th>Cavity</th>
+                                    <th>Chi phí kế hoạch</th>
+                                    <th>Chi phí thực tế</th>
+                                    <th>Nhân công (KH/TT)</th>
+                                    <th>Vật tư (KH/TT)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @if (model.ItemBreakdowns == null || model.ItemBreakdowns.Count == 0)
+                                {
+                                    <tr><td colspan="6" class="text-muted">Chưa có dữ liệu chi phí theo item.</td></tr>
+                                }
+                                else
+                                {
+                                    @foreach (var it in model.ItemBreakdowns)
+                                    {
+                                        <tr>
+                                            <td>@it.ItemCode</td>
+                                            <td>@it.CavityName</td>
+                                            <td>@FormatCurrency(it.PlannedTotalCost)</td>
+                                            <td>@FormatCurrency(it.ActualTotalCost)</td>
+                                            <td>@FormatCurrency(it.PlannedLaborCost) / @FormatCurrency(it.ActualLaborCost)</td>
+                                            <td>@FormatCurrency(it.PlannedMaterialCost) / @FormatCurrency(it.ActualMaterialCost)</td>
+                                        </tr>
+                                    }
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Close">Đóng</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Settings Modal *@
+@if (showSettingsModal)
+{
+    <CostManagementSettingsModal OnClose="CloseSettingsModal" />
+}
+
+@code {
+    [Parameter] public int OrderId { get; set; }
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private ProjectCostManagementDto? model;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private bool includeLaborCost = true;
+    private bool showSettingsModal = false;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            var url = $"/api/orders/{OrderId}/cost-management?includeLaborCost={includeLaborCost}";
+            model = await Http.GetFromJsonAsync<ProjectCostManagementDto>(url);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Không tải được dữ liệu chi phí: {ex.Message}";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnIncludeLaborCostChanged()
+    {
+        await LoadData();
+    }
+
+    private void OpenSettingsModal()
+    {
+        showSettingsModal = true;
+    }
+
+    private void CloseSettingsModal()
+    {
+        showSettingsModal = false;
+    }
+
+    private string FormatCurrency(decimal? value)
+    {
+        if (!value.HasValue) return "-";
+        return string.Format("{0:N0} ₫", value.Value);
+    }
+
+    private string FormatRatio(decimal? value)
+    {
+        if (!value.HasValue) return "-";
+        return value.Value.ToString("0.00");
+    }
+
+    private async Task Close()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}
+
+

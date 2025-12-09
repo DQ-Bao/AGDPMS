@@ -1,0 +1,113 @@
+@using AGDPMS.Shared.Models.DTOs
+@inject HttpClient Http
+
+<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1060;">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cài đặt chi phí nhân công</h5>
+                <button type="button" class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (loading)
+                {
+                    <div>Đang tải...</div>
+                }
+                else if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <label class="form-label">Đơn giá nhân công (đồng/giờ)</label>
+                        <input type="number" min="0" step="1000" class="form-control" @bind-value="laborCost.HourlyRate" @bind-value:event="oninput" />
+                        <small class="text-muted">Đơn giá này sẽ áp dụng cho tất cả các giai đoạn sản xuất.</small>
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Close">Hủy</button>
+                <button type="button" class="btn btn-primary" @onclick="Save" disabled="@(loading || saving)">
+                    @if (saving)
+                    {
+                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    }
+                    Lưu
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private UnifiedLaborCostDto laborCost = new() { HourlyRate = 100000m };
+    private bool loading = true;
+    private bool saving = false;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadLaborCost();
+    }
+
+    private async Task LoadLaborCost()
+    {
+        try
+        {
+            loading = true;
+            errorMessage = null;
+            var result = await Http.GetFromJsonAsync<UnifiedLaborCostDto>("/api/order-settings/labor-cost");
+            if (result != null)
+            {
+                laborCost = result;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Không thể tải chi phí nhân công: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        try
+        {
+            saving = true;
+            errorMessage = null;
+            var res = await Http.PutAsJsonAsync("/api/order-settings/labor-cost", laborCost);
+            if (!res.IsSuccessStatusCode)
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                errorMessage = $"Lưu thất bại: {res.StatusCode} - {err}";
+            }
+            else
+            {
+                await Close();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lưu thất bại: {ex.Message}";
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+
+    private async Task Close()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+}
+

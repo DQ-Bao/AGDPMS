@@ -1,4 +1,6 @@
 using AGDPMS.Web.Data;
+using System.Data;
+using Dapper;
 
 namespace AGDPMS.Web.Endpoints;
 
@@ -40,7 +42,7 @@ public static class LookupEndpoints
             }));
         });
 
-        group.MapGet("/qa-users", async (string? q, UserDataAccess access) =>
+        group.MapGet("/qa-users", async (string? q, UserDataAccess access, IDbConnection conn) =>
         {
             // naive search by fullname/phone for users with QA role
             var users = await access.GetAllAsync();
@@ -50,7 +52,48 @@ public static class LookupEndpoints
                 qa = qa.Where(u => (u.FullName?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)
                                  || (u.PhoneNumber?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
             }
-            return Results.Ok(qa.Select(u => new { id = u.Id, name = u.FullName, phone = u.PhoneNumber }));
+            
+            // Get counts of items not reviewed for each QA
+            var qaList = qa.ToList();
+            var qaIds = qaList.Select(u => u.Id).ToList();
+            
+            var itemCounts = new Dictionary<int, int>();
+            if (qaIds.Any())
+            {
+                if (conn.State != System.Data.ConnectionState.Open)
+                {
+                    conn.Open();
+                }
+                
+                var counts = await conn.QueryAsync<(int? QaUserId, int Count)>(@"
+                    select pis.assigned_qa_user_id as QaUserId, count(distinct pis.id) as Count
+                    from production_item_stages pis
+                    where pis.assigned_qa_user_id = any(@QaIds)
+                      and pis.is_completed = false
+                      and not exists (
+                          select 1 from stage_reviews sr
+                          where sr.production_item_stage_id = pis.id
+                            and sr.status in ('pending', 'in_progress')
+                      )
+                    group by pis.assigned_qa_user_id",
+                    new { QaIds = qaIds });
+                
+                foreach (var result in counts)
+                {
+                    if (result.QaUserId.HasValue)
+                    {
+                        itemCounts[result.QaUserId.Value] = result.Count;
+                    }
+                }
+            }
+            
+            return Results.Ok(qaList.Select(u => new 
+            { 
+                id = u.Id, 
+                name = u.FullName, 
+                phone = u.PhoneNumber,
+                pendingItemsCount = itemCounts.GetValueOrDefault(u.Id, 0)
+            }));
         });
 
         return app;

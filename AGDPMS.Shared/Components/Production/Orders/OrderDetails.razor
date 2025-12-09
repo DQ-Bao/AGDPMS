@@ -9,6 +9,7 @@
 @using System.Linq
 @using System.Text
 @using System.Text.RegularExpressions
+@using System.Globalization
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
@@ -39,9 +40,8 @@
                 @if (model.items?.Any() == true)
                 {
                     <div class="text-secondary small mt-1">
-                        <span>Tiến độ: @CompletedItems/@TotalItems item (@(TotalItems == 0 ? 0 : (CompletedItems * 100 / TotalItems))%)</span>
-                        <span class="ms-3">Giờ kế hoạch: @($"{TotalPlannedHours:F1}h")</span>
-                        <span class="ms-3">Giờ thực tế: @($"{TotalActualHours:F1}h")</span>
+                        <span class="ms-3">Giờ ước tính: @FormatHoursVerbose(TotalPlannedHours)</span>
+                        <span class="ms-3">Giờ thực tế: @FormatHoursVerbose(TotalActualHours)</span>
                     </div>
                 }
             </div>
@@ -82,6 +82,10 @@
                 {
                     <button class="btn btn-outline-info btn-sm" @onclick="OpenPlanModal">Cập nhật kế hoạch</button>
                 }
+                @if (IsProductionManager() || IsDirector())
+                {
+                    <button class="btn btn-outline-dark btn-sm" @onclick="OpenCostModal">Quản lý chi phí</button>
+                }
             </div>
         </div>
 
@@ -96,48 +100,111 @@
             <div class="mb-3">
                 <OrderStatusBar OrderId="@Id" />
                 <div class="small text-secondary mb-1">Tiến độ tổng thể: @CompletedItems/@TotalItems item</div>
-                <div class="progress" style="height: 30px;">
+                <div class="progress" style="height: 30px; position: relative;">
                     @{
-                        var totalItems = TotalItems;
-                        var completedItems = CompletedItems;
-                        var overallProgressPercent = totalItems > 0 
-                            ? (completedItems * 100.0 / totalItems) 
-                            : 0;
-                        var overallProgressClass = overallProgressPercent == 100 ? "bg-success" : (overallProgressPercent > 0 ? "bg-info" : "bg-secondary");
+                        // Calculate hours from all items (using PlannedTimeHours which comes from filtered stages)
+                        var notCompletedHours = model.items.Where(i => !i.IsCompleted).Sum(i => i.PlannedTimeHours ?? 0);
+                        var completedHours = model.items.Where(i => i.IsCompleted && !i.IsStored).Sum(i => i.PlannedTimeHours ?? 0);
+                        var storedHours = model.items.Where(i => i.IsCompleted && i.IsStored).Sum(i => i.PlannedTimeHours ?? 0);
+                        
+                        // Total is the sum of all three groups to ensure 100%
+                        var totalPlannedHours = notCompletedHours + completedHours + storedHours;
+                        
+                        var notCompletedPercent = totalPlannedHours > 0 ? (double)notCompletedHours * 100.0 / (double)totalPlannedHours : 0;
+                        var completedPercent = totalPlannedHours > 0 ? (double)completedHours * 100.0 / (double)totalPlannedHours : 0;
+                        var storedPercent = totalPlannedHours > 0 ? (double)storedHours * 100.0 / (double)totalPlannedHours : 0;
+                        
+                        // Ensure percentages add up to 100% (handle rounding)
+                        var totalPercent = notCompletedPercent + completedPercent + storedPercent;
+                        if (totalPercent > 0 && Math.Abs(totalPercent - 100.0) > 0.1)
+                        {
+                            // Normalize if there's a rounding issue
+                            var factor = 100.0 / totalPercent;
+                            notCompletedPercent *= factor;
+                            completedPercent *= factor;
+                            storedPercent *= factor;
+                        }
+                        
+                        var notCompletedCount = model.items.Count(i => !i.IsCompleted);
+                        var completedCount = model.items.Count(i => i.IsCompleted && !i.IsStored);
+                        var storedCount = model.items.Count(i => i.IsCompleted && i.IsStored);
                     }
-                    <div class="progress-bar @overallProgressClass" role="progressbar" 
-                         style="width: @($"{overallProgressPercent:F1}%")" 
-                         aria-valuenow="@overallProgressPercent" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
-                        <span class="ms-2">@($"{overallProgressPercent:F1}%")</span>
-                    </div>
+                    @if (notCompletedPercent > 0)
+                    {
+                        var widthStr = notCompletedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = notCompletedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-secondary" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Chưa hoàn thành: @notCompletedCount item (@percentStr)">
+                            @if (notCompletedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (completedPercent > 0)
+                    {
+                        var widthStr = completedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = completedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Đã hoàn thành: @completedCount item (@percentStr)">
+                            @if (completedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (storedPercent > 0)
+                    {
+                        var widthStr = storedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = storedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Đã lưu kho: @storedCount item (@percentStr)">
+                            @if (storedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (totalPlannedHours == 0)
+                    {
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%" title="Chưa có dữ liệu">
+                            <span class="ms-2 text-white">0%</span>
+                        </div>
+                    }
+                </div>
+                <div class="small text-muted mt-1 d-flex gap-3">
+                    <span><span class="badge bg-secondary">●</span> Chưa hoàn thành: @notCompletedCount</span>
+                    <span><span class="badge bg-success">●</span> Đã hoàn thành: @completedCount</span>
+                    <span><span class="badge bg-primary">●</span> Đã lưu kho: @storedCount</span>
                 </div>
             </div>
         }
 
-        @if (model?.ProgressTimeline?.Any() == true)
+        @if (showCostModal)
         {
-            <div class="mt-3">
-                <div class="small text-secondary mb-1">Biểu đồ tiến độ (số item hoàn thành theo ngày)</div>
-                @{
-                    var maxCount = model.ProgressTimeline.Max(p => p.CompletedCount);
-                    if (maxCount == 0) { maxCount = 1; }
-                }
-                <div class="d-flex align-items-end gap-1" style="height:80px;">
-                    @foreach (var point in model.ProgressTimeline)
-                    {
-                        var heightPercent = point.CompletedCount * 100 / maxCount;
-                        <div class="d-flex flex-column align-items-center" style="width:28px;">
-                            <div style="width:100%; background-color:#0d6efd; height:@($"{heightPercent}%");"
-                                 title="@($"{point.CompletedCount} item ngày {point.Date:dd/MM}")">
-                            </div>
-                            <small class="text-muted" style="font-size:9px;">@point.Date.ToString("dd/MM")</small>
-                        </div>
-                    }
+            <CostManagementModal OrderId="@Id" OnClose="CloseCostModal" />
+        }
+
+        @* Search and Filter *@
+        <div class="mb-3">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" placeholder="Tìm theo mã, cavity code/name..." 
+                           @bind="itemSearch" @bind:event="oninput" />
+                </div>
+                <div class="col-md-3">
+                    <select class="form-select" @bind="statusFilter">
+                        <option value="">Tất cả trạng thái</option>
+                        <option value="chua_hoan_thanh">Chưa hoàn thành</option>
+                        <option value="da_hoan_thanh">Đã hoàn thành</option>
+                        <option value="da_luu_kho">Đã lưu kho</option>
+                    </select>
                 </div>
             </div>
-        }
+        </div>
 
         <div class="table-responsive" style="max-height:60vh; overflow:auto;">
             <table class="table table-sm align-middle">
@@ -145,14 +212,15 @@
                     <tr>
                         <th>Mã</th>
                         <th>Cavity</th>
+                        <th>Trạng thái</th>
                         <th>Kế hoạch</th>
                         <th>Thực tế</th>
                         <th>Chênh lệch</th>
-                        <th>Hoàn thành</th>
+                        <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var it in model.items)
+                    @foreach (var it in GetFilteredItems())
                     {
                         var rowClass = string.Empty;
                         if (it.IsLate)
@@ -205,6 +273,20 @@
                                 @if (it.IsLate)
                                 {
                                     <span class="badge bg-danger ms-1" title="@GetLateTooltip(it)">Trễ</span>
+                                }
+                            </td>
+                            <td>
+                                @if (it.IsStored)
+                                {
+                                    <span class="badge bg-primary">Đã lưu kho</span>
+                                }
+                                else if (it.IsCompleted)
+                                {
+                                    <span class="badge bg-success">Đã hoàn thành</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Chưa hoàn thành</span>
                                 }
                             </td>
                             <td>
@@ -269,15 +351,18 @@
                             <td>
                                 @if (CanEditItemCompletion())
                                 {
-                                    <button class="btn btn-sm @(it.IsCompleted ? "btn-success" : "btn-outline-secondary")"
-                                            @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true"
-                                            disabled="@(!CanCompleteItem(it))">
-                                        @(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")
-                                    </button>
-                                }
-                                else
-                                {
-                                    <span>@(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")</span>
+                                    @if (!it.IsCompleted && CanCompleteItem(it))
+                                    {
+                                        <button class="btn btn-sm btn-success" @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true">
+                                            Đã hoàn thành
+                                        </button>
+                                    }
+                                    else if (it.IsCompleted && !it.IsStored)
+                                    {
+                                        <button class="btn btn-sm btn-primary" @onclick='@(() => StoreItem(it.Id))' @onclick:stopPropagation="true">
+                                            Lưu kho
+                                        </button>
+                                    }
                                 }
                             </td>
                         </tr>
@@ -308,6 +393,8 @@
     private int? editingItemCodeId;
     private string? editingItemCode;
     private string? codeValidationError;
+    private string itemSearch = string.Empty;
+    private string statusFilter = string.Empty;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -394,6 +481,17 @@
     };
 
     private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToString("dd/MM/yyyy HH:mm") : "-";
+
+    private string FormatHoursVerbose(decimal hours)
+    {
+        if (hours <= 0) return "-";
+        var totalMinutes = (int)Math.Round((double)hours * 60.0);
+        var h = totalMinutes / 60;
+        var m = totalMinutes % 60;
+        if (h > 0 && m > 0) return $"{h} giờ {m} phút";
+        if (h > 0) return $"{h} giờ";
+        return $"{m} phút";
+    }
 
     private string GetStatusLabel(ProductionOrderStatus status) => status switch
     {
@@ -519,6 +617,16 @@
             IsCompleted = !item.IsCompleted
         };
         await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/items/{item.Id}/completion", dto));
+    }
+
+    private async Task StoreItem(int itemId)
+    {
+        if (!CanEditItemCompletion()) return;
+        var success = await ExecuteOrderAction(() => Http.PutAsync($"/api/items/{itemId}/stored", null));
+        if (success)
+        {
+            await Load();
+        }
     }
 
     private void StartEditItemCode(ItemDto item)
@@ -748,11 +856,55 @@
     private int CompletedItems => model?.items?.Count(i => i.IsCompleted) ?? 0;
     private decimal TotalPlannedHours => model?.items?.Sum(i => i.PlannedTimeHours ?? 0) ?? 0;
     private decimal TotalActualHours => model?.items?.Sum(i => i.ActualTimeHours ?? 0) ?? 0;
+
+    private IEnumerable<ItemDto> GetFilteredItems()
+    {
+        var items = model?.items ?? Enumerable.Empty<ItemDto>();
+        
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(itemSearch))
+        {
+            var searchLower = itemSearch.ToLower();
+            items = items.Where(it => 
+                (it.Code?.ToLower().Contains(searchLower) ?? false) ||
+                (it.CavityCode?.ToLower().Contains(searchLower) ?? false) ||
+                (it.CavityName?.ToLower().Contains(searchLower) ?? false)
+            );
+        }
+        
+        // Apply status filter
+        if (!string.IsNullOrWhiteSpace(statusFilter))
+        {
+            items = statusFilter switch
+            {
+                "chua_hoan_thanh" => items.Where(it => !it.IsCompleted),
+                "da_hoan_thanh" => items.Where(it => it.IsCompleted && !it.IsStored),
+                "da_luu_kho" => items.Where(it => it.IsCompleted && it.IsStored),
+                _ => items
+            };
+        }
+        
+        return items;
+    }
     private async Task DirectorApprove() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/approve", null));
     private async Task DirectorReject() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/reject", null));
     private async Task RevertToDraft() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/revert-to-draft", null));
     private async Task QaMachines() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null));
     private async Task QaMaterial() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null));
+
+    private bool showCostModal;
+
+    private void OpenCostModal()
+    {
+        showCostModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseCostModal()
+    {
+        showCostModal = false;
+        StateHasChanged();
+    }
 
     private class OrderDetailsResponse
     {
@@ -770,6 +922,7 @@
         public int LineNo { get; set; }
         public string? QRCode { get; set; }
         public bool IsCompleted { get; set; }
+        public bool IsStored { get; set; }
         public DateTime? PlannedStartDate { get; set; }
         public DateTime? PlannedFinishDate { get; set; }
         public DateTime? ActualStartDate { get; set; }
@@ -803,6 +956,9 @@
 @* Finish Confirmation Modal *@
 @if (showFinishConfirm)
 {
+    var hasIncompleteItems = model?.items?.Any(i => !i.IsCompleted) ?? false;
+    var hasUnstoredItems = model?.items?.Any(i => i.IsCompleted && !i.IsStored) ?? false;
+
     <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -812,6 +968,18 @@
                 </div>
                 <div class="modal-body">
                     <p>Bạn có chắc chắn muốn hoàn tất lệnh sản xuất này?</p>
+                    @if (hasIncompleteItems)
+                    {
+                        <div class="alert alert-danger mb-2">
+                            <strong>Vẫn còn sản phẩm chưa hoàn thành</strong>
+                        </div>
+                    }
+                    @if (hasUnstoredItems)
+                    {
+                        <div class="alert alert-danger mb-0">
+                            <strong>Vẫn còn sản phẩm chưa lưu kho</strong>
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelFinishConfirm">Hủy</button>

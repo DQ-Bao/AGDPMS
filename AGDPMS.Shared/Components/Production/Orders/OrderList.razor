@@ -3,6 +3,7 @@
 @using AGDPMS.Shared.Models.DTOs
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Net.Http
+@using System.Net.Http.Json
 @using System.Security.Claims
 @inject HttpClient Http
 @inject NavigationManager Nav
@@ -30,6 +31,10 @@
         @if (IsProductionManager())
         {
             <button class="btn btn-primary" @onclick="Create">Tạo mới</button>
+        }
+        @if (IsProductionManager() || IsDirector())
+        {
+            <button class="btn btn-outline-secondary" @onclick='@(() => Nav.NavigateTo("/production/orders/settings"))'>Cài đặt</button>
         }
     </div>
 
@@ -95,7 +100,7 @@
                                 }
                                 @if (ShouldShowButton("Finish", o))
                                 {
-                                    <button class="btn btn-outline-success btn-sm" @onclick='@(() => OpenFinishConfirm(o.Id))' title="Hoàn tất lệnh">Hoàn tất</button>
+                                    <button class="btn btn-outline-success btn-sm" @onclick='@(async () => await OpenFinishConfirm(o.Id))' title="Hoàn tất lệnh">Hoàn tất</button>
                                 }
                                 @if (ShouldShowButton("DirectorApprove", o))
                                 {
@@ -134,6 +139,33 @@
                 </div>
                 <div class="modal-body">
                     <p>Bạn có chắc chắn muốn hoàn tất lệnh sản xuất này?</p>
+                    @if (finishCheckLoading)
+                    {
+                        <div class="alert alert-info mb-0">
+                            Đang kiểm tra trạng thái sản phẩm...
+                        </div>
+                    }
+                    else if (!string.IsNullOrWhiteSpace(finishCheckError))
+                    {
+                        <div class="alert alert-danger mb-0">
+                            <strong>Lỗi:</strong> @finishCheckError
+                        </div>
+                    }
+                    else
+                    {
+                        @if (hasIncompleteItemsPending == true)
+                        {
+                            <div class="alert alert-danger mb-2">
+                                <strong>Vẫn còn sản phẩm chưa hoàn thành</strong>
+                            </div>
+                        }
+                        @if (hasUnstoredItemsPending == true)
+                        {
+                            <div class="alert alert-danger mb-0">
+                                <strong>Vẫn còn sản phẩm chưa lưu kho</strong>
+                            </div>
+                        }
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseFinishConfirm">Hủy</button>
@@ -152,6 +184,10 @@
     private string dir = "desc";
     private string? errorMessage;
     private string? userRole;
+    private bool finishCheckLoading;
+    private bool? hasIncompleteItemsPending;
+    private bool? hasUnstoredItemsPending;
+    private string? finishCheckError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -329,16 +365,25 @@
     
     private bool showFinishConfirm = false;
     private int? pendingFinishOrderId;
-    private void OpenFinishConfirm(int orderId)
+    private async Task OpenFinishConfirm(int orderId)
     {
         pendingFinishOrderId = orderId;
         showFinishConfirm = true;
+        finishCheckLoading = true;
+        finishCheckError = null;
+        hasIncompleteItemsPending = null;
+        hasUnstoredItemsPending = null;
         StateHasChanged();
+        await LoadFinishStatus(orderId);
     }
     private void CloseFinishConfirm()
     {
         showFinishConfirm = false;
         pendingFinishOrderId = null;
+        finishCheckLoading = false;
+        finishCheckError = null;
+        hasIncompleteItemsPending = null;
+        hasUnstoredItemsPending = null;
         StateHasChanged();
     }
     private async Task ConfirmFinish()
@@ -350,6 +395,33 @@
         }
     }
     private Task FinishOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/finish", null));
+    private async Task LoadFinishStatus(int orderId)
+    {
+        try
+        {
+            var response = await Http.GetAsync($"/api/orders/{orderId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var details = await response.Content.ReadFromJsonAsync<OrderDetailsResponse>();
+                var items = details?.items ?? new();
+                hasIncompleteItemsPending = items.Any(i => !i.IsCompleted);
+                hasUnstoredItemsPending = items.Any(i => i.IsCompleted && !i.IsStored);
+            }
+            else
+            {
+                finishCheckError = $"Không thể kiểm tra trạng thái: {response.StatusCode}";
+            }
+        }
+        catch (Exception ex)
+        {
+            finishCheckError = $"Lỗi khi kiểm tra trạng thái: {ex.Message}";
+        }
+        finally
+        {
+            finishCheckLoading = false;
+            StateHasChanged();
+        }
+    }
     private Task DirectorApproveOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/director/approve", null));
     private Task DirectorRejectOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/director/reject", null));
     private Task QaMachinesOrder(int orderId) => ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{orderId}/qa/machines-approve", null));
@@ -372,6 +444,17 @@
         public DateTime? FinishedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
         public bool HasPendingQa { get; set; }
+    }
+
+    private class OrderDetailsResponse
+    {
+        public List<ItemDto> items { get; set; } = new();
+    }
+
+    private class ItemDto
+    {
+        public bool IsCompleted { get; set; }
+        public bool IsStored { get; set; }
     }
 }
 

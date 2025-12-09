@@ -9,6 +9,8 @@
 @using System.Security.Claims
 @using System.Linq
 @using System.Text
+@using System.Globalization
+@using System.IO
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
@@ -21,25 +23,43 @@
             <li class="breadcrumb-item active">Item #@(model?.item?.LineNo ?? ItemId)</li>
         </ol>
     </nav>
-    @if (model is null)
-    {
-        <div>Loading...</div>
-    }
-    else
+        @if (model is null)
+        {
+            if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="alert alert-danger">@errorMessage</div>
+            }
+            else
+            {
+                <div>Loading...</div>
+            }
+        }
+        else
     {
         <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
                 <h5 class="mb-1">Item #@model.item?.LineNo - @(model.item?.Code ?? "N/A") - @(model.item?.CavityName ?? model.item?.CavityCode ?? $"Cavity {model.item?.CavityId}")</h5>
                 <div class="text-secondary">Lệnh sản xuất: @model.order?.Code | Trạng thái: @GetOrderStatusDisplay()</div>
                 <div class="text-secondary small mt-1">
-                    <span>Kế hoạch: Bắt đầu: @FormatDate(model.item?.PlannedStartDate) | Kết thúc: @FormatDate(model.item?.PlannedFinishDate)</span>
+                    @if (CanEditItemPlan())
+                    {
+                        <span style="cursor:pointer;" class="text-primary text-decoration-underline"
+                              @onclick="StartEditItemPlan"
+                              title="Click để cập nhật kế hoạch">
+                            Kế hoạch: Bắt đầu: @FormatDate(model.item?.PlannedStartDate) | Kết thúc: @FormatDate(model.item?.PlannedFinishDate)
+                        </span>
+                    }
+                    else
+                    {
+                        <span>Kế hoạch: Bắt đầu: @FormatDate(model.item?.PlannedStartDate) | Kết thúc: @FormatDate(model.item?.PlannedFinishDate)</span>
+                    }
                 </div>
                 <div class="text-secondary small">
                     <span>Thực tế: Bắt đầu: @FormatDate(model.item?.ActualStartDate) | Kết thúc: @FormatDate(model.item?.ActualFinishDate)</span>
                 </div>
                 <div class="text-secondary small mt-1">
-                    <span>Giờ kế hoạch: @($"{model.item?.PlannedTimeHours ?? 0:F1}h")</span>
-                    <span class="ms-3">Giờ thực tế: @($"{model.item?.ActualTimeHours ?? 0:F1}h")</span>
+                    <span>Giờ ước tính: @FormatStageHoursVerbose(model.item?.PlannedTimeHours)</span>
+                    <span class="ms-3">Giờ thực tế: @FormatStageHoursVerbose(model.item?.ActualTimeHours)</span>
                 </div>
                 @if (model.item?.IsLate == true)
                 {
@@ -57,48 +77,190 @@
                 }
                 @if (CanEditItemCompletion())
                 {
-                    <button class="btn btn-sm @(model?.item?.IsCompleted == true ? "btn-success" : "btn-outline-secondary")"
-                            @onclick="ToggleItemCompletion"
-                            disabled="@(!CanCompleteItem())">
-                        @(model?.item?.IsCompleted == true ? "Đã hoàn thành" : "Chưa hoàn thành")
-                    </button>
+                    @if (!(model?.item?.IsCompleted == true) && CanCompleteItem())
+                    {
+                        <button class="btn btn-sm btn-success" @onclick="ToggleItemCompletion">
+                            Đã hoàn thành
+                        </button>
+                    }
+                    else if (model?.item?.IsCompleted == true && !(model?.item?.IsStored == true))
+                    {
+                        <button class="btn btn-sm btn-primary" @onclick="StoreItem">
+                            Lưu kho
+                        </button>
+                    }
                 }
                 else
                 {
-                    <span class="badge @(model?.item?.IsCompleted == true ? "bg-success" : "bg-secondary")">
-                        @(model?.item?.IsCompleted == true ? "Đã hoàn thành" : "Chưa hoàn thành")
-                    </span>
+                    @if (model?.item?.IsStored == true)
+                    {
+                        <span class="badge bg-primary">Đã lưu kho</span>
+                    }
+                    else if (model?.item?.IsCompleted == true)
+                    {
+                        <span class="badge bg-success">Đã hoàn thành</span>
+                    }
+                    else
+                    {
+                        <span class="badge bg-secondary">Chưa hoàn thành</span>
+                    }
                 }
             </div>
         </div>
+        @if (CanEditItemPlan() && editingItemPlan)
+        {
+            <div class="card mb-3">
+                <div class="card-body">
+                    <div class="row g-2 align-items-end">
+                        <div class="col-md-4">
+                            <label class="form-label">Bắt đầu dự kiến</label>
+                            <input type="datetime-local" class="form-control form-control-sm" @bind="editingItemPlannedStartDate" />
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Kết thúc dự kiến</label>
+                            <input type="datetime-local" class="form-control form-control-sm" @bind="editingItemPlannedFinishDate" />
+                        </div>
+                        <div class="col-md-4 d-flex gap-2 mt-3 mt-md-0">
+                            <button class="btn btn-sm btn-primary" @onclick="SaveItemPlan">Lưu</button>
+                            <button class="btn btn-sm btn-secondary" @onclick="CancelItemPlanEdit">Hủy</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
 
         @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
             <div class="alert alert-danger">@errorMessage</div>
         }
 
+        @* Material Summary *@
+        @if (model?.materials?.Any() == true)
+        {
+            <div class="mb-3">
+                <div class="small fw-bold mb-1">Vật tư cần dùng cho item này</div>
+                <div class="d-flex flex-wrap gap-2 mb-2 small">
+                    <span class="badge bg-primary">Nhôm</span>
+                    <span class="badge bg-info text-dark">Kính</span>
+                    <span class="badge bg-success">Roăng</span>
+                    <span class="badge bg-warning text-dark">Phụ kiện</span>
+                    <span class="badge bg-secondary">Vật tư phụ</span>
+                </div>
+                <div class="d-flex flex-wrap gap-2 small">
+                    @foreach (var m in model.materials)
+                    {
+                        var cls = GetMaterialBadgeClass(m.MaterialType);
+                        var dimParts = new List<string>();
+                        if (m.Length > 0)
+                        {
+                            dimParts.Add($"{m.Length / 1000:0.###}");
+                        }
+                        if (m.Width > 0)
+                        {
+                            dimParts.Add($"{m.Width / 1000:0.###}");
+                        }
+                        var hasDimensions = dimParts.Any();
+                        var dimText = hasDimensions ? $" - {string.Join(" x ", dimParts)}" : string.Empty;
+                        var unitText = hasDimensions && !string.IsNullOrWhiteSpace(m.Unit) ? $" {m.Unit}" : string.Empty;
+                        <span class="@cls">
+                            [@m.MaterialName@dimText@unitText] x @m.Quantity
+                        </span>
+                    }
+                </div>
+            </div>
+        }
 
         @* Stage Progress Bar *@
         @if (model?.item != null)
         {
             <div class="mb-3">
                 <div class="small text-secondary mb-1">Tiến độ giai đoạn: @(model.item.CompletedStages)/@(model.item.TotalStages)</div>
-                <div class="progress" style="height: 30px;">
+                <div class="progress" style="height: 30px; position: relative;">
                     @{
-                        var totalStages = model.item.TotalStages;
-                        var completedStages = model.item.CompletedStages;
-                        var progressPercent = totalStages > 0 
-                            ? (completedStages * 100.0 / totalStages) 
-                            : 0;
-                        var progressClass = progressPercent == 100 ? "bg-success" : (progressPercent > 0 ? "bg-info" : "bg-secondary");
+                        var relevantStages = model.stages?.Where(st => ShouldShowStage(st)).ToList() ?? new List<StageDto>();
+                        
+                        // Calculate hours for each status group
+                        var notCompletedHours = relevantStages
+                            .Where(s => !s.IsCompleted)
+                            .Sum(s => (double)(s.PlannedTimeHours ?? 0));
+                        var completedPlannedHours = relevantStages
+                            .Where(s => s.IsCompleted)
+                            .Sum(s => (double)(s.PlannedTimeHours ?? 0));
+                        
+                        // Total should be the sum of both groups to ensure 100%
+                        var totalPlannedHours = notCompletedHours + completedPlannedHours;
+                        
+                        double notCompletedPercent = 0;
+                        double completedPercent = 0;
+                        int notCompletedCount = relevantStages.Count(s => !s.IsCompleted);
+                        int completedCount = relevantStages.Count(s => s.IsCompleted);
+                        
+                        if (totalPlannedHours > 0)
+                        {
+                            notCompletedPercent = notCompletedHours * 100.0 / totalPlannedHours;
+                            completedPercent = completedPlannedHours * 100.0 / totalPlannedHours;
+                            
+                            // Ensure percentages add up to 100% (handle rounding)
+                            var totalPercent = notCompletedPercent + completedPercent;
+                            if (Math.Abs(totalPercent - 100.0) > 0.1)
+                            {
+                                // Normalize if there's a rounding issue
+                                var factor = 100.0 / totalPercent;
+                                notCompletedPercent *= factor;
+                                completedPercent *= factor;
+                            }
+                        }
+                        else
+                        {
+                            // Fallback to stage count if no planned hours
+                            var totalStages = model.item.TotalStages;
+                            var completedStages = model.item.CompletedStages;
+                            notCompletedCount = totalStages - completedStages;
+                            completedCount = completedStages;
+                            
+                            if (totalStages > 0)
+                            {
+                                notCompletedPercent = notCompletedCount * 100.0 / totalStages;
+                                completedPercent = completedCount * 100.0 / totalStages;
+                            }
+                        }
                     }
-                    <div class="progress-bar @progressClass" role="progressbar" 
-                         style="width: @($"{progressPercent:F1}%")" 
-                         aria-valuenow="@progressPercent" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
-                        <span class="ms-2">@($"{progressPercent:F1}%")</span>
-                    </div>
+                    @if (notCompletedPercent > 0)
+                    {
+                        var widthStr = notCompletedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = notCompletedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-secondary" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Chưa hoàn thành: @notCompletedCount giai đoạn (@percentStr)">
+                            @if (notCompletedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (completedPercent > 0)
+                    {
+                        var widthStr = completedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = completedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Đã hoàn thành: @completedCount giai đoạn (@percentStr)">
+                            @if (completedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (notCompletedPercent == 0 && completedPercent == 0)
+                    {
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%" title="Chưa có dữ liệu">
+                            <span class="ms-2 text-white">0%</span>
+                        </div>
+                    }
+                </div>
+                <div class="small text-muted mt-1 d-flex gap-3">
+                    <span><span class="badge bg-secondary">●</span> Chưa hoàn thành: @notCompletedCount</span>
+                    <span><span class="badge bg-success">●</span> Đã hoàn thành: @completedCount</span>
                 </div>
             </div>
         }
@@ -111,8 +273,11 @@
                         <th>Giai đoạn</th>
                         <th>QA phụ trách</th>
                         <th>Trạng thái</th>
-                        <th>Kế hoạch (giờ)</th>
-                        <th>Thực tế (giờ)</th>
+                        <th>Ước tính</th>
+                        <th>Thực tế</th>
+                        <th>Chênh lệch</th>
+                        <th>SL kế hoạch</th>
+                        <th>SL thực tế</th>
                         <th>Thao tác</th>
                     </tr>
                 </thead>
@@ -151,8 +316,10 @@
                                     {
                                         <div class="d-flex flex-column gap-1" @onclick:stopPropagation="true">
                                             <div class="d-flex gap-1 align-items-center">
-                                                <input type="number" class="form-control form-control-sm" style="width: 90px;" min="0" step="0.1" @bind="editingPlannedTimeHours" />
-                                                <span>h</span>
+                                                <input type="number" class="form-control form-control-sm" style="width: 50px;" min="0" step="1" @bind="editingPlannedHours" />
+                                                <span>giờ</span>
+                                                <input type="number" class="form-control form-control-sm" style="width: 50px;" min="0" max="59" step="1" @bind="editingPlannedMinutes" />
+                                                <span>phút</span>
                                             </div>
                                             <div class="d-flex gap-1">
                                                 <button class="btn btn-sm btn-success" @onclick='@(() => SaveStagePlan(s.Id))'>✓</button>
@@ -166,12 +333,12 @@
                                              @onclick='@(() => StartEditStagePlan(s))'
                                              @onclick:stopPropagation="true"
                                              title="Click để chỉnh giờ kế hoạch">
-                                            @FormatStageHours(s.PlannedTimeHours)
+                                            @FormatStageHoursVerbose(s.PlannedTimeHours)
                                         </div>
                                     }
                                     else
                                     {
-                                        <div>@FormatStageHours(s.PlannedTimeHours)</div>
+                                        <div>@FormatStageHoursVerbose(s.PlannedTimeHours)</div>
                                     }
                                 </td>
                                 <td>
@@ -179,8 +346,10 @@
                                     {
                                         <div class="d-flex flex-column gap-1" @onclick:stopPropagation="true">
                                             <div class="d-flex gap-1 align-items-center">
-                                                <input type="number" class="form-control form-control-sm" style="width: 90px;" min="0" step="0.1" @bind="editingActualTimeHours" />
-                                                <span>h</span>
+                                                <input type="number" class="form-control form-control-sm" style="width: 50px;" min="0" step="1" @bind="editingActualHours" />
+                                                <span>giờ</span>
+                                                <input type="number" class="form-control form-control-sm" style="width: 50px;" min="0" max="59" step="1" @bind="editingActualMinutes" />
+                                                <span>phút</span>
                                             </div>
                                             <div class="d-flex gap-1">
                                                 <button class="btn btn-sm btn-success" @onclick='@(() => SaveStageActual(s.Id))'>✓</button>
@@ -194,18 +363,40 @@
                                              @onclick='@(() => StartEditStageActual(s))'
                                              @onclick:stopPropagation="true"
                                              title="Click để chỉnh giờ thực tế">
-                                            @FormatStageHours(s.ActualTimeHours)
+                                            @FormatStageHoursVerbose(s.ActualTimeHours)
                                         </div>
                                     }
                                     else
                                     {
-                                        <div>@FormatStageHours(s.ActualTimeHours)</div>
+                                        <div>@FormatStageHoursVerbose(s.ActualTimeHours)</div>
+                                    }
+                                </td>
+                                <td>
+                                    @if (s.IsCompleted)
+                                    {
+                                        <span>@FormatStageDifference(s.PlannedTimeHours, s.ActualTimeHours)</span>
+                                    }
+                                </td>
+                                <td>
+                                    <span>@GetStagePlannedUnitsLabel(s)</span>
+                                </td>
+                                <td>
+                                    @if (CanEditStageActual())
+                                    {
+                                        <input type="number" class="form-control form-control-sm" style="width: 90px;" 
+                                               min="@(s.PlannedUnits ?? 0)" 
+                                               value="@GetActualUnitsDisplayValue(s)"
+                                               @onchange='@((ChangeEventArgs e) => OnActualUnitsChanged(s, e))' />
+                                    }
+                                    else
+                                    {
+                                        <span>@(s.ActualUnits ?? 0)</span>
                                     }
                                 </td>
                                 <td class="text-nowrap">
                                     @if (ShouldShowButton("RequestReview", s))
                                     {
-                                        <button class="btn btn-outline-primary btn-sm me-1" @onclick='@(() => RequestReview(s.Id))'>Yêu cầu kiểm tra</button>
+                                        <button class="btn btn-outline-primary btn-sm me-1" @onclick='@(() => OpenRequestReviewConfirm(s.Id))'>Yêu cầu kiểm tra</button>
                                     }
                                     @if (canReview)
                                     {
@@ -266,11 +457,27 @@
                         }
                         else
                         {
-                            @foreach (var qa in qaUsers)
+                            var sortedQa = qaUsers.OrderBy(q => q.PendingItemsCount).ThenBy(q => q.Name).ToList();
+                            var minCount = sortedQa.FirstOrDefault()?.PendingItemsCount ?? 0;
+                            @foreach (var qa in sortedQa)
                             {
-                                <button type="button" class="list-group-item list-group-item-action" @onclick='@(() => SelectQa(qa.Id))'>
-                                    <div><strong>@qa.Name</strong></div>
-                                    <small class="text-muted">@qa.Phone</small>
+                                var isRecommended = qa.PendingItemsCount == minCount && sortedQa.Count > 1;
+                                <button type="button" class="list-group-item list-group-item-action @(isRecommended ? "border-primary border-2" : "")" @onclick='@(() => SelectQa(qa.Id))'>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div>
+                                                <strong>@qa.Name</strong>
+                                                @if (isRecommended)
+                                                {
+                                                    <span class="badge bg-primary ms-2">Đề xuất</span>
+                                                }
+                                            </div>
+                                            <small class="text-muted">@qa.Phone</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-secondary">@qa.PendingItemsCount sản phẩm chưa kiểm tra</span>
+                                        </div>
+                                    </div>
                                 </button>
                             }
                         }
@@ -304,11 +511,27 @@
                         }
                         else
                         {
-                            @foreach (var qa in qaUsers)
+                            var sortedQa = qaUsers.OrderBy(q => q.PendingItemsCount).ThenBy(q => q.Name).ToList();
+                            var minCount = sortedQa.FirstOrDefault()?.PendingItemsCount ?? 0;
+                            @foreach (var qa in sortedQa)
                             {
-                                <button type="button" class="list-group-item list-group-item-action" @onclick='@(() => SelectBulkQa(qa.Id))'>
-                                    <div><strong>@qa.Name</strong></div>
-                                    <small class="text-muted">@qa.Phone</small>
+                                var isRecommended = qa.PendingItemsCount == minCount && sortedQa.Count > 1;
+                                <button type="button" class="list-group-item list-group-item-action @(isRecommended ? "border-primary border-2" : "")" @onclick='@(() => SelectBulkQa(qa.Id))'>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <div>
+                                                <strong>@qa.Name</strong>
+                                                @if (isRecommended)
+                                                {
+                                                    <span class="badge bg-primary ms-2">Đề xuất</span>
+                                                }
+                                            </div>
+                                            <small class="text-muted">@qa.Phone</small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-secondary">@qa.PendingItemsCount sản phẩm chưa kiểm tra</span>
+                                        </div>
+                                    </div>
                                 </button>
                             }
                         }
@@ -471,6 +694,47 @@
                         <label class="form-label">Ghi chú</label>
                         <textarea class="form-control" rows="4" placeholder="Nhập ghi chú..." @bind="reviewNotes"></textarea>
                     </div>
+                    <div class="mb-3">
+                        <label class="form-label">Đính kèm ảnh/video</label>
+                        <InputFile class="form-control"
+                                   accept="image/*,video/*"
+                                   multiple
+                                   OnChange="HandleReviewFileUpload" />
+                        @if (!string.IsNullOrEmpty(errorMessage) && errorMessage.Contains("upload"))
+                        {
+                            <div class="alert alert-danger mt-2">@errorMessage</div>
+                        }
+                        @if (reviewAttachments.Any())
+                        {
+                            <div class="mt-2 d-flex flex-wrap gap-2">
+                                @foreach (var attachment in reviewAttachments)
+                                {
+                                    <div class="position-relative" style="width: 120px; height: 120px;">
+                                        @if (attachment.IsImage)
+                                        {
+                                            <img src="@attachment.Url" alt="@attachment.FileName"
+                                                 class="img-thumbnail w-100 h-100"
+                                                 style="object-fit: cover; cursor: pointer;"
+                                                 @onclick='@(() => OpenMediaModal(attachment.Url, true))'
+                                                 onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'120\' height=\'120\'%3E%3Crect width=\'120\' height=\'120\' fill=\'%23ddd\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\'%3ELỗi tải ảnh%3C/text%3E%3C/svg%3E';" />
+                                        }
+                                        else
+                                        {
+                                            <video src="@attachment.Url"
+                                                   class="img-thumbnail w-100 h-100"
+                                                   style="object-fit: cover; cursor: pointer;"
+                                                   @onclick='@(() => OpenMediaModal(attachment.Url, false))'
+                                                   onerror="this.onerror=null; this.style.display='none';"></video>
+                                        }
+                                        <button type="button"
+                                                class="btn-close position-absolute top-0 end-0 bg-white rounded-circle p-1"
+                                                style="opacity: 0.8;"
+                                                @onclick='@(() => { reviewAttachments.Remove(attachment); StateHasChanged(); })'></button>
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseReviewModal">Hủy</button>
@@ -480,13 +744,76 @@
                     }
                     <span title="@submitTooltip">
                         <button type="button" 
-                                class="btn btn-primary" 
-                                @onclick="SubmitReview" 
+                                class="btn btn-success me-2" 
+                                @onclick="() => SubmitReview(true)" 
                                 disabled="@(!canSubmit)"
                                 style="@(!canSubmit ? "cursor: not-allowed;" : "")">
-                            Xác nhận
+                            Xác nhận đạt
+                        </button>
+                        <button type="button" 
+                                class="btn btn-danger" 
+                                @onclick="() => SubmitReview(false)" 
+                                disabled="@(!canSubmit)"
+                                style="@(!canSubmit ? "cursor: not-allowed;" : "")">
+                            Xác nhận không đạt
                         </button>
                     </span>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@* Request Review Confirmation Modal *@
+@if (showRequestReviewConfirm && requestReviewStageId.HasValue)
+{
+    var stage = model?.stages?.FirstOrDefault(s => s.Id == requestReviewStageId.Value);
+    var hasQa = stage != null && stage.AssignedQaUserId.HasValue;
+    var hasActualHours = stage != null && stage.ActualTimeHours.HasValue && stage.ActualTimeHours.Value > 0;
+    var hasActualUnits = stage != null && stage.ActualUnits.HasValue && stage.PlannedUnits.HasValue && stage.ActualUnits.Value >= stage.PlannedUnits.Value;
+    var canProceed = hasQa && hasActualHours && hasActualUnits;
+    
+    <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Xác nhận yêu cầu kiểm tra</h5>
+                    <button type="button" class="btn-close" @onclick="CloseRequestReviewConfirm"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Bạn có chắc chắn muốn yêu cầu kiểm tra cho giai đoạn này?</p>
+                    
+                    @if (!hasQa)
+                    {
+                        <div class="alert alert-danger mb-2">
+                            <strong>Chưa phân công QA</strong>
+                        </div>
+                    }
+                    
+                    @if (!hasActualHours)
+                    {
+                        <div class="alert alert-warning mb-2">
+                            <strong>Cảnh báo:</strong> Chưa cập nhật giờ thực tế
+                        </div>
+                    }
+                    
+                    @if (!hasActualUnits)
+                    {
+                        <div class="alert alert-warning mb-2">
+                            <strong>Cảnh báo:</strong> Chưa cập nhật đủ số lượng thực tế
+                        </div>
+                    }
+                    
+                    @if (canProceed)
+                    {
+                        <div class="alert alert-success mb-2">
+                            Tất cả điều kiện đã được đáp ứng. Có thể tiếp tục.
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" @onclick="CloseRequestReviewConfirm">Hủy</button>
+                    <button type="button" class="btn btn-primary" @onclick="ConfirmRequestReview">Xác nhận</button>
                 </div>
             </div>
         </div>
@@ -644,6 +971,53 @@
                             <div class="form-control" style="min-height: 80px;">@viewReviewData.Review.Notes</div>
                         </div>
                     }
+                    @if (viewReviewData.Review?.Attachments?.Any() == true)
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Đính kèm ảnh/video</label>
+                            <div class="d-flex flex-wrap gap-2">
+                                @foreach (var attachmentUrl in viewReviewData.Review.Attachments)
+                                {
+                                    var urlLower = attachmentUrl.ToLower();
+                                    var isImage = urlLower.EndsWith(".jpg") || urlLower.EndsWith(".jpeg") ||
+                                                  urlLower.EndsWith(".png") || urlLower.EndsWith(".gif") ||
+                                                  urlLower.EndsWith(".webp") || urlLower.EndsWith(".bmp");
+                                    var isVideo = urlLower.EndsWith(".mp4") || urlLower.EndsWith(".mov") ||
+                                                  urlLower.EndsWith(".avi") || urlLower.EndsWith(".mkv") ||
+                                                  urlLower.EndsWith(".webm");
+                                    <div class="position-relative" style="width: 200px; height: 200px; border: 1px solid #dee2e6; border-radius: 0.25rem; overflow: hidden;">
+                                        @if (isImage)
+                                        {
+                                            <img src="@attachmentUrl" alt="Attachment"
+                                                 class="w-100 h-100"
+                                                 style="object-fit: cover; cursor: pointer; display: block;"
+                                                 @onclick='@(() => OpenMediaModal(attachmentUrl, true))'
+                                                 onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\'%3E%3Crect width=\'200\' height=\'200\' fill=\'%23ddd\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' text-anchor=\'middle\' dy=\'.3em\' fill=\'%23999\'%3EKhông thể tải ảnh%3C/text%3E%3C/svg%3E';" />
+                                        }
+                                        else if (isVideo)
+                                        {
+                                            <video src="@attachmentUrl"
+                                                   class="w-100 h-100"
+                                                   style="object-fit: cover; cursor: pointer; display: block;"
+                                                   @onclick='@(() => OpenMediaModal(attachmentUrl, false))'
+                                                   preload="metadata"
+                                                   muted
+                                                   onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<div class=\'d-flex align-items-center justify-content-center h-100 bg-light text-muted\'><small>Không thể tải video</small></div>';"></video>
+                                            <div class="position-absolute top-50 start-50 translate-middle" style="pointer-events: none;">
+                                                <i class="bi bi-play-circle-fill text-white" style="font-size: 3rem; text-shadow: 0 0 10px rgba(0,0,0,0.5);"></i>
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="d-flex align-items-center justify-content-center h-100 bg-light text-muted">
+                                                <small>File: @Path.GetFileName(attachmentUrl)</small>
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CloseViewReviewModal">Đóng</button>
@@ -700,18 +1074,28 @@
     private Dictionary<int, string?> criteriaContent = new();
     private Dictionary<int, List<AttachmentInfo>> criteriaAttachments = new();
     private string reviewNotes = string.Empty;
+    private List<AttachmentInfo> reviewAttachments = new();
     private bool showViewReviewModal = false;
     private int? viewReviewStageId;
     private ReviewData? viewReviewData;
     private Dictionary<int, bool> stageHasPendingReview = new();
     private Dictionary<int, bool> stageHasLatestReview = new();
     private Dictionary<int, string> stageReviewStatus = new(); // Store review status: "passed", "failed", or empty
+    private bool showRequestReviewConfirm = false;
+    private int? requestReviewStageId;
     
     // Inline editing states
     private int? editingPlanStageId;
     private decimal? editingPlannedTimeHours;
+    private int editingPlannedHours;
+    private int editingPlannedMinutes;
     private int? editingActualStageId;
     private decimal? editingActualTimeHours;
+    private int editingActualHours;
+    private int editingActualMinutes;
+    private bool editingItemPlan;
+    private DateTime? editingItemPlannedStartDate;
+    private DateTime? editingItemPlannedFinishDate;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -910,7 +1294,12 @@
         switch (buttonName)
         {
             case "AssignQa":
-                return IsProductionManager() && !stage.IsCompleted && (model?.order?.Status == ProductionOrderStatus.Draft || model?.order?.Status == ProductionOrderStatus.InProduction);
+                return IsProductionManager() &&
+                 !stage.IsCompleted && 
+                 (model?.order?.Status == ProductionOrderStatus.Draft ||
+                 model?.order?.Status == ProductionOrderStatus.PendingQACheckMachines ||
+                 model?.order?.Status == ProductionOrderStatus.PendingQACheckMaterial ||
+                  model?.order?.Status == ProductionOrderStatus.InProduction);
             case "RequestReview":
                 return IsProductionManager() && !stage.IsCompleted && model?.order?.Status == ProductionOrderStatus.InProduction && !HasPendingReview(stage.Id);
             case "Review":
@@ -932,6 +1321,7 @@
     private bool CanEditStagePlan() => IsProductionManager() && (model?.order?.Status == ProductionOrderStatus.Draft);
     private bool CanEditStageActual() => IsProductionManager() && (model?.order?.Status == ProductionOrderStatus.InProduction);
     private bool CanEditItemCompletion() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
+    private bool CanEditItemPlan() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft;
 
     private bool CanCompleteItem()
     {
@@ -993,6 +1383,9 @@
     {
         editingPlanStageId = stage.Id;
         editingPlannedTimeHours = stage.PlannedTimeHours;
+        var totalMinutes = (int)Math.Round((double)(stage.PlannedTimeHours ?? 0) * 60.0);
+        editingPlannedHours = totalMinutes / 60;
+        editingPlannedMinutes = totalMinutes % 60;
         StateHasChanged();
     }
 
@@ -1004,6 +1397,8 @@
 
     private async Task SaveStagePlan(int stageId)
     {
+        var totalMinutes = Math.Max(0, editingPlannedHours * 60 + editingPlannedMinutes);
+        editingPlannedTimeHours = totalMinutes > 0 ? Math.Round((decimal)totalMinutes / 60m, 2) : null;
         var dto = new UpdateStagePlanDto
         {
             PlannedTimeHours = editingPlannedTimeHours
@@ -1019,6 +1414,9 @@
     {
         editingActualStageId = stage.Id;
         editingActualTimeHours = stage.ActualTimeHours;
+        var totalMinutes = (int)Math.Round((double)(stage.ActualTimeHours ?? 0) * 60.0);
+        editingActualHours = totalMinutes / 60;
+        editingActualMinutes = totalMinutes % 60;
         StateHasChanged();
     }
 
@@ -1030,6 +1428,8 @@
 
     private async Task SaveStageActual(int stageId)
     {
+        var totalMinutes = Math.Max(0, editingActualHours * 60 + editingActualMinutes);
+        editingActualTimeHours = totalMinutes > 0 ? Math.Round((decimal)totalMinutes / 60m, 2) : null;
         var dto = new UpdateStageDatesDto
         {
             ActualTimeHours = editingActualTimeHours
@@ -1041,13 +1441,144 @@
         }
     }
 
-    private string FormatStageHours(decimal? hours)
+    private string FormatStageHoursVerbose(decimal? hours)
     {
-        if (!hours.HasValue)
+        if (!hours.HasValue || hours.Value <= 0)
         {
             return "-";
         }
-        return $"{hours.Value:F1}h";
+        var totalMinutes = (int)Math.Round(hours.Value * 60);
+        var h = totalMinutes / 60;
+        var m = totalMinutes % 60;
+        if (h > 0 && m > 0)
+        {
+            return $"{h} giờ {m} phút";
+        }
+        if (h > 0)
+        {
+            return $"{h} giờ";
+        }
+        return $"{m} phút";
+    }
+
+    private string FormatStageDifference(decimal? planned, decimal? actual)
+    {
+        if (!planned.HasValue || !actual.HasValue)
+        {
+            return "-";
+        }
+        var diffHours = actual.Value - planned.Value;
+        if (diffHours == 0)
+        {
+            return "0";
+        }
+        var sign = diffHours > 0 ? "+" : "-";
+        var totalMinutes = (int)Math.Round(Math.Abs(diffHours) * 60);
+        var h = totalMinutes / 60;
+        var m = totalMinutes % 60;
+        string text;
+        if (h > 0 && m > 0)
+        {
+            text = $"{h} giờ {m} phút";
+        }
+        else if (h > 0)
+        {
+            text = $"{h} giờ";
+        }
+        else
+        {
+            text = $"{m} phút";
+        }
+        return $"{sign}{text}";
+    }
+
+    private string GetMaterialBadgeClass(string? materialTypeName)
+    {
+        if (string.IsNullOrWhiteSpace(materialTypeName)) return "badge bg-secondary text-light";
+        return materialTypeName switch
+        {
+            "Nhôm" => "badge bg-primary text-light",
+            "Kính" => "badge bg-info text-dark",
+            "Roăng" => "badge bg-success text-light",
+            "Phụ kiện" => "badge bg-warning text-dark",
+            "Vật tư phụ" => "badge bg-secondary text-light",
+            _ => "badge bg-secondary text-light"
+        };
+    }
+
+    private string GetStagePlannedUnitsLabel(StageDto s)
+    {
+        if (!s.PlannedUnits.HasValue || s.PlannedUnits.Value <= 0)
+        {
+            return "-";
+        }
+        var count = s.PlannedUnits.Value;
+        var name = s.StageName ?? string.Empty;
+        string unit = "đơn vị";
+        if (name.Contains("Cắt nhôm", StringComparison.OrdinalIgnoreCase))
+        {
+            unit = "thanh nhôm";
+        }
+        else if (name.Contains("Cắt kính", StringComparison.OrdinalIgnoreCase) || name.Contains("kính", StringComparison.OrdinalIgnoreCase))
+        {
+            unit = "tấm kính";
+        }
+        else if (name.Contains("Ép gioăng", StringComparison.OrdinalIgnoreCase))
+        {
+            unit = "gioăng";
+        }
+        else if (name.Contains("Bắn phụ kiện", StringComparison.OrdinalIgnoreCase))
+        {
+            unit = "phụ kiện";
+        }
+        else if (name.Contains("Hoàn thiện silicon", StringComparison.OrdinalIgnoreCase))
+        {
+            unit = "mét keo";
+        }
+        else if (name.Contains("Cắt sập", StringComparison.OrdinalIgnoreCase))
+        {
+            unit = "thanh";
+        }
+        else if (name.Contains("Ghép khung", StringComparison.OrdinalIgnoreCase) || name.Contains("Cắt góc cửa", StringComparison.OrdinalIgnoreCase))
+        {
+            unit = "góc";
+        }
+        return $"{count} {unit}";
+    }
+
+    private int GetActualUnitsDisplayValue(StageDto stage)
+    {
+        // Only return actual units if it's already set, otherwise return 0 (not planned units)
+        // This prevents auto-setting to planned units when order status changes
+        return stage.ActualUnits ?? 0;
+    }
+
+    private async Task OnActualUnitsChanged(StageDto stage, ChangeEventArgs e)
+    {
+        if (!int.TryParse(e.Value?.ToString(), out var value))
+        {
+            // If parsing fails, don't set to planned units - keep current actual or 0
+            value = stage.ActualUnits ?? 0;
+        }
+        
+        // Enforce min = planned units (actual must be >= planned)
+        if (stage.PlannedUnits.HasValue && value < stage.PlannedUnits.Value)
+        {
+            value = stage.PlannedUnits.Value;
+        }
+
+        // Only update if value actually changed from current actual units
+        if (stage.ActualUnits.HasValue && stage.ActualUnits.Value == value)
+        {
+            return; // No change, don't save
+        }
+
+        var dto = new UpdateStageUnitsDto
+        {
+            ActualUnits = value
+        };
+
+        await ExecuteStageAction(() => Http.PutAsJsonAsync($"/api/stages/{stage.Id}/units", dto));
     }
 
     private async Task ToggleItemCompletion()
@@ -1058,6 +1589,41 @@
             IsCompleted = !model.item.IsCompleted
         };
         await ExecuteStageAction(() => Http.PutAsJsonAsync($"/api/items/{ItemId}/completion", dto));
+    }
+
+    private async Task StoreItem()
+    {
+        if (model?.item == null) return;
+        await ExecuteStageAction(() => Http.PutAsync($"/api/items/{ItemId}/stored", null));
+    }
+
+    private void StartEditItemPlan()
+    {
+        if (model?.item == null) return;
+        editingItemPlan = true;
+        editingItemPlannedStartDate = model.item.PlannedStartDate;
+        editingItemPlannedFinishDate = model.item.PlannedFinishDate;
+        StateHasChanged();
+    }
+
+    private void CancelItemPlanEdit()
+    {
+        editingItemPlan = false;
+        StateHasChanged();
+    }
+
+    private async Task SaveItemPlan()
+    {
+        var dto = new UpdateItemPlanDto
+        {
+            PlannedStartDate = editingItemPlannedStartDate,
+            PlannedFinishDate = editingItemPlannedFinishDate
+        };
+        await ExecuteStageAction(() => Http.PutAsJsonAsync($"/api/items/{ItemId}/plan", dto));
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            editingItemPlan = false;
+        }
     }
 
     private string GetOrderStatusDisplay()
@@ -1102,6 +1668,7 @@
         public ItemDto? item { get; set; }
         public OrderDto? order { get; set; }
         public List<StageDto>? stages { get; set; }
+        public List<MaterialSummaryDto>? materials { get; set; }
     }
 
     private class ItemDto
@@ -1114,6 +1681,7 @@
         public int LineNo { get; set; }
         public string? QRCode { get; set; }
         public bool IsCompleted { get; set; }
+        public bool IsStored { get; set; }
         public DateTime? PlannedStartDate { get; set; }
         public DateTime? PlannedFinishDate { get; set; }
         public DateTime? ActualStartDate { get; set; }
@@ -1145,6 +1713,8 @@
         public int? AssignedQaUserId { get; set; }
         public string? AssignedQaUserName { get; set; }
         public bool IsCompleted { get; set; }
+        public int? PlannedUnits { get; set; }
+        public int? ActualUnits { get; set; }
     }
 
     private class QaUser
@@ -1152,6 +1722,33 @@
         public int Id { get; set; }
         public string? Name { get; set; }
         public string? Phone { get; set; }
+        public int PendingItemsCount { get; set; }
+    }
+
+    private void OpenRequestReviewConfirm(int stageId)
+    {
+        requestReviewStageId = stageId;
+        showRequestReviewConfirm = true;
+        StateHasChanged();
+    }
+
+    private void CloseRequestReviewConfirm()
+    {
+        showRequestReviewConfirm = false;
+        requestReviewStageId = null;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmRequestReview()
+    {
+        if (requestReviewStageId == null) return;
+        await ExecuteStageAction(() => Http.PostAsync($"/api/stages/{requestReviewStageId.Value}/request-review", null));
+        if (string.IsNullOrWhiteSpace(errorMessage))
+        {
+            CloseRequestReviewConfirm();
+            await Load(); // Reload to refresh stages
+            StateHasChanged();
+        }
     }
 
     private async Task RequestReview(int stageId)
@@ -1167,6 +1764,7 @@
         criteriaSeverity.Clear();
         criteriaContent.Clear();
         criteriaAttachments.Clear();
+        reviewAttachments.Clear();
         showReviewModal = true;
         await LoadReviewData(stageId);
         StateHasChanged();
@@ -1182,6 +1780,7 @@
         criteriaContent.Clear();
         criteriaAttachments.Clear();
         reviewNotes = string.Empty;
+        reviewAttachments.Clear();
         StateHasChanged();
     }
 
@@ -1199,6 +1798,22 @@
             if (response.IsSuccessStatusCode)
             {
                 reviewData = await response.Content.ReadFromJsonAsync<ReviewData>();
+                reviewNotes = reviewData?.Review?.Notes ?? string.Empty;
+                reviewAttachments.Clear();
+                var reviewAttachmentUrls = reviewData?.Review?.Attachments ?? new List<string>();
+                foreach (var url in reviewAttachmentUrls)
+                {
+                    if (string.IsNullOrWhiteSpace(url)) continue;
+                    var lower = url.ToLowerInvariant();
+                    reviewAttachments.Add(new AttachmentInfo
+                    {
+                        Url = url,
+                        FileName = Path.GetFileName(url),
+                        IsImage = lower.EndsWith(".jpg") || lower.EndsWith(".jpeg") ||
+                                  lower.EndsWith(".png") || lower.EndsWith(".gif") ||
+                                  lower.EndsWith(".webp") || lower.EndsWith(".bmp")
+                    });
+                }
                 if (reviewData?.Criteria != null)
                 {
                     foreach (var criteria in reviewData.Criteria)
@@ -1240,6 +1855,7 @@
         {
             errorMessage = $"Lỗi khi tải dữ liệu đánh giá: {ex.Message}";
             reviewData = null;
+            reviewAttachments.Clear();
         }
         StateHasChanged();
     }
@@ -1300,6 +1916,56 @@
         StateHasChanged();
     }
 
+    private async Task HandleReviewFileUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            foreach (var file in e.GetMultipleFiles())
+            {
+                using var content = new MultipartFormDataContent();
+                var stream = file.OpenReadStream(maxAllowedSize: 50 * 1024 * 1024);
+                var streamContent = new StreamContent(stream);
+                content.Add(streamContent, "file", file.Name);
+
+                var response = await Http.PostAsync("/api/stages/upload-attachment", content);
+
+                streamContent.Dispose();
+                stream.Dispose();
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<UploadResult>();
+                    if (result != null && !string.IsNullOrEmpty(result.url))
+                    {
+                        var isImage = file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase) ||
+                                      file.Name.ToLower().EndsWith(".jpg") ||
+                                      file.Name.ToLower().EndsWith(".jpeg") ||
+                                      file.Name.ToLower().EndsWith(".png") ||
+                                      file.Name.ToLower().EndsWith(".gif") ||
+                                      file.Name.ToLower().EndsWith(".webp") ||
+                                      file.Name.ToLower().EndsWith(".bmp");
+                        reviewAttachments.Add(new AttachmentInfo
+                        {
+                            Url = result.url,
+                            FileName = result.fileName ?? file.Name,
+                            IsImage = isImage
+                        });
+                    }
+                }
+                else
+                {
+                    var error = await response.Content.ReadAsStringAsync();
+                    errorMessage = $"Lỗi khi upload file {file.Name}: {error}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lỗi khi upload file: {ex.Message}";
+        }
+        StateHasChanged();
+    }
+
 
     private bool CanSubmitReview()
     {
@@ -1326,7 +1992,7 @@
         return true;
     }
 
-    private async Task SubmitReview()
+    private async Task SubmitReview(bool isPassed)
     {
         if (reviewStageId == null || reviewData == null) return;
         
@@ -1359,7 +2025,7 @@
             }
         }
         
-        var criteriaResultsDto = reviewData.Criteria.Select(c => new AGDPMS.Shared.Models.DTOs.StageReviewCriteriaResultDto
+        var criteriaResultsDto = (reviewData?.Criteria ?? Enumerable.Empty<CriteriaInfo>()).Select(c => new AGDPMS.Shared.Models.DTOs.StageReviewCriteriaResultDto
         {
             CriteriaId = c.Id,
             IsPassed = criteriaResults.ContainsKey(c.Id) ? criteriaResults[c.Id] : null,
@@ -1373,7 +2039,9 @@
         var dto = new AGDPMS.Shared.Models.DTOs.SubmitStageReviewDto
         {
             Notes = reviewNotes,
-            CriteriaResults = criteriaResultsDto
+            CriteriaResults = criteriaResultsDto,
+            IsPassed = isPassed, // Manual pass/fail decision by QA
+            Attachments = reviewAttachments.Any() ? reviewAttachments.Select(a => a.Url).ToList() : new List<string>()
         };
 
         await ExecuteStageAction(() => Http.PostAsJsonAsync($"/api/stages/{reviewStageId.Value}/submit-review", dto));
@@ -1510,6 +2178,7 @@
         public string? Notes { get; set; }
         public DateTime? RequestedAt { get; set; }
         public DateTime? ReviewedAt { get; set; }
+        public List<string>? Attachments { get; set; }
     }
 
     private class CriteriaInfo
@@ -1539,6 +2208,18 @@
         public string Url { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty;
         public bool IsImage { get; set; }
+    }
+
+    private class MaterialSummaryDto
+    {
+        public string? MaterialId { get; set; }
+        public string? MaterialName { get; set; }
+        public string? MaterialType { get; set; }
+        public int Quantity { get; set; }
+        public double Length { get; set; }
+        public double Width { get; set; }
+        public string? Unit { get; set; }
+        public string? Color { get; set; }
     }
 
     private class UploadResult

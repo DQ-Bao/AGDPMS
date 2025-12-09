@@ -4,10 +4,21 @@
 @inject NavigationManager Nav
 
 <div class="container py-3">
+    @* Notification Toast *@
+    @if (showNotification)
+    {
+        <div class="position-fixed top-0 start-50 translate-middle-x mt-3" style="z-index: 9999;">
+            <div class="alert alert-success alert-dismissible fade show" role="alert" style="min-width: 300px;">
+                <strong>Thành công!</strong> Đã tạo lệnh sản xuất thành công.
+                <button type="button" class="btn-close" @onclick="HideNotification"></button>
+            </div>
+        </div>
+    }
+
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="/production/orders">Production Orders</a></li>
-            <li class="breadcrumb-item active">Create</li>
+            <li class="breadcrumb-item"><a href="/production/orders">Lệnh sản xuất</a></li>
+            <li class="breadcrumb-item active">Tạo mới</li>
         </ol>
     </nav>
     <h4>Tạo lệnh sản xuất</h4>
@@ -74,6 +85,65 @@
             {
                 <div class="alert alert-danger">@errorMessage</div>
             }
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Tùy chỉnh thời gian ước tính của giai đoạn</h6>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @onclick="() => showTimeSettings = !showTimeSettings">
+                        @(showTimeSettings ? "Ẩn" : "Hiện")
+                    </button>
+                </div>
+                @if (showTimeSettings)
+                {
+                    @if (timeSettingsLoading)
+                    {
+                        <div>Đang tải cấu hình...</div>
+                    }
+                    else if (!timeSettings.Any())
+                    {
+                        <div class="text-muted">Không có dữ liệu giai đoạn.</div>
+                    }
+                    else
+                    {
+                        <div class="table-responsive" style="max-height:50vh; overflow:auto;">
+                            <table class="table table-sm align-middle">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Giai đoạn</th>
+                                        <th style="width:120px;">Chuẩn bị (phút)</th>
+                                        <th style="width:120px;">Hoàn thành (phút)</th>
+                                        <th style="width:160px;">Thời gian thực hiện</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var s in timeSettings)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <div class="fw-semibold">@s.StageTypeName</div>
+                                                <small class="text-muted">@s.StageTypeCode</small>
+                                            </td>
+                                            <td>
+                                                <div class="small text-muted mb-1" style="visibility: hidden;">Phút</div>
+                                                <input type="number" min="0" step="0.1" class="form-control form-control-sm" @bind-value="s.SetupMinutes" @bind-value:event="oninput" />
+                                            </td>
+                                            <td>
+                                                <div class="small text-muted mb-1" style="visibility: hidden;">Phút</div>
+                                                <input type="number" min="0" step="0.1" class="form-control form-control-sm" @bind-value="s.FinishMinutes" @bind-value:event="oninput" />
+                                            </td>
+                                            <td>
+                                                <div class="small text-muted mb-1">@s.DoLabel</div>
+                                                <input type="number" min="0" step="0.1" class="form-control form-control-sm" @bind-value="s.DoMinutes" @bind-value:event="oninput" />
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
             <button class="btn btn-primary" @onclick="Submit" disabled="@(!selected.Any() || isSubmitting)">
                 @if (isSubmitting)
                 {
@@ -96,10 +166,15 @@
     private bool allSelected = true;
     private string? errorMessage;
     private bool isSubmitting = false;
+    private bool showNotification = false;
+    private List<StageTimeSettingViewDto> timeSettings = new();
+    private bool timeSettingsLoading;
+    private bool showTimeSettings = false;
 
     protected override async Task OnInitializedAsync()
     {
         await LoadProjects();
+        await LoadTimeSettings();
     }
 
     private async Task LoadProjects()
@@ -123,6 +198,7 @@
         {
             var url = $"/api/lookup/cavities?projectId={projectId}&q={Uri.EscapeDataString(cavitySearch ?? string.Empty)}";
             var response = await Http.GetFromJsonAsync<List<CavityLookup>>(url) ?? new();
+            // Ensure cavities list is never null
             cavities = response;
             // Select all by default and set default quantities
             if (allSelected)
@@ -133,7 +209,8 @@
                     selected.Add(c.Id);
                     if (!quantities.ContainsKey(c.Id))
                     {
-                        quantities[c.Id] = c.Quantity;
+                        // Ensure minimum quantity is always at least 1
+                        quantities[c.Id] = c.Quantity > 0 ? c.Quantity : 1;
                     }
                 }
             }
@@ -213,6 +290,25 @@
         StateHasChanged();
     }
 
+    private async Task LoadTimeSettings()
+    {
+        try
+        {
+            timeSettingsLoading = true;
+            var list = await Http.GetFromJsonAsync<List<StageTimeSettingViewDto>>("/api/order-settings/stage-time") ?? new();
+            timeSettings = list;
+        }
+        catch
+        {
+            timeSettings = new();
+        }
+        finally
+        {
+            timeSettingsLoading = false;
+            StateHasChanged();
+        }
+    }
+
     private async Task Submit()
     {
         errorMessage = null;
@@ -233,7 +329,8 @@
                 { 
                     CavityId = id,
                     Quantity = GetQuantity(id)
-                }).ToList()
+                }).ToList(),
+                TimeSettings = BuildTimeSettingsPayload()
             };
             var url = "/api/orders";
             var res = await Http.PostAsJsonAsync(url, dto);
@@ -242,6 +339,10 @@
                 var body = await res.Content.ReadFromJsonAsync<CreateResult>();
                 if (body is not null)
                 {
+                    showNotification = true;
+                    StateHasChanged();
+                    // Wait a bit to show notification, then navigate
+                    await Task.Delay(1500);
                     Nav.NavigateTo($"/production/orders/{body.id}");
                 }
                 else
@@ -277,6 +378,63 @@
             isSubmitting = false;
             StateHasChanged();
         }
+    }
+
+    private void HideNotification()
+    {
+        showNotification = false;
+        StateHasChanged();
+    }
+
+    private List<ProductionOrderTimeSettingsDto>? BuildTimeSettingsPayload()
+    {
+        if (!timeSettings.Any()) return null;
+
+        return timeSettings.Select(s =>
+        {
+            var dto = new ProductionOrderTimeSettingsDto
+            {
+                StageTypeId = s.StageTypeId,
+                SetupMinutes = s.SetupMinutes,
+                FinishMinutes = s.FinishMinutes
+            };
+
+            switch (s.StageTypeCode.ToUpperInvariant())
+            {
+                case "CUT_AL":
+                    dto.CutAlMinutesPerUnit = s.DoMinutes;
+                    break;
+                case "MILL_LOCK":
+                    dto.MillLockMinutesPerGroup = s.DoMinutes;
+                    break;
+                case "DOOR_CORNER_CUT":
+                    dto.CornerCutMinutesPerCorner = s.DoMinutes;
+                    break;
+                case "ASSEMBLE_FRAME":
+                    dto.AssembleFrameMinutesPerCorner = s.DoMinutes;
+                    break;
+                case "CUT_GLASS":
+                    dto.CutGlassMinutesPerSquareMeter = s.DoMinutes;
+                    break;
+                case "GLASS_INSTALL":
+                    dto.GlassInstallMinutesPerUnit = s.DoMinutes;
+                    break;
+                case "PRESS_GASKET":
+                    dto.GasketMinutesPerUnit = s.DoMinutes;
+                    break;
+                case "INSTALL_ACCESSORIES":
+                    dto.AccessoryMinutesPerUnit = s.DoMinutes;
+                    break;
+                case "CUT_FLUSH":
+                    dto.CutFlushMinutesPerUnit = s.DoMinutes;
+                    break;
+                case "FINISH_SILICON":
+                    dto.SiliconMinutesPerMeter = s.DoMinutes;
+                    break;
+            }
+
+            return dto;
+        }).ToList();
     }
 
     private record Lookup(int Id, string? Name);

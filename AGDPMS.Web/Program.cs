@@ -82,6 +82,7 @@ app.MapUserEndpoints();
 app.MapProductionOrders();
 app.MapProductionStages();
 app.MapStageTypes();
+app.MapOrderSettings();
 app.MapQr();
 app.MapLookup();
 

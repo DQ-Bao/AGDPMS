@@ -15,7 +15,7 @@ public class StageReviewDataAccess(IDbConnection conn)
     public Task<StageReview?> GetLatestReviewByStageAsync(int stageId) => conn.QueryFirstOrDefaultAsync<StageReview>(@"
         select id as Id, production_item_stage_id as ProductionItemStageId,
                requested_by_user_id as RequestedByUserId, reviewed_by_user_id as ReviewedByUserId,
-               status as Status, notes as Notes,
+               status as Status, notes as Notes, attachments as Attachments,
                requested_at as RequestedAt, reviewed_at as ReviewedAt,
                created_at as CreatedAt, updated_at as UpdatedAt
         from stage_reviews
@@ -27,14 +27,14 @@ public class StageReviewDataAccess(IDbConnection conn)
     public Task<StageReview?> GetReviewByIdAsync(int reviewId) => conn.QueryFirstOrDefaultAsync<StageReview>(@"
         select id as Id, production_item_stage_id as ProductionItemStageId,
                requested_by_user_id as RequestedByUserId, reviewed_by_user_id as ReviewedByUserId,
-               status as Status, notes as Notes,
+               status as Status, notes as Notes, attachments as Attachments,
                requested_at as RequestedAt, reviewed_at as ReviewedAt,
                created_at as CreatedAt, updated_at as UpdatedAt
         from stage_reviews
         where id = @Id",
         new { Id = reviewId });
 
-    public async Task SubmitReviewAsync(int reviewId, int reviewedByUserId, List<StageReviewCriteriaResult> criteriaResults, string? notes, bool allPassed)
+    public async Task SubmitReviewAsync(int reviewId, int reviewedByUserId, List<StageReviewCriteriaResult> criteriaResults, string? notes, bool allPassed, List<string>? attachments)
     {
         if (conn.State != System.Data.ConnectionState.Open)
         {
@@ -47,15 +47,20 @@ public class StageReviewDataAccess(IDbConnection conn)
             var status = allPassed ? "passed" : "failed";
             
             // Update review
+            var attachmentsJson = attachments != null && attachments.Any()
+                ? System.Text.Json.JsonSerializer.Serialize(attachments)
+                : null;
+
             await conn.ExecuteAsync(@"
                 update stage_reviews
                 set reviewed_by_user_id = @ReviewedByUserId,
                     status = @Status,
                     notes = @Notes,
+                    attachments = @Attachments,
                     reviewed_at = now(),
                     updated_at = now()
                 where id = @Id",
-                new { Id = reviewId, ReviewedByUserId = reviewedByUserId, Status = status, Notes = notes },
+                new { Id = reviewId, ReviewedByUserId = reviewedByUserId, Status = status, Notes = notes, Attachments = attachmentsJson },
                 trans);
 
             // Delete old results
@@ -68,7 +73,7 @@ public class StageReviewDataAccess(IDbConnection conn)
             // Insert new results
             foreach (var result in criteriaResults)
             {
-                var attachmentsJson = result.Attachments != null && result.Attachments.Any() 
+                var resultAttachmentsJson = result.Attachments != null && result.Attachments.Any() 
                     ? System.Text.Json.JsonSerializer.Serialize(result.Attachments) 
                     : null;
                 await conn.ExecuteAsync(@"
@@ -82,7 +87,7 @@ public class StageReviewDataAccess(IDbConnection conn)
                         Notes = result.Notes,
                         Severity = result.Severity,
                         Content = result.Content,
-                        Attachments = attachmentsJson
+                        Attachments = resultAttachmentsJson
                     },
                     trans);
             }
@@ -142,6 +147,7 @@ public class StageReview
     public int? ReviewedByUserId { get; set; }
     public string Status { get; set; } = string.Empty; // pending, in_progress, passed, failed
     public string? Notes { get; set; }
+    public string? Attachments { get; set; }
     public DateTime? RequestedAt { get; set; }
     public DateTime? ReviewedAt { get; set; }
     public DateTime? CreatedAt { get; set; }
