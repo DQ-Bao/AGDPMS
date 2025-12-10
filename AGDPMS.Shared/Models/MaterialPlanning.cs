@@ -1,19 +1,26 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AGDPMS.Shared.Models;
 
 public class MaterialPlanning
 {
-    public string Id { set; get; } = string.Empty;
-    public string Name { set; get; } = string.Empty;
-    public double Length { set; get; }
-    public double Weight { set; get; }
-    public string Color { set; get; } = string.Empty;
-    public string Vendor { set; get; } = string.Empty;
-    public int Stock { set; get; }
-    public int Receipt { set; get; }
+    public int Id { get; set; }
+    public required int UserId { get; set; }
+    public required int ProjectId { get; set; }
+    public MaterialPlanningStatus Status { get; set; } = MaterialPlanningStatus.Pending;
+    public List<MaterialPlanningDetails> Details { get; set; } = [];
 }
+
+public enum MaterialPlanningStatus { Pending, Cancelled, Completed }
+
+public class MaterialPlanningDetails
+{
+    public int Id { get; set; }
+    public int PlanningId { get; set; }
+    public required Material Material { get; set; }
+    public double Length { get; set; }
+    public double Width { get; set; }
+    public required int Quantity { get; set; }
+    public string Unit { get; set; } = string.Empty;
+    public string Note { get; set; } = string.Empty;
+}
+>>>>>>> 76097ed21d968e05c3d5d80f66c85739319b08ad
