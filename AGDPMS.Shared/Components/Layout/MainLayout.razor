@@ -29,6 +29,9 @@
                 <li class="nav-item">
                     <NavLink href="/production/orders" class="nav-link text-white"><i class="bi bi-gear me-2"></i>Production Orders</NavLink>
                 </li>
+                <li class="nav-item">
+                    <NavLink href="/print/stamp-manager" class="nav-link text-white"><i class="bi bi-printer me-2"></i>In mã bảo hành</NavLink>
+                </li>
             </AuthorizeView>
         </ul>
     </div>
@@ -61,6 +64,9 @@
         <AuthorizeView Roles="Director,QA,Production Manager">
             <li class="nav-item">
                 <NavLink href="/production/orders" class="nav-link text-white"><i class="bi bi-gear me-2"></i><span>Production Orders</span></NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink href="/print/stamp-manager" class="nav-link text-white"><i class="bi bi-printer me-2"></i><span>In mã bảo hành</span></NavLink>
             </li>
         </AuthorizeView>
     </ul>

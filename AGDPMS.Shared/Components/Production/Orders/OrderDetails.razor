@@ -93,6 +93,12 @@
                 {
                     <button class="btn btn-outline-dark btn-sm" @onclick="OpenCostModal">Quản lý chi phí</button>
                 }
+                @if (model?.items?.Any() == true)
+                {
+                    <button class="btn btn-outline-info btn-sm" @onclick="AddAllItemsToStamps">
+                        <i class="bx bx-printer"></i> In tem nhanh
+                    </button>
+                }
             </div>
         </div>
 
@@ -425,21 +431,23 @@
                                 @GetDifferenceInfo(it)
                             </td>
                             <td>
-                                @if (CanEditItemCompletion())
-                                {
-                                    @if (!it.IsCompleted && CanCompleteItem(it))
+                                <div class="d-flex gap-1 flex-wrap">
+                                    @if (CanEditItemCompletion())
                                     {
-                                        <button class="btn btn-sm btn-success" @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true">
-                                            Đã hoàn thành
-                                        </button>
+                                        @if (!it.IsCompleted && CanCompleteItem(it))
+                                        {
+                                            <button class="btn btn-sm btn-success" @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true">
+                                                Đã hoàn thành
+                                            </button>
+                                        }
+                                        else if (it.IsCompleted && !it.IsStored)
+                                        {
+                                            <button class="btn btn-sm btn-primary" @onclick='@(() => StoreItem(it.Id))' @onclick:stopPropagation="true">
+                                                Lưu kho
+                                            </button>
+                                        }
                                     }
-                                    else if (it.IsCompleted && !it.IsStored)
-                                    {
-                                        <button class="btn btn-sm btn-primary" @onclick='@(() => StoreItem(it.Id))' @onclick:stopPropagation="true">
-                                            Lưu kho
-                                        </button>
-                                    }
-                                }
+                                </div>
                             </td>
                         </tr>
                     }
@@ -713,6 +721,18 @@
         {
             await Load();
         }
+    }
+
+    private void AddItemToStamps(int itemId)
+    {
+        Nav.NavigateTo($"/print/stamp-manager?items={itemId}");
+    }
+
+    private void AddAllItemsToStamps()
+    {
+        if (model?.items == null || !model.items.Any()) return;
+        var itemIds = string.Join(",", model.items.Select(i => i.Id));
+        Nav.NavigateTo($"/print/stamp-manager?items={itemIds}");
     }
 
     private void StartEditItemCode(ItemDto item)

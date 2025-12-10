@@ -434,6 +434,12 @@
         CloseAssignQaModal();
     }
 
+    private void AddOrderToStamps(int orderId)
+    {
+        // Navigate to stamp manager with order ID, which will load all items from that order
+        Nav.NavigateTo($"/print/stamp-manager?orderId={orderId}");
+    }
+
     private string GetProjectName(int projectId)
     {
         // Project name will be loaded from API response if needed

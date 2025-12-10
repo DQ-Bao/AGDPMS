@@ -2,6 +2,7 @@ using AGDPMS.Web.Data;
 using System.Data;
 using Dapper;
 using AGDPMS.Shared.Models;
+using System.Text;
 
 namespace AGDPMS.Web.Endpoints;
 
@@ -127,7 +128,155 @@ public static class LookupEndpoints
             }));
         });
 
+        group.MapGet("/order-items-for-stamps", async (
+            string? q,
+            string? statuses,
+            string? items,
+            ProductionItemDataAccess itemAccess,
+            ProductionOrderDataAccess orderAccess,
+            CavityDataAccess cavityAccess,
+            IDbConnection conn) =>
+        {
+            if (conn.State != System.Data.ConnectionState.Open)
+            {
+                conn.Open();
+            }
+
+            // Parse item IDs filter
+            var itemIdList = new List<int>();
+            if (!string.IsNullOrWhiteSpace(items))
+            {
+                itemIdList = items.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(id => int.TryParse(id, out var v) ? v : (int?)null)
+                    .Where(id => id.HasValue)
+                    .Select(id => id!.Value)
+                    .ToList();
+            }
+
+            // Parse stage status filter (checkbox - multiple values)
+            var statusList = new List<StageStatus>();
+            if (!string.IsNullOrWhiteSpace(statuses))
+            {
+                var statusValues = statuses.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                    .Select(s => int.TryParse(s, out var v) ? v : (int?)null)
+                    .Where(v => v.HasValue && Enum.IsDefined(typeof(StageStatus), v!.Value))
+                    .Select(v => (StageStatus)v!.Value)
+                    .ToList();
+                statusList = statusValues;
+            }
+
+            // Build query - use item status (StageStatus) from production_order_items
+            var sql = @"
+                select 
+                    poi.id as ItemId,
+                    poi.code as ItemCode,
+                    poi.qr_image as QRImage,
+                    po.id as OrderId,
+                    po.code as OrderCode,
+                    po.status as OrderStatus,
+                    poi.cavity_id as CavityId,
+                    coalesce(poi.status, 0) as StageStatus
+                from production_order_items poi
+                join production_orders po on po.id = poi.production_order_id
+                where po.is_cancelled = false";
+
+            var parameters = new DynamicParameters();
+
+            if (itemIdList.Any())
+            {
+                sql += " and poi.id = any(@ItemIds)";
+                parameters.Add("ItemIds", itemIdList.ToArray());
+            }
+
+            if (statusList.Any())
+            {
+                sql += " and coalesce(pis.status, 0) = any(@Statuses)";
+                parameters.Add("Statuses", statusList.Select(s => (short)s).ToArray());
+            }
+
+            if (!string.IsNullOrWhiteSpace(q))
+            {
+                sql += " and (poi.code ilike @Search or po.code ilike @Search)";
+                parameters.Add("Search", $"%{q}%");
+            }
+
+            sql += " order by po.code, poi.line_no";
+
+            var queryResults = await conn.QueryAsync<(int ItemId, string ItemCode, byte[]? QRImage, int OrderId, string? OrderCode, ProductionOrderStatus OrderStatus, int CavityId, short StageStatus)>(sql, parameters);
+
+            // Get all cavities
+            var allCavityIds = queryResults.Select(i => i.CavityId).Distinct().ToList();
+            var cavities = new Dictionary<int, Cavity>();
+            if (allCavityIds.Any())
+            {
+                var cavitiesList = await conn.QueryAsync<Cavity>(@"
+                    select id as Id, code as Code, project_id as ProjectId, description as Description,
+                           width as Width, height as Height, location as Location, quantity as Quantity, window_type as WindowType
+                    from cavities
+                    where id = any(@CavityIds)",
+                    new { CavityIds = allCavityIds.ToArray() });
+                foreach (var cavity in cavitiesList)
+                {
+                    cavities[cavity.Id] = cavity;
+                }
+            }
+
+            // Group by order
+            var ordersDict = new Dictionary<int, OrderWithItemsDto>();
+            foreach (var item in queryResults)
+            {
+                if (!ordersDict.ContainsKey(item.OrderId))
+                {
+                    ordersDict[item.OrderId] = new OrderWithItemsDto
+                    {
+                        orderId = item.OrderId,
+                        orderCode = item.OrderCode,
+                        items = new List<OrderItemDto>()
+                    };
+                }
+
+                var cavity = cavities.GetValueOrDefault(item.CavityId);
+                var productName = cavity?.Description ?? cavity?.Code ?? "N/A";
+                var qrImageDataUri = item.QRImage != null && item.QRImage.Length > 0
+                    ? $"data:image/png;base64,{Convert.ToBase64String(item.QRImage)}"
+                    : null;
+
+                ordersDict[item.OrderId].items.Add(new OrderItemDto
+                {
+                    itemId = item.ItemId,
+                    itemCode = item.ItemCode,
+                    orderId = item.OrderId,
+                    orderCode = item.OrderCode,
+                    orderStatus = item.OrderStatus,
+                    stageStatus = (StageStatus)item.StageStatus,
+                    productName = productName,
+                    qrImage = qrImageDataUri
+                });
+            }
+
+            return Results.Ok(ordersDict.Values.OrderBy(o => o.orderCode).ToList());
+        });
+
         return app;
+    }
+
+    private class OrderWithItemsDto
+    {
+        public int orderId { get; set; }
+        public string? orderCode { get; set; }
+        public List<OrderItemDto> items { get; set; } = new();
+    }
+
+    private class OrderItemDto
+    {
+        public int itemId { get; set; }
+        public string itemCode { get; set; } = "";
+        public int orderId { get; set; }
+        public string? orderCode { get; set; }
+        public ProductionOrderStatus orderStatus { get; set; }
+        public StageStatus stageStatus { get; set; }
+        public string productName { get; set; } = "";
+        public string? qrImage { get; set; }
     }
 }
 

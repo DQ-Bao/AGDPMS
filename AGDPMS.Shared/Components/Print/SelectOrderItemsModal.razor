@@ -1,0 +1,317 @@
+@using AGDPMS.Shared.Models
+@inject HttpClient Http
+
+<div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1060;">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Chọn sản phẩm để in tem bảo hành</h5>
+                <button type="button" class="btn-close" @onclick="Close"></button>
+            </div>
+            <div class="modal-body">
+                @if (isLoading)
+                {
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải...</span>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <input type="text" class="form-control" placeholder="Tìm kiếm theo mã lệnh, mã SP..." 
+                               @bind="searchQuery" @bind:event="oninput" @bind:after="OnSearchChanged" />
+                    </div>
+
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        @if (!filteredOrders.Any())
+                        {
+                            <div class="text-center text-muted py-4">
+                                Không tìm thấy sản phẩm nào
+                            </div>
+                        }
+                        else
+                        {
+                            <table class="table table-hover table-sm">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th style="width: 40px;"></th>
+                                        <th style="width: 40px;"></th>
+                                        <th>Mã lệnh TC</th>
+                                        <th>Mã SP</th>
+                                        <th>Tên sản phẩm</th>
+                                        <th>Trạng thái giai đoạn</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var order in filteredOrders)
+                                    {
+                                        var orderItemIds = order.items.Select(i => i.itemId).ToList();
+                                        var allOrderItemsSelected = orderItemIds.All(id => selectedItemIds.Contains(id));
+                                        var someOrderItemsSelected = orderItemIds.Any(id => selectedItemIds.Contains(id)) && !allOrderItemsSelected;
+                                        var isExpanded = expandedOrders.Contains(order.orderId);
+                                        
+                                        <tr class="table-secondary" style="cursor: pointer;" @onclick='@(() => ToggleOrderExpand(order.orderId))'>
+                                            <td @onclick:stopPropagation="true">
+                                                @if (isExpanded)
+                                                {
+                                                    <button class="btn btn-sm btn-link p-0" @onclick='@(() => ToggleOrderExpand(order.orderId))' title="Thu gọn" @onclick:stopPropagation="true">
+                                                        <i class="bx bx-chevron-down"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-sm btn-link p-0" @onclick='@(() => ToggleOrderExpand(order.orderId))' title="Mở rộng" @onclick:stopPropagation="true">
+                                                        <i class="bx bx-chevron-right"></i>
+                                                    </button>
+                                                }
+                                            </td>
+                                            <td @onclick:stopPropagation="true">
+                                                <input type="checkbox" 
+                                                       checked="@allOrderItemsSelected"
+                                                       @onchange='@((e) => ToggleOrder(order.orderId, (bool)e.Value!))'
+                                                       @onclick:stopPropagation="true" />
+                                            </td>
+                                            <td><strong>@order.orderCode</strong></td>
+                                            <td colspan="3">
+                                                <small class="text-muted">@order.items.Count sản phẩm</small>
+                                                @if (someOrderItemsSelected)
+                                                {
+                                                    <span class="badge bg-warning ms-2">Một phần</span>
+                                                }
+                                            </td>
+                                        </tr>
+                                        @if (isExpanded)
+                                        {
+                                            @foreach (var item in order.items)
+                                            {
+                                                var isItemSelected = selectedItemIds.Contains(item.itemId);
+                                                <tr style="cursor: pointer;" @onclick='@(() => ToggleItem(item.itemId, !isItemSelected))'>
+                                                    <td></td>
+                                                    <td @onclick:stopPropagation="true">
+                                                        <input type="checkbox" 
+                                                               checked="@isItemSelected"
+                                                               @onchange='@((e) => ToggleItem(item.itemId, (bool)e.Value!))'
+                                                               @onclick:stopPropagation="true" />
+                                                    </td>
+                                                    <td><small>@item.orderCode</small></td>
+                                                    <td><span class="badge bg-info text-dark">@item.itemCode</span></td>
+                                                    <td class="text-truncate" style="max-width: 200px;" title="@item.productName">@item.productName</td>
+                                                    <td>
+                                                        <span class="badge bg-secondary">@GetStageStatusLabel(item.stageStatus)</span>
+                                                    </td>
+                                                </tr>
+                                            }
+                                        }
+                                    }
+                                </tbody>
+                            </table>
+                        }
+                    </div>
+
+                    @if (selectedItemIds.Any())
+                    {
+                        <div class="alert alert-info mt-3 mb-0">
+                            <i class="bx bx-info-circle me-1"></i>
+                            Đã chọn <strong>@selectedItemIds.Count</strong> sản phẩm
+                        </div>
+                    }
+                }
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" @onclick="Close">Hủy</button>
+                <button type="button" class="btn btn-primary" @onclick="AddSelectedItems" disabled="@(!selectedItemIds.Any())">
+                    Thêm vào danh sách (@selectedItemIds.Count)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter] public EventCallback OnClose { get; set; }
+    [Parameter] public EventCallback<List<WarrantyStamp>> OnItemsSelected { get; set; }
+
+    private List<OrderWithItemsDto> allOrders = new();
+    private List<OrderWithItemsDto> filteredOrders = new();
+    private HashSet<int> selectedItemIds = new();
+    private HashSet<int> expandedOrders = new();
+    private string searchQuery = "";
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadItems();
+    }
+
+    private async Task LoadItems()
+    {
+        isLoading = true;
+        try
+        {
+            var url = "/api/lookup/order-items-for-stamps";
+            if (!string.IsNullOrWhiteSpace(searchQuery))
+            {
+                url += $"?q={Uri.EscapeDataString(searchQuery)}";
+            }
+
+            var response = await Http.GetFromJsonAsync<List<OrderWithItemsDto>>(url);
+            allOrders = response ?? new();
+            ApplyFilters();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading items: {ex.Message}");
+            allOrders = new();
+            filteredOrders = new();
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        filteredOrders = allOrders.ToList();
+        
+        if (!string.IsNullOrWhiteSpace(searchQuery))
+        {
+            var qLower = searchQuery.ToLower();
+            filteredOrders = filteredOrders.Where(o =>
+                (o.orderCode?.ToLower().Contains(qLower) ?? false) ||
+                o.items.Any(i => 
+                    (i.itemCode?.ToLower().Contains(qLower) ?? false) ||
+                    (i.productName?.ToLower().Contains(qLower) ?? false)
+                )
+            ).Select(o => new OrderWithItemsDto
+            {
+                orderId = o.orderId,
+                orderCode = o.orderCode,
+                items = o.items.Where(i =>
+                    (i.itemCode?.ToLower().Contains(qLower) ?? false) ||
+                    (i.productName?.ToLower().Contains(qLower) ?? false) ||
+                    (o.orderCode?.ToLower().Contains(qLower) ?? false)
+                ).ToList()
+            }).Where(o => o.items.Any()).ToList();
+        }
+
+    }
+
+    private void OnSearchChanged()
+    {
+        ApplyFilters();
+    }
+
+
+    private void ToggleOrderExpand(int orderId)
+    {
+        if (expandedOrders.Contains(orderId))
+        {
+            expandedOrders.Remove(orderId);
+        }
+        else
+        {
+            expandedOrders.Add(orderId);
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleOrder(int orderId, bool isSelected)
+    {
+        var order = allOrders.FirstOrDefault(o => o.orderId == orderId);
+        if (order == null) return;
+
+        var orderItemIds = order.items.Select(i => i.itemId).ToList();
+        if (isSelected)
+        {
+            foreach (var itemId in orderItemIds)
+            {
+                selectedItemIds.Add(itemId);
+            }
+        }
+        else
+        {
+            foreach (var itemId in orderItemIds)
+            {
+                selectedItemIds.Remove(itemId);
+            }
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleItem(int itemId, bool isSelected)
+    {
+        if (isSelected)
+        {
+            selectedItemIds.Add(itemId);
+        }
+        else
+        {
+            selectedItemIds.Remove(itemId);
+        }
+        StateHasChanged();
+    }
+
+    private async Task AddSelectedItems()
+    {
+        var allItems = allOrders.SelectMany(o => o.items).ToList();
+        var selectedItems = allItems.Where(i => selectedItemIds.Contains(i.itemId)).ToList();
+        var stamps = selectedItems.Select(item => new WarrantyStamp
+        {
+            OrderItemId = item.itemId,
+            OrderCode = item.orderCode ?? "",
+            OrderItemCode = item.itemCode,
+            ProductName = item.productName ?? "",
+            QrImage = item.qrImage,
+            InstallDate = DateTime.Now
+        }).ToList();
+
+        if (OnItemsSelected.HasDelegate)
+        {
+            await OnItemsSelected.InvokeAsync(stamps);
+        }
+        Close();
+    }
+
+    private async Task Close()
+    {
+        if (OnClose.HasDelegate)
+        {
+            await OnClose.InvokeAsync();
+        }
+    }
+
+    private string GetStageStatusLabel(StageStatus status)
+    {
+        return status switch
+        {
+            StageStatus.NotStarted => "Chưa bắt đầu",
+            StageStatus.InProgress => "Đang thực hiện",
+            StageStatus.WaitingForReview => "Chờ review",
+            StageStatus.Completed => "Hoàn thành",
+            _ => status.ToString()
+        };
+    }
+
+    private class OrderWithItemsDto
+    {
+        public int orderId { get; set; }
+        public string? orderCode { get; set; }
+        public List<OrderItemDto> items { get; set; } = new();
+    }
+
+    private class OrderItemDto
+    {
+        public int itemId { get; set; }
+        public string itemCode { get; set; } = "";
+        public int orderId { get; set; }
+        public string? orderCode { get; set; }
+        public ProductionOrderStatus orderStatus { get; set; }
+        public StageStatus stageStatus { get; set; }
+        public string productName { get; set; } = "";
+        public string? qrImage { get; set; }
+    }
+}
+

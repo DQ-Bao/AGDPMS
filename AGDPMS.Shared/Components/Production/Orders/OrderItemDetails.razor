@@ -75,6 +75,9 @@
                 {
                     <img src="@qrImageUrl" alt="QR Code" class="img-fluid" style="max-width: 120px; height: auto;" />
                 }
+                <button class="btn btn-sm btn-outline-info" @onclick="AddItemToStamps" title="In tem nhanh">
+                    <i class="bx bx-printer me-1"></i> In tem nhanh
+                </button>
                 @if (CanEditItemCompletion())
                 {
                     @if (!(model?.item?.IsCompleted == true) && CanCompleteItem())
@@ -1607,6 +1610,11 @@
     {
         if (model?.item == null) return;
         await ExecuteStageAction(() => Http.PutAsync($"/api/items/{ItemId}/stored", null));
+    }
+
+    private void AddItemToStamps()
+    {
+        Nav.NavigateTo($"/print/stamp-manager?items={ItemId}");
     }
 
     private void StartEditItemPlan()

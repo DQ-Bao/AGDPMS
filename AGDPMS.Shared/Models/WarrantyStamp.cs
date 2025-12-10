@@ -3,8 +3,9 @@
 public class WarrantyStamp
 {
     public string ProductName { get; set; } = "...............................";
-    public string CommandCode { get; set; } = "........................";
-    public string ProductCode { get; set; } = "W6T2";
+    public string OrderCode { get; set; } = "........................";
+    public string OrderItemCode { get; set; } = "W6T2";
+    public int? OrderItemId { get; set; }
     public DateTime? InstallDate { get; set; }
 
     // New: set this to a data URI (e.g. "data:image/png;base64,...")
