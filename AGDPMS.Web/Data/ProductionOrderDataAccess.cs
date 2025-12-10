@@ -35,16 +35,17 @@ public class ProductionOrderDataAccess(IDbConnection conn)
     public async Task<int> CreateAsync(ProductionOrder order)
     {
         var id = await conn.ExecuteScalarAsync<int>(@"
-            insert into production_orders(project_id, code, status, is_cancelled, created_at, created_by)
-            values (@ProjectId, @Code, @Status, false, now(), @CreatedBy)
+            insert into production_orders(project_id, code, status, is_cancelled, assigned_qa_user_id, created_at, created_by)
+            values (@ProjectId, @Code, @Status, false, @AssignedQaUserId, now(), @CreatedBy)
             returning id",
-            new { order.ProjectId, order.Code, Status = (short)order.Status, order.CreatedBy });
+            new { order.ProjectId, order.Code, Status = (short)order.Status, order.AssignedQaUserId, order.CreatedBy });
         return id;
     }
 
     public Task<IEnumerable<ProductionOrder>> ListAsync(int? projectId, string? q, string? sort, string? dir) => conn.QueryAsync<ProductionOrder>(@"
         select id as Id, project_id as ProjectId, code as Code,
                status as Status, is_cancelled as IsCancelled,
+               assigned_qa_user_id as AssignedQaUserId,
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                submitted_at as SubmittedAt, director_decision_at as DirectorDecisionAt,
                qa_machines_checked_at as QAMachinesCheckedAt, qa_material_checked_at as QAMaterialCheckedAt,
@@ -65,6 +66,7 @@ public class ProductionOrderDataAccess(IDbConnection conn)
     public Task<ProductionOrder?> GetByIdAsync(int id) => conn.QueryFirstOrDefaultAsync<ProductionOrder>(@"
         select id as Id, project_id as ProjectId, code as Code,
                status as Status, is_cancelled as IsCancelled,
+               assigned_qa_user_id as AssignedQaUserId,
                planned_start_date as PlannedStartDate, planned_finish_date as PlannedFinishDate,
                submitted_at as SubmittedAt, director_decision_at as DirectorDecisionAt,
                qa_machines_checked_at as QAMachinesCheckedAt, qa_material_checked_at as QAMaterialCheckedAt,
@@ -134,6 +136,12 @@ public class ProductionOrderDataAccess(IDbConnection conn)
         set status = @Status, finished_at = now(), updated_at = now()
         where id = @Id",
         new { Id = id, Status = (short)ProductionOrderStatus.Finished });
+
+    public Task SetAssignedQaAsync(int id, int qaUserId) => conn.ExecuteAsync(@"
+        update production_orders
+        set assigned_qa_user_id = @QaUserId, updated_at = now()
+        where id = @Id",
+        new { Id = id, QaUserId = qaUserId });
 }
 
 

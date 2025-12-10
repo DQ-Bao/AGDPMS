@@ -1,6 +1,7 @@
 using AGDPMS.Web.Data;
 using System.Data;
 using Dapper;
+using AGDPMS.Shared.Models;
 
 namespace AGDPMS.Web.Endpoints;
 
@@ -42,8 +43,10 @@ public static class LookupEndpoints
             }));
         });
 
-        group.MapGet("/qa-users", async (string? q, UserDataAccess access, IDbConnection conn) =>
+        group.MapGet("/qa-users", async (string? q, string? scope, UserDataAccess access, IDbConnection conn) =>
         {
+            var useOrderScope = string.Equals(scope, "order", StringComparison.OrdinalIgnoreCase);
+
             // naive search by fullname/phone for users with QA role
             var users = await access.GetAllAsync();
             var qa = users.Where(u => string.Equals(u.Role.Name, "QA", StringComparison.OrdinalIgnoreCase));
@@ -53,7 +56,7 @@ public static class LookupEndpoints
                                  || (u.PhoneNumber?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false));
             }
             
-            // Get counts of items not reviewed for each QA
+            // Workload
             var qaList = qa.ToList();
             var qaIds = qaList.Select(u => u.Id).ToList();
             
@@ -65,18 +68,46 @@ public static class LookupEndpoints
                     conn.Open();
                 }
                 
-                var counts = await conn.QueryAsync<(int? QaUserId, int Count)>(@"
-                    select pis.assigned_qa_user_id as QaUserId, count(distinct pis.id) as Count
-                    from production_item_stages pis
-                    where pis.assigned_qa_user_id = any(@QaIds)
-                      and pis.is_completed = false
-                      and not exists (
-                          select 1 from stage_reviews sr
-                          where sr.production_item_stage_id = pis.id
-                            and sr.status in ('pending', 'in_progress')
-                      )
-                    group by pis.assigned_qa_user_id",
-                    new { QaIds = qaIds });
+                var counts = useOrderScope
+                    ? await conn.QueryAsync<(int? QaUserId, int Count)>(@"
+                        select po.assigned_qa_user_id as QaUserId,
+                               sum(
+                                   (case when po.qa_machines_checked_at is null then 1 else 0 end) +
+                                   (case when po.qa_material_checked_at is null then 1 else 0 end)
+                               ) as Count
+                        from production_orders po
+                        where po.assigned_qa_user_id = any(@QaIds)
+                          and po.status between @StatusStart and @StatusEnd
+                          and po.is_cancelled = false
+                        group by po.assigned_qa_user_id",
+                        new
+                        {
+                            QaIds = qaIds,
+                            StatusStart = (short)ProductionOrderStatus.PendingQACheckMachines,
+                            StatusEnd = (short)ProductionOrderStatus.InProduction
+                        })
+                    : await conn.QueryAsync<(int? QaUserId, int Count)>(@"
+                        select pis.assigned_qa_user_id as QaUserId, count(distinct pis.id) as Count
+                        from production_item_stages pis
+                        join production_order_items poi on poi.id = pis.production_order_item_id
+                        join production_orders po on po.id = poi.production_order_id
+                        where pis.assigned_qa_user_id = any(@QaIds)
+                          and pis.is_completed = false
+                          and coalesce(pis.planned_time_hours, 0) > 0
+                          and po.status between @StatusStart and @StatusEnd
+                          and po.is_cancelled = false
+                          and not exists (
+                              select 1 from stage_reviews sr
+                              where sr.production_item_stage_id = pis.id
+                                and sr.status in ('pending', 'in_progress')
+                          )
+                        group by pis.assigned_qa_user_id",
+                        new
+                        {
+                            QaIds = qaIds,
+                            StatusStart = (short)ProductionOrderStatus.PendingQACheckMachines,
+                            StatusEnd = (short)ProductionOrderStatus.InProduction
+                        });
                 
                 foreach (var result in counts)
                 {

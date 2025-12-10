@@ -296,7 +296,7 @@
                                 <td>
                                     @if (ShouldShowButton("AssignQa", s))
                                     {
-                                        <span style="cursor:pointer;"
+                                        <span class="text-primary text-decoration-underline" style="cursor:pointer;"
                                               @onclick='@(async () => await OpenQaSelector(s.Id))' 
                                               @onclick:stopPropagation="true"
                                               title="Click để giao QA">
@@ -425,7 +425,7 @@
                 </tbody>
             </table>
         </div>
-        @if (IsProductionManager() && (model?.order?.Status == ProductionOrderStatus.Draft || model?.order?.Status == ProductionOrderStatus.InProduction))
+        if (ShouldShowBulkAssignQa())
         {
             <div class="mt-2">
                 <button class="btn btn-sm btn-outline-primary" @onclick="OpenBulkQaModal">Giao QA nhanh cho toàn bộ</button>
@@ -475,7 +475,7 @@
                                             <small class="text-muted">@qa.Phone</small>
                                         </div>
                                         <div class="text-end">
-                                            <span class="badge bg-secondary">@qa.PendingItemsCount sản phẩm chưa kiểm tra</span>
+                                            <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
                                         </div>
                                     </div>
                                 </button>
@@ -529,7 +529,7 @@
                                             <small class="text-muted">@qa.Phone</small>
                                         </div>
                                         <div class="text-end">
-                                            <span class="badge bg-secondary">@qa.PendingItemsCount sản phẩm chưa kiểm tra</span>
+                                            <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
                                         </div>
                                     </div>
                                 </button>
@@ -1237,7 +1237,12 @@
     {
         try
         {
-            var url = "/api/lookup/qa-users" + (string.IsNullOrWhiteSpace(qaSearch) ? string.Empty : $"?q={Uri.EscapeDataString(qaSearch!)}");
+            var query = new List<string> { "scope=stage" };
+            if (!string.IsNullOrWhiteSpace(qaSearch))
+            {
+                query.Add($"q={Uri.EscapeDataString(qaSearch!)}");
+            }
+            var url = "/api/lookup/qa-users" + (query.Any() ? "?" + string.Join("&", query) : "");
             qaUsers = await Http.GetFromJsonAsync<List<QaUser>>(url) ?? new();
         }
         catch
@@ -1317,6 +1322,13 @@
     private bool IsProductionManager() => HasRole("ProductionManager") || HasRole("Production Manager");
     private bool IsQa() => HasRole("QA") || HasRole("Qa");
     private bool IsDirector() => HasRole("Admin") || HasRole("Director");
+
+    private bool ShouldShowBulkAssignQa() =>
+        IsProductionManager() &&
+        (model?.order?.Status == ProductionOrderStatus.Draft ||
+         model?.order?.Status == ProductionOrderStatus.PendingQACheckMachines ||
+         model?.order?.Status == ProductionOrderStatus.PendingQACheckMaterial ||
+         model?.order?.Status == ProductionOrderStatus.InProduction);
 
     private bool CanEditStagePlan() => IsProductionManager() && (model?.order?.Status == ProductionOrderStatus.Draft);
     private bool CanEditStageActual() => IsProductionManager() && (model?.order?.Status == ProductionOrderStatus.InProduction);

@@ -37,6 +37,9 @@
                 <div class="text-secondary small">
                     <span>Thực tế: Bắt đầu: @FormatDate(model.order?.StartedAt) | Kết thúc: @FormatDate(model.order?.FinishedAt)</span>
                 </div>
+                <div class="text-secondary small mt-1">
+                    <span>QA phụ trách: @(string.IsNullOrWhiteSpace(orderQaName) ? "Chưa phân công" : orderQaName)</span>
+                </div>
                 @if (model.items?.Any() == true)
                 {
                     <div class="text-secondary small mt-1">
@@ -77,6 +80,10 @@
                 @if (ShouldShowButton("QaMaterial"))
                 {
                     <button class="btn btn-outline-success btn-sm" @onclick="QaMaterial">Xác nhận vật tư</button>
+                }
+                @if (ShouldShowAssignQa())
+                {
+                    <button class="btn btn-outline-warning btn-sm" @onclick="OpenAssignQaModal">Phân công QA</button>
                 }
                 @if (IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft)
                 {
@@ -187,6 +194,65 @@
         {
             <CostManagementModal OrderId="@Id" OnClose="CloseCostModal" />
         }
+        @if (showAssignQaModal)
+        {
+            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Phân công QA cho lệnh @model?.order?.Code</h5>
+                            <button type="button" class="btn-close" @onclick="CloseAssignQaModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <input class="form-control" placeholder="Tìm QA..." @bind-value="qaSearch" @bind-value:event="oninput" @bind-value:after="OnQaSearchChanged" />
+                                </div>
+                            </div>
+                            <div class="list-group" style="max-height:300px; overflow:auto;">
+                                @if (qaUsers is null)
+                                {
+                                    <div class="px-2">Đang tải...</div>
+                                }
+                                else if (!qaUsers.Any())
+                                {
+                                    <div class="px-2">Không tìm thấy nhân viên QA</div>
+                                }
+                                else
+                                {
+                                    var sortedQa = qaUsers.OrderBy(q => q.PendingItemsCount).ThenBy(q => q.Name).ToList();
+                                    var minCount = sortedQa.FirstOrDefault()?.PendingItemsCount ?? 0;
+                                    @foreach (var qa in sortedQa)
+                                    {
+                                        var isRecommended = qa.PendingItemsCount == minCount && sortedQa.Count > 1;
+                                        <button type="button" class="list-group-item list-group-item-action @(isRecommended ? "border-primary border-2" : "")" @onclick='@(() => SelectOrderQa(qa.Id))'>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <div>
+                                                        <strong>@qa.Name</strong>
+                                                        @if (isRecommended)
+                                                        {
+                                                            <span class="badge bg-primary ms-2">Đề xuất</span>
+                                                        }
+                                                    </div>
+                                                    <small class="text-muted">@qa.Phone</small>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" @onclick="CloseAssignQaModal">Đóng</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
 
         @* Search and Filter *@
         <div class="mb-3">
@@ -196,12 +262,22 @@
                            @bind="itemSearch" @bind:event="oninput" />
                 </div>
                 <div class="col-md-3">
-                    <select class="form-select" @bind="statusFilter">
-                        <option value="">Tất cả trạng thái</option>
-                        <option value="chua_hoan_thanh">Chưa hoàn thành</option>
-                        <option value="da_hoan_thanh">Đã hoàn thành</option>
-                        <option value="da_luu_kho">Đã lưu kho</option>
-                    </select>
+                    <div class="dropdown w-100">
+                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            @GetItemStatusFilterLabel()
+                        </button>
+                        <ul class="dropdown-menu p-2 w-100">
+                            @foreach (var opt in ItemStatusOptions)
+                            {
+                                <li class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="it-st-@opt.Value"
+                                           checked="@itemStatusFilters.Contains(opt.Value)"
+                                           @onchange="(e => ToggleItemStatusFilter(opt.Value, (bool)e.Value))" />
+                                    <label class="form-check-label" for="it-st-@opt.Value">@opt.Label</label>
+                                </li>
+                            }
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
@@ -379,6 +455,7 @@
     private OrderDetailsResponse? model;
     private string? userRole;
     private string? errorMessage;
+    private string? orderQaName;
     private bool showCancelConfirm;
     private string? cancelConfirmInput;
     private bool showPlanModal;
@@ -394,7 +471,10 @@
     private string? editingItemCode;
     private string? codeValidationError;
     private string itemSearch = string.Empty;
-    private string statusFilter = string.Empty;
+    private HashSet<string> itemStatusFilters = new();
+    private bool showAssignQaModal;
+    private string? qaSearch;
+    private List<QaUser>? qaUsers;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -411,12 +491,15 @@
     private async Task Load()
     {
         errorMessage = null;
+        orderQaName = null;
         try
         {
             var response = await Http.GetAsync($"/api/orders/{Id}");
             if (response.IsSuccessStatusCode)
             {
-                model = await response.Content.ReadFromJsonAsync<OrderDetailsResponse>();
+                var dto = await response.Content.ReadFromJsonAsync<OrderDetailsResponse>();
+                model = dto;
+                orderQaName = dto?.orderQaName;
             }
             else
             {
@@ -435,7 +518,7 @@
     private bool ShouldShowButton(string buttonName) => buttonName switch
     {
         "Submit" => IsProductionManager() && CanSubmit(),
-        "Cancel" => IsProductionManager() && CanCancel(),
+        "Cancel" => (IsProductionManager() || IsDirector()) && CanCancel(),
         "Finish" => IsProductionManager() && CanFinish(),
         "DirectorApprove" => IsDirector() && CanDirectorApprove(),
         "DirectorReject" => IsDirector() && CanDirectorReject(),
@@ -446,7 +529,7 @@
     };
 
     private bool CanSubmit() => model?.order?.Status == ProductionOrderStatus.Draft;
-    private bool CanCancel() => model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanCancel() => model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial or ProductionOrderStatus.InProduction;
     private bool CanFinish() => model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanDirectorApprove() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
     private bool CanDirectorReject() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
@@ -510,6 +593,9 @@
     private bool CanEditItemActual() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanEditItemCompletion() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanEditItemCode() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft;
+    private bool ShouldShowAssignQa() =>
+        (IsProductionManager() || IsDirector()) &&
+        model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial or ProductionOrderStatus.InProduction;
 
     private bool CanCompleteItem(ItemDto item)
     {
@@ -857,6 +943,33 @@
     private decimal TotalPlannedHours => model?.items?.Sum(i => i.PlannedTimeHours ?? 0) ?? 0;
     private decimal TotalActualHours => model?.items?.Sum(i => i.ActualTimeHours ?? 0) ?? 0;
 
+    private readonly List<(string Value, string Label)> ItemStatusOptions = new()
+    {
+        ("chua_hoan_thanh", "Chưa hoàn thành"),
+        ("da_hoan_thanh", "Đã hoàn thành"),
+        ("da_luu_kho", "Đã lưu kho")
+    };
+
+    private string GetItemStatusFilterLabel()
+    {
+        if (!itemStatusFilters.Any()) return "Tất cả trạng thái";
+        if (itemStatusFilters.Count == 1)
+        {
+            var v = itemStatusFilters.First();
+            var label = ItemStatusOptions.FirstOrDefault(o => o.Value == v).Label;
+            return label ?? "1 trạng thái";
+        }
+        return $"{itemStatusFilters.Count} trạng thái";
+    }
+
+    private void ToggleItemStatusFilter(string value, bool isChecked)
+    {
+        if (isChecked)
+            itemStatusFilters.Add(value);
+        else
+            itemStatusFilters.Remove(value);
+    }
+
     private IEnumerable<ItemDto> GetFilteredItems()
     {
         var items = model?.items ?? Enumerable.Empty<ItemDto>();
@@ -873,15 +986,12 @@
         }
         
         // Apply status filter
-        if (!string.IsNullOrWhiteSpace(statusFilter))
+        if (itemStatusFilters.Any())
         {
-            items = statusFilter switch
-            {
-                "chua_hoan_thanh" => items.Where(it => !it.IsCompleted),
-                "da_hoan_thanh" => items.Where(it => it.IsCompleted && !it.IsStored),
-                "da_luu_kho" => items.Where(it => it.IsCompleted && it.IsStored),
-                _ => items
-            };
+            items = items.Where(it =>
+                (itemStatusFilters.Contains("chua_hoan_thanh") && !it.IsCompleted) ||
+                (itemStatusFilters.Contains("da_hoan_thanh") && it.IsCompleted && !it.IsStored) ||
+                (itemStatusFilters.Contains("da_luu_kho") && it.IsCompleted && it.IsStored));
         }
         
         return items;
@@ -906,9 +1016,58 @@
         StateHasChanged();
     }
 
+    private void OpenAssignQaModal()
+    {
+        showAssignQaModal = true;
+        qaSearch = null;
+        qaUsers = null;
+        _ = LoadQaUsers();
+        StateHasChanged();
+    }
+
+    private void CloseAssignQaModal()
+    {
+        showAssignQaModal = false;
+        qaSearch = null;
+        qaUsers = null;
+        StateHasChanged();
+    }
+
+    private async Task LoadQaUsers()
+    {
+        try
+        {
+            var query = new List<string> { "scope=order" };
+            if (!string.IsNullOrWhiteSpace(qaSearch))
+            {
+                query.Add($"q={Uri.EscapeDataString(qaSearch!)}");
+            }
+            var url = "/api/lookup/qa-users" + (query.Any() ? "?" + string.Join("&", query) : "");
+            qaUsers = await Http.GetFromJsonAsync<List<QaUser>>(url) ?? new();
+        }
+        catch
+        {
+            qaUsers = new();
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnQaSearchChanged()
+    {
+        await LoadQaUsers();
+    }
+
+    private async Task SelectOrderQa(int qaUserId)
+    {
+        await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/orders/{Id}/assign-qa", new AssignQaOrderDto { QaUserId = qaUserId }));
+        await Load();
+        CloseAssignQaModal();
+    }
+
     private class OrderDetailsResponse
     {
         public ProductionOrder? order { get; set; }
+        public string? orderQaName { get; set; }
         public List<ItemDto> items { get; set; } = new();
         public List<ProgressPointDto> ProgressTimeline { get; set; } = new();
     }
@@ -937,7 +1096,14 @@
         public bool IsOverdue { get; set; }
         public int DaysLate { get; set; }
     }
-    
+    private class QaUser
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        public string? Phone { get; set; }
+        public int PendingItemsCount { get; set; }
+    }
+
     private class StageDto
     {
         public int Id { get; set; }

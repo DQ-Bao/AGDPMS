@@ -4,6 +4,7 @@ using AGDPMS.Web.Services;
 using AGDPMS.Web.Data;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Linq;
 
 namespace AGDPMS.Web.Endpoints;
 
@@ -44,16 +45,31 @@ public static class ProductionOrdersEndpoints
             string? q,
             string? sort,
             string? dir,
+            string? statuses,
             int? status,
             ProductionOrderDataAccess orderAccess,
             ProductionItemDataAccess itemAccess,
             ProductionItemStageDataAccess stageAccess,
+            UserDataAccess userAccess,
             HttpContext httpContext) =>
         {
             int? pid = null;
             if (!string.IsNullOrWhiteSpace(projectId) && int.TryParse(projectId, out var parsedId))
                 pid = parsedId;
             var allOrders = (await orderAccess.ListAsync(pid, q, sort ?? "created_at", dir ?? "desc")).ToList();
+            var statusList = new List<int>();
+            if (!string.IsNullOrWhiteSpace(statuses))
+            {
+                statusList = statuses.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                     .Select(s => int.TryParse(s, out var v) ? v : (int?)null)
+                                     .Where(v => v.HasValue)
+                                     .Select(v => v!.Value)
+                                     .ToList();
+            }
+            else if (status.HasValue)
+            {
+                statusList.Add(status.Value);
+            }
 
             // Get user role and ID for filtering
             var userRole = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
@@ -107,10 +123,12 @@ public static class ProductionOrdersEndpoints
                 orders = new List<ProductionOrder>();
             }
 
-            if (status.HasValue)
+            if (statusList.Any())
             {
-                orders = orders.Where(o => (int)o.Status == status.Value).ToList();
+                orders = orders.Where(o => statusList.Contains((int)o.Status)).ToList();
             }
+
+            var allUsers = (await userAccess.GetAllAsync()).ToDictionary(u => u.Id);
 
             // compute hasPendingQa per order: any stage assigned and not completed
             var result = new List<object>();
@@ -127,12 +145,16 @@ public static class ProductionOrdersEndpoints
                         break;
                     }
                 }
+                allUsers.TryGetValue(o.AssignedQaUserId ?? -1, out var qaUser);
+
                 result.Add(new
                 {
                     o.Id,
                     o.ProjectId,
                     o.Code,
                     o.Status,
+                    o.AssignedQaUserId,
+                    AssignedQaUserName = qaUser?.FullName,
                     o.PlannedStartDate,
                     o.PlannedFinishDate,
                     o.CreatedAt,
@@ -302,7 +324,11 @@ public static class ProductionOrdersEndpoints
                     Date = g.Key,
                     CompletedCount = g.Count()
                 }).ToList();
-            return Results.Ok(new { order, items = itemsWithStages, progressTimeline });
+            var orderQaName = order.AssignedQaUserId.HasValue && allUsers.ContainsKey(order.AssignedQaUserId.Value)
+                ? allUsers[order.AssignedQaUserId.Value].FullName
+                : null;
+
+            return Results.Ok(new { order, orderQaName, items = itemsWithStages, progressTimeline });
         });
 
         // Project cost management (EVM) data
@@ -323,7 +349,7 @@ public static class ProductionOrdersEndpoints
         {
             await svc.SubmitAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Director" });
 
         group.MapPost("/{id:int}/cancel", async (int id, ProductionOrderService svc) =>
         {
@@ -366,6 +392,12 @@ public static class ProductionOrdersEndpoints
             await svc.RevertToDraftAsync(id);
             return Results.Ok();
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
+
+        group.MapPut("/{id:int}/assign-qa", async (int id, AssignQaOrderDto dto, ProductionOrderService svc) =>
+        {
+            await svc.AssignQaAsync(id, dto.QaUserId);
+            return Results.Ok();
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Director" });
 
         group.MapPut("/{id:int}/plan", async (int id, UpdateOrderPlanDto dto, ProductionOrderService svc) =>
         {
