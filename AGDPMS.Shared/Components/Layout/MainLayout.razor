@@ -42,27 +42,61 @@
     <hr class="text-secondary" />
     <ul class="nav nav-pills flex-column mb-auto">
         <li class="nav-item">
-            <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i><span>Dashboard</span></NavLink>
+            <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white">
+                <i class="bi bi-speedometer2 me-2"></i>
+                <span>Dashboard</span>
+            </NavLink>
         </li>
         <li class="nav-item">
-            <a class="nav-link text-white" data-bs-toggle="collapse" href="#pages-menu" role="button">
-                <i class="bi bi-layers me-2"></i><span>Pages</span> <i class="bi bi-chevron-down small brand-text"></i>
-            </a>
-            <div class="collapse" id="pages-menu">
-                <ul class="nav flex-column ps-4 small">
-                    <li class="nav-item"><NavLink href="/sale/customercontact" class="nav-link text-white"><span>Quản lý Khách hàng</span></NavLink></li>
-                    <li class="nav-item"><NavLink href="/qa/machines" class="nav-link text-white"><span>Quản lý Máy móc (QA)</span></NavLink></li>
-                </ul>
-            </div>
+            <NavLink href="/accounts" Match="NavLinkMatch.All" class="nav-link text-white">
+                <i class="bi bi-speedometer2 me-2"></i>
+                <span>Tài khoản</span>
+            </NavLink>
         </li>
         <li class="nav-item">
-            <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i><span>Projects</span></NavLink>
+            <NavLink href="/sale/customercontact" class="nav-link text-white">
+                <i class="bi bi-layers me-2"></i>
+                <span>Khách hàng</span>
+            </NavLink>
+        </li>
+        <li class="nav-item">
+            <NavLink href="/projects" class="nav-link text-white">
+                <i class="bi bi-list-task me-2"></i>
+                <span>Công trình</span>
+            </NavLink>
         </li>
         <AuthorizeView Roles="Director,Qa,Production Manager">
             <li class="nav-item">
-                <NavLink href="/production/orders" class="nav-link text-white"><i class="bi bi-gear me-2"></i><span>Production Orders</span></NavLink>
+                <NavLink href="/production/orders" class="nav-link text-white">
+                    <i class="bi bi-gear me-2"></i>
+                    <span>Lệnh sản xuất</span>
+                </NavLink>
             </li>
         </AuthorizeView>
+        <li class="nav-item">
+            <NavLink href="/qa/machines" class="nav-link text-white">
+                <i class="bi bi-layers me-2"></i>
+                <span>Máy móc</span>
+            </NavLink>
+        </li>
+        <li class="nav-item">
+            <NavLink href="/print/stamp-manager" class="nav-link text-white">
+                <i class="bi bi-layers me-2"></i>
+                <span>In tem</span>
+            </NavLink>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link text-white" data-bs-toggle="collapse" href="#inventory-menu" role="button">
+                <i class="bi bi-list-task me-2"></i><span>Kho</span> <i class="bi bi-chevron-down small brand-text"></i>
+            </a>
+            <div class="collapse" id="inventory-menu">
+                <ul class="nav flex-column ps-4 small">
+                    <li class="nav-item"><NavLink href="/inventory/stocks" class="nav-link text-white"><span>Tồn kho</span></NavLink></li>
+                    <li class="nav-item"><NavLink href="/inventory/receipts" class="nav-link text-white"><span>Xuất kho</span></NavLink></li>
+                    <li class="nav-item"><NavLink href="/inventory/issues" class="nav-link text-white"><span>Nhập kho</span></NavLink></li>
+                </ul>
+            </div>
+        </li>
     </ul>
 </aside>
 
@@ -244,16 +278,13 @@
         if (uri.Contains("/sale/projectrfq")) return "Quản lý Dự án RFQ";
         if (uri.Contains("/sale/customercontact")) return "Quản lý Khách hàng";
         if (uri.Contains("/qa/machines")) return "Quản lý Máy móc";
-        if (uri.Contains("/profile")) return "User Profile";
-        if (uri.Contains("/calendar")) return "Calendar";
-        if (uri.Contains("/kanban")) return "Kanban Board";
-        if (uri.Contains("/invoice")) return "Invoice";
-        if (uri.Contains("/pages")) return "Pages";
-
-        if (Nav.Uri.Contains("/profile")) return "User Profile";
+        if (uri.Contains("/inventory/stocks")) return "Quản lý tồn kho";
+        if (uri.Contains("/inventory/receipts")) return "Quản lý nhập kho";
+        if (uri.Contains("/inventory/issues")) return "Quản lý xuất kho";
+        if (Nav.Uri.Contains("/profile")) return "Tài khoản";
         if (Nav.Uri.Contains("/projects")) return "Dự án";
-        if (Nav.Uri.Contains("/production/orders")) return "Production Orders";
-        return "Home";
+        if (Nav.Uri.Contains("/production/orders")) return "Lệnh sản xuất";
+        return "Trang chủ";
     }
 
     private void ToggleSidebar() => sidebarCollapsed = !sidebarCollapsed;

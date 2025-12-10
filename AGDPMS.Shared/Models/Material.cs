@@ -53,6 +53,7 @@ public class MaterialType
 public class MaterialStock
 {
     public int Id { set; get; }
+    public string MaterialId { set; get; } = string.Empty;
     public double Length { set; get; }
     public double Width { set; get; }
     public int Stock { set; get; }

@@ -9,14 +9,12 @@ namespace AGDPMS.Shared.Services;
 
 public interface IInventoryService
 {
-
     Task<GetMaterialTypeResult> GetMaterialType();
     Task<GetMaterialResult> GetMaterial();
     Task<GetMaterialResult> GetMaterialById(string id);
     Task<GetMaterialResult> GetMaterialByType(MaterialType type);
     Task<GetMaterialResult> GetMaterialByName(string name);
     Task<BaseResult> AddMaterial(Material material);
-
 }
 
 public class GetMaterialTypeResult : BaseResult
@@ -26,4 +24,9 @@ public class GetMaterialTypeResult : BaseResult
 public class GetMaterialResult : BaseResult
 {
     public IEnumerable<Material> Materials { get; set; } = [];
+}
+
+public class GetMaterialPlanningResult : BaseResult
+{
+    public IEnumerable<MaterialPlanning> MaterialPlannings { get; set; } = [];
 }

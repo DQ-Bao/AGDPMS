@@ -12,11 +12,28 @@ public class InventoryDataAccess(IDbConnection conn)
             @"
             select
                 mt.id as Id,
-                mt.Name as Name
+                mt.name as Name
             from material_type mt;
         ";
 
         return conn.QueryAsync<MaterialType>(query);
+    }
+
+    public Task<IEnumerable<MaterialStock>> GetMaterialStockAsync()
+    {
+        string query =
+            @"
+            select
+                ms.id as Id,
+                ms.length as Length,
+                ms.width as Width,
+                ms.stock as Stock,
+                ms.base_price as BasePrice,
+                ms.material_id as MaterialId
+            from material_stock ms;
+        ";
+
+        return conn.QueryAsync<MaterialStock>(query);
     }
 
     public async Task<IEnumerable<Material>> GetAllMaterialAsync()

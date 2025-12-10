@@ -1,10 +1,11 @@
 ﻿using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
+using Google.OrTools.ConstraintSolver;
 
 namespace AGDPMS.Web.Services;
 
-public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInventoryService
+public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInventoryService
 {
     public async Task<GetMaterialTypeResult> GetMaterialType()
     {
@@ -13,7 +14,7 @@ public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInven
             return new GetMaterialTypeResult
             {
                 Success = true,
-                MaterialTypes = await _inventoryDataAccess.GetMaterialTypeAsync()
+                MaterialTypes = await inventoryDataAccess.GetMaterialTypeAsync()
             };
 
         }
@@ -29,7 +30,7 @@ public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInven
             return new GetMaterialResult
             {
                 Success = true,
-                Materials = await _inventoryDataAccess.GetAllMaterialAsync()
+                Materials = await inventoryDataAccess.GetAllMaterialAsync()
             };
 
         } catch (Exception e)
@@ -46,7 +47,7 @@ public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInven
             return new GetMaterialResult
             {
                 Success = true,
-                Materials = await _inventoryDataAccess.GetMaterialByIdAsync(id)
+                Materials = await inventoryDataAccess.GetMaterialByIdAsync(id)
             };
 
         }
@@ -64,7 +65,7 @@ public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInven
             return new GetMaterialResult
             {
                 Success = true,
-                Materials = await _inventoryDataAccess.GetMaterialByNameAsync(name)
+                Materials = await inventoryDataAccess.GetMaterialByNameAsync(name)
             };
 
         }
@@ -82,7 +83,7 @@ public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInven
             return new GetMaterialResult
             {
                 Success = true,
-                Materials = await _inventoryDataAccess.GetMaterialByTypeAsync(type)
+                Materials = await inventoryDataAccess.GetMaterialByTypeAsync(type)
             };
 
         }
@@ -96,7 +97,7 @@ public class InventoryService(InventoryDataAccess _inventoryDataAccess) : IInven
     {
         try
         {
-            await _inventoryDataAccess.CreateMaterialAsync(material);
+            await inventoryDataAccess.CreateMaterialAsync(material);
             return new BaseResult { Success = true};
         }
         catch(Exception e)
