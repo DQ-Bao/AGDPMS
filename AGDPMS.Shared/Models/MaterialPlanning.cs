@@ -23,4 +23,3 @@ public class MaterialPlanningDetails
     public string Unit { get; set; } = string.Empty;
     public string Note { get; set; } = string.Empty;
 }
->>>>>>> 76097ed21d968e05c3d5d80f66c85739319b08ad
