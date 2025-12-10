@@ -207,6 +207,88 @@ public class CavityDataAccess(IDbConnection conn)
             where id = @StockId",
             new { StockId = stockId, Price = price }, tran);
 
+    // Move this to inventory data access
+    public async Task CreateMaterialPlanningAsync(MaterialPlanning planning, IDbTransaction? tran = null)
+    {
+        var pId = await conn.ExecuteScalarAsync<int>(@"
+            insert into material_plannings(made_by, project_id)
+            values (@UserId, @ProjectId)
+            returning id", new { planning.UserId, planning.ProjectId }, tran);
+        foreach (var d in planning.Details)
+        {
+            await conn.ExecuteAsync(@"
+                insert into material_planning_details(planning_id, material_id, length, width, quantity, unit, note)
+                values (@PlanningId, @MaterialId, @Length, @Width, @Quantity, @Unit, @Note)",
+                new
+                {
+                    PlanningId = pId,
+                    MaterialId = d.Material.Id,
+                    d.Length,
+                    d.Width,
+                    d.Quantity,
+                    d.Unit,
+                    d.Note
+                }, tran);
+        }
+    }
+    private class QuotationRow
+    {
+        public int CavityId { get; set; }
+        public required string Code { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public double Width { get; set; }
+        public double Height { get; set; }
+        public int Quantity { get; set; }
+        public double Weight { get; set; }
+        public decimal MaterialPrice { get; set; }
+    }
+    public async Task<Quotation> GetQuotationAsync(
+        int projectId,
+        decimal laborCost,
+        decimal profitPercentage,
+        decimal taxPercentage,
+        decimal transportCost,
+        decimal contingency)
+    {
+        const string sql = @"
+        SELECT 
+            c.id AS CavityId,
+            c.code AS Code,
+            c.description AS Description,
+            c.width AS Width,
+            c.height AS Height,
+            c.quantity AS Quantity,
+            COALESCE(SUM(m.weight * cb.quantity), 0) AS Weight,
+            COALESCE(SUM(ms.base_price * cb.quantity), 0) AS MaterialPrice
+        FROM cavities c
+        LEFT JOIN cavity_boms cb ON cb.cavity_id = c.id
+        LEFT JOIN materials m ON m.id = cb.material_id
+        LEFT JOIN material_stock ms ON ms.material_id = m.id
+        WHERE c.project_id = @ProjectId
+        GROUP BY c.id, c.code, c.description, c.width, c.height, c.quantity";
+        var rows = await conn.QueryAsync<QuotationRow>(sql, new { ProjectId = projectId });
+        var quotation = new Quotation();
+        foreach (var row in rows)
+        {
+            quotation.Details.Add(new Quotation.QuotationDetails
+            {
+                Code = row.Code,
+                Description = row.Description,
+                Width = row.Width,
+                Height = row.Height,
+                Quantity = row.Quantity,
+                Weight = row.Weight,
+                MaterialPrice = row.MaterialPrice,
+                LaborCost = laborCost,
+                ProfitPercentage = profitPercentage,
+                TaxPercentage = taxPercentage,
+                TransportCost = transportCost,
+                Contingency = contingency
+            });
+        }
+        return quotation;
+    }
+
     public async Task<string?> AddOrUpdateBatchAsync(IEnumerable<Cavity> cavities)
     {
         if (conn.State != ConnectionState.Open) conn.Open();

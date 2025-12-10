@@ -304,4 +304,30 @@ internal class WebProductService(
             return new AddOrUpdateOtherMaterialBasePriceResult { Success = false, ErrorMessage = ex.Message };
         }
     }
+
+    public async Task<CreateMaterialPlanningResult> CreateMaterialPlanningAsync(MaterialPlanning planning)
+    {
+        try
+        {
+            await cavityDataAccess.CreateMaterialPlanningAsync(planning);
+            return new CreateMaterialPlanningResult { Success = true };
+        }
+        catch (Exception ex)
+        {
+            return new CreateMaterialPlanningResult { Success = false, ErrorMessage = ex.Message };
+        }
+    }
+
+    public async Task<CalculateQuotationResult> CalculateQuotationAsync(int projectId, decimal laborCost, decimal profitPercentage, decimal taxPercentage, decimal transportCost, decimal contingency)
+    {
+        try
+        {
+            var quotation = await cavityDataAccess.GetQuotationAsync(projectId, laborCost, profitPercentage, taxPercentage, transportCost, contingency);
+            return new CalculateQuotationResult { Success = true, Quotation = quotation };
+        }
+        catch (Exception e)
+        {
+            return new CalculateQuotationResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
 }

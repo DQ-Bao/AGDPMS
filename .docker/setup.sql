@@ -127,7 +127,7 @@ create table if not exists material_plannings (
     "id" serial primary key,
     "made_by" integer not null references users("id"),
     "project_id" integer not null references projects("id"),
-    "status" varchar(250) not null,
+    "status" varchar(250) not null default 'Pending' check ("status" in ('Pending', 'Cancelled', 'Completed')),
     "created_at" timestamp null default now()
 );
 
@@ -135,6 +135,8 @@ create table if not exists material_planning_details (
     "id" serial primary key,
     "planning_id" integer not null references material_plannings("id"),
     "material_id" varchar(250) not null references materials("id"),
+    "length" numeric(10,3) not null default 0,
+    "width" numeric(10,3) not null default 0,
     "quantity" integer not null,
     "unit" varchar(250),
     "note" text
