@@ -184,32 +184,39 @@
                         
                         // Calculate hours for each status group
                         var notCompletedHours = relevantStages
-                            .Where(s => !s.IsCompleted)
+                            .Where(s => !s.IsCompleted && !HasPendingReview(s.Id))
+                            .Sum(s => (double)(s.PlannedTimeHours ?? 0));
+                        var waitingForReviewHours = relevantStages
+                            .Where(s => !s.IsCompleted && HasPendingReview(s.Id))
                             .Sum(s => (double)(s.PlannedTimeHours ?? 0));
                         var completedPlannedHours = relevantStages
                             .Where(s => s.IsCompleted)
                             .Sum(s => (double)(s.PlannedTimeHours ?? 0));
                         
-                        // Total should be the sum of both groups to ensure 100%
-                        var totalPlannedHours = notCompletedHours + completedPlannedHours;
+                        // Total should be the sum of all three groups to ensure 100%
+                        var totalPlannedHours = notCompletedHours + waitingForReviewHours + completedPlannedHours;
                         
                         double notCompletedPercent = 0;
+                        double waitingForReviewPercent = 0;
                         double completedPercent = 0;
-                        int notCompletedCount = relevantStages.Count(s => !s.IsCompleted);
+                        int notCompletedCount = relevantStages.Count(s => !s.IsCompleted && !HasPendingReview(s.Id));
+                        int waitingForReviewCount = relevantStages.Count(s => !s.IsCompleted && HasPendingReview(s.Id));
                         int completedCount = relevantStages.Count(s => s.IsCompleted);
                         
                         if (totalPlannedHours > 0)
                         {
                             notCompletedPercent = notCompletedHours * 100.0 / totalPlannedHours;
+                            waitingForReviewPercent = waitingForReviewHours * 100.0 / totalPlannedHours;
                             completedPercent = completedPlannedHours * 100.0 / totalPlannedHours;
                             
                             // Ensure percentages add up to 100% (handle rounding)
-                            var totalPercent = notCompletedPercent + completedPercent;
+                            var totalPercent = notCompletedPercent + waitingForReviewPercent + completedPercent;
                             if (Math.Abs(totalPercent - 100.0) > 0.1)
                             {
                                 // Normalize if there's a rounding issue
                                 var factor = 100.0 / totalPercent;
                                 notCompletedPercent *= factor;
+                                waitingForReviewPercent *= factor;
                                 completedPercent *= factor;
                             }
                         }
@@ -218,12 +225,12 @@
                             // Fallback to stage count if no planned hours
                             var totalStages = model.item.TotalStages;
                             var completedStages = model.item.CompletedStages;
-                            notCompletedCount = totalStages - completedStages;
-                            completedCount = completedStages;
+                            notCompletedCount = totalStages - completedStages - waitingForReviewCount;
                             
                             if (totalStages > 0)
                             {
                                 notCompletedPercent = notCompletedCount * 100.0 / totalStages;
+                                waitingForReviewPercent = waitingForReviewCount * 100.0 / totalStages;
                                 completedPercent = completedCount * 100.0 / totalStages;
                             }
                         }
@@ -241,6 +248,19 @@
                             }
                         </div>
                     }
+                    @if (waitingForReviewPercent > 0)
+                    {
+                        var widthStr = waitingForReviewPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = waitingForReviewPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-warning" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Chờ QA kiểm tra: @waitingForReviewCount giai đoạn (@percentStr)">
+                            @if (waitingForReviewPercent >= 5)
+                            {
+                                <span class="ms-2 text-dark">@percentStr</span>
+                            }
+                        </div>
+                    }
                     @if (completedPercent > 0)
                     {
                         var widthStr = completedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
@@ -254,7 +274,7 @@
                             }
                         </div>
                     }
-                    @if (notCompletedPercent == 0 && completedPercent == 0)
+                    @if (notCompletedPercent == 0 && waitingForReviewPercent == 0 && completedPercent == 0)
                     {
                         <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%" title="Chưa có dữ liệu">
                             <span class="ms-2 text-white">0%</span>
@@ -263,6 +283,7 @@
                 </div>
                 <div class="small text-muted mt-1 d-flex gap-3">
                     <span><span class="badge bg-secondary">●</span> Chưa hoàn thành: @notCompletedCount</span>
+                    <span><span class="badge bg-warning">●</span> Chờ QA kiểm tra: @waitingForReviewCount</span>
                     <span><span class="badge bg-success">●</span> Đã hoàn thành: @completedCount</span>
                 </div>
             </div>
