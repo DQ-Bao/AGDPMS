@@ -93,6 +93,24 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
         }
     }
 
+    public async Task<GetStockReceiptResult> GetStockReceipt()
+    {
+        try
+        {
+            return new GetStockReceiptResult
+            {
+                Success = true,
+                StockReceipts = await inventoryDataAccess.GetStockImportAsync()
+            };
+
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            return new GetStockReceiptResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
     public async Task<BaseResult> AddMaterial(Material material)
     {
         try
@@ -101,6 +119,19 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
             return new BaseResult { Success = true};
         }
         catch(Exception e)
+        {
+            return new BaseResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<BaseResult> AddStockReceipt(StockReceipt stockReceipt)
+    {
+        try
+        {
+            await inventoryDataAccess.CreateStockImportAsync(stockReceipt);
+            return new BaseResult { Success = true };
+        }
+        catch (Exception e)
         {
             return new BaseResult { Success = false, ErrorMessage = e.Message };
         }

@@ -2,9 +2,10 @@
 
 public class StockReceipt
 {
-    public string Code { set; get; } = string.Empty;
-    public string Vendor { set; get; } = string.Empty;
-    public DateOnly CreationDate { set; get; }
-    public string Note { set; get; } = string.Empty;
-    public IEnumerable<Material> MaterialReceipts { set; get; } = new List<Material>() { };
+    public int Id { get; set; }
+    public string MaterialId { get; set; } = string.Empty;
+    public int QuantityChange { get; set; }
+    public int QuantityAfter { get; set; }
+    public decimal Price { get; set; }
+    public DateTime Date { get; set; }
 }

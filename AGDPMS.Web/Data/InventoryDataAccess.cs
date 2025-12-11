@@ -225,16 +225,22 @@ public class InventoryDataAccess(IDbConnection conn)
         return dic.Values;
     }
 
-    public Task<IEnumerable<StockIssue>> GetStockImportAsync()
+    public Task<IEnumerable<StockReceipt>> GetStockImportAsync()
     {
         string query =
             @"
-            select
-                mt.id as Id,
-                mt.Name as Name
-            from material_type mt;
+        select
+            id as Id,
+            material_id as MaterialId,
+            quantity_change as QuantityChange,
+            quantity_after as QuantityAfter,
+            price as Price,
+            date as Date
+        from stock_import
+        order by date desc, id desc;
         ";
-        return conn.QueryAsync<StockIssue>(query);
+
+        return conn.QueryAsync<StockReceipt>(query);
     }
 
     public async Task UpdateMaterial(List<Material> materials)
@@ -320,5 +326,42 @@ public class InventoryDataAccess(IDbConnection conn)
 
         return material;
     }
+
+    public async Task<StockReceipt> CreateStockImportAsync(StockReceipt stock)
+    {
+        string query = @"
+        insert into stock_import (
+            material_id,
+            quantity_change,
+            quantity_after,
+            price,
+            date
+        )
+        values (
+            @MaterialId,
+            @QuantityChange,
+            @QuantityAfter,
+            @Price,
+            @Date
+        )
+        returning
+            id as Id,
+            material_id as MaterialId,
+            quantity_change as QuantityChange,
+            quantity_after as QuantityAfter,
+            price as Price,
+            date as Date;
+    ";
+
+        return await conn.QuerySingleAsync<StockReceipt>(query, new
+        {
+            stock.MaterialId,
+            stock.QuantityChange,
+            stock.QuantityAfter,
+            stock.Price,
+            stock.Date
+        });
+    }
+
 
 }
