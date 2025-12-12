@@ -1,0 +1,387 @@
+﻿@page "/inventory/receipts"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+
+@inject IInventoryService inventoryService
+
+<PageTitle>Quản lý nhập kho</PageTitle>
+
+<h3>Quản lý nhập kho</h3>
+
+<div class="card mb-3">
+    <h5 class="card-header">Tìm kiếm</h5>
+    <div class="m-3">
+        <div class="row">
+            <div class="col-6">
+                <input type="search"
+                        class="form-row form-control col-10"
+                        placeholder="Tìm kiếm theo mã hoặc tên"
+                        value="@search_term" @oninput="Search" />
+            </div>
+            <label class="col-1" for="from">Từ</label>
+            <div class="col-2">
+                <input id="from" class="col form-control" type="date" lang="vi" />
+            </div>
+            <label class="col-1" for="to">Đến</label>
+            <div class="col-2">
+                <input id="to" class="col form-control" type="date" lang="vi" />
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    @* <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Kho </h4> *@
+    <div>
+        <button class="btn btn-primary me-2" @onclick=ToggleAdding>
+            <i class="me-1"></i> Tạo mới
+        </button>
+    </div>
+</div>
+
+@if (is_adding)
+{
+    <div class="position-fixed top-0 start-0 w-100 h-100 d-flex
+                    justify-content-center align-items-center"
+         style="background-color: rgba(0,0,0,0.4); z-index: 9999;">
+
+        <div class="card shadow-lg" style="width: 700px;">
+            <h5 class="card-header">Tạo nhập kho</h5>
+
+            <div class="p-3">
+
+                <!-- Input Fields -->
+                <div class="row mb-3">
+                    <label class="col-4 col-form-label">Vật tư</label>
+                    <div class="col-8">
+                        <div class="position-relative">
+                            <input class="form-control"
+                                   placeholder="Tìm theo mã hoặc tên..."
+                                   @bind="materialSearch"
+                                   @bind:event="oninput" />
+
+                            @if (!string.IsNullOrWhiteSpace(materialSearch))
+                            {
+                                <ul class="list-group position-absolute w-100"
+                                    style="max-height: 200px; overflow-y: auto; z-index: 2000;">
+
+                                    @foreach (var m in FilteredMaterials)
+                                    {
+                                        <li class="list-group-item list-group-item-action"
+                                            @onclick="() => SelectMaterial(m)">
+                                            <strong>@m.Id</strong> — @m.Name
+                                        </li>
+                                    }
+                                </ul>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-4 col-form-label">SL thay đổi</label>
+                    <div class="col-8">
+                        <input class="form-control" type="number" @bind="tempReceipt.QuantityChange" />
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-4 col-form-label">Giá</label>
+                    <div class="col-8">
+                        <input class="form-control" type="number" @bind="tempReceipt.Price" />
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <label class="col-4 col-form-label">Ngày</label>
+                    <div class="col-8">
+                        <input class="form-control" type="date" @bind="tempReceipt.Date" />
+                    </div>
+                </div>
+
+                <div class="text-end mb-4">
+                    <button class="btn btn-primary" @onclick="AddToList">Thêm vào danh sách</button>
+                </div>
+
+                <!-- Pending Items Table -->
+                @if (pendingReceipts.Any())
+                {
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Vật tư</th>
+                                <th>SL</th>
+                                <th>Giá</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in pendingReceipts)
+                            {
+                                <tr>
+                                    <td>@materials.FirstOrDefault(m => m.Id == r.MaterialId)?.Name</td>
+
+                                    <td>
+                                        <input class="form-control form-control-sm"
+                                               type="number"
+                                               @bind="r.QuantityChange" />
+                                    </td>
+
+                                    <td>
+                                        <input class="form-control form-control-sm"
+                                               type="number"
+                                               @bind="r.Price" />
+                                    </td>
+
+                                    <td>
+                                        <button class="btn btn-sm btn-danger"
+                                                @onclick="@(() => RemoveItem(r))">
+                                            Xóa
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                }
+
+
+                <!-- Save -->
+                <div class="text-end mt-3">
+                    <button class="btn btn-success me-2" @onclick="SaveAll">Lưu tất cả</button>
+                    <button class="btn btn-secondary" @onclick="ToggleAdding">Hủy</button>
+                </div>
+            </div>
+        </div>
+
+
+    </div>
+}
+
+
+<div class="card">
+    <h5 class="card-header">
+        Nhập kho (Số lượng: @(items.Count()))
+    </h5>
+    <div class="table-responsive text-nowrap">
+        @if (is_loading)
+        {
+            <div class="p-3">Đang tải dữ liệu...</div>
+        }
+        @if (materials == null || !materials.Any())
+        {
+            <div class="p-3">Không tìm thấy vật tư nào.</div>
+        }
+        @if (load_error)
+        {
+            <div class="p-3">Lỗi tải dữ liệu</div>
+            <div class="p-3">@m_res.ErrorMessage</div>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Mã vật tư</th>
+                        <th>Tên vật tư</th>
+                        <th>SL nhập</th>
+                        <th>Giá</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    @foreach (var group in stockReceipts
+                                    .OrderByDescending(r => r.Date)
+                                    .GroupBy(r => r.Date))
+                    {
+                        <!-- Date Header Row -->
+                        <tr class="table-secondary">
+                            <td colspan="5" class="fw-bold">
+                                @group.Key.ToString("dd/MM/yyyy")
+                            </td>
+                        </tr>
+
+                        <!-- Rows Under That Date -->
+                        @foreach (var r in group)
+                        {
+                            var material = materials.FirstOrDefault(m => m.Id == r.MaterialId);
+
+                            <tr>
+                                <td>@r.MaterialId</td>
+                                <td>@material?.Name</td>
+                                <td>@r.QuantityChange</td>
+                                <td>@r.Price.ToString("N0") đ</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+<hr />
+
+@code {
+    private StockReceipt newReceipt = new StockReceipt();
+    private GetMaterialResult m_res = null;
+    private GetMaterialTypeResult mt_res = null;
+    private GetStockReceiptResult sr_res = null;
+    private bool load_error = false;
+    private bool is_loading = true;
+    private bool is_adding = false;
+    //filter
+    private string search_term = string.Empty;
+    private string select_value = string.Empty;
+    private bool show_only_with_stocks = false;
+
+    private IEnumerable<Material> materials = new List<Material> { };
+    private IEnumerable<MaterialType> material_types = new List<MaterialType> { };
+    private IEnumerable<StockReceipt> stockReceipts = new List<StockReceipt> { };
+    private StockReceipt[] items = new StockReceipt[] { };
+    private System.Threading.Timer? searchTimer;
+    private int current_page = 1;
+    private int pageSize = Int32.MaxValue;
+
+    private StockReceipt tempReceipt = new StockReceipt();
+    private List<StockReceipt> pendingReceipts = new();
+
+    private string materialSearch = "";
+    private Material? selectedMaterial;
+
+    private IEnumerable<Material> FilteredMaterials =>
+        materials.Where(m =>
+            (m.Id?.Contains(materialSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
+            (m.Name?.Contains(materialSearch, StringComparison.OrdinalIgnoreCase) ?? false)
+        );
+
+    void SelectMaterial(Material m)
+    {
+        selectedMaterial = m;
+        materialSearch = $"{m.Id} - {m.Name}";
+        tempReceipt.MaterialId = m.Id;
+    }
+
+    void AddToList()
+    {
+        if (tempReceipt.MaterialId == null || tempReceipt.QuantityChange == 0)
+            return;
+
+        pendingReceipts.Add(new StockReceipt
+        {
+            MaterialId = tempReceipt.MaterialId,
+            QuantityChange = tempReceipt.QuantityChange,
+            Price = tempReceipt.Price,
+            Date = tempReceipt.Date == default ? DateTime.Today : tempReceipt.Date
+        });
+
+        tempReceipt = new StockReceipt
+        {
+            Date = DateTime.Today
+        };
+        materialSearch = "";
+    }
+
+    void RemoveItem(StockReceipt r)
+    {
+        pendingReceipts.Remove(r);
+    }
+
+    async Task SaveAll()
+    {
+        if (pendingReceipts.Count == 0)
+            return;
+
+        foreach (var r in pendingReceipts)
+        {
+            await inventoryService.AddStockReceipt(r);
+        }
+
+        pendingReceipts.Clear();
+        is_adding = false;
+
+        // reload list after save
+        sr_res = await inventoryService.GetStockReceipt();
+        stockReceipts = sr_res.StockReceipts;
+        items = stockReceipts.ToArray();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        is_loading = true;
+
+        mt_res = await inventoryService.GetMaterialType();
+        if (mt_res.Success)
+        {
+            material_types = mt_res.MaterialTypes;
+        }
+        m_res = await inventoryService.GetMaterial();
+        if (m_res.Success)
+        {
+            materials = m_res.Materials;
+        }
+        sr_res = await inventoryService.GetStockReceipt();
+        if (sr_res.Success)
+        {
+            stockReceipts = sr_res.StockReceipts;
+            items = stockReceipts.ToArray();
+        }
+        else
+        {
+            load_error = true;
+        }
+        PerformSearch(null);
+        is_loading = false;
+        StateHasChanged();
+    }
+
+    private void Search(ChangeEventArgs e)
+    {
+        search_term = e.Value?.ToString() ?? string.Empty;
+        searchTimer?.Dispose();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
+    private void Select(ChangeEventArgs e)
+    {
+        select_value = e.Value?.ToString();
+        searchTimer?.Dispose();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
+    private void OnSelectCheckBox(ChangeEventArgs e)
+    {
+        show_only_with_stocks = (Boolean)e.Value;
+        searchTimer?.Dispose();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
+    void PerformSearch(object? state)
+    {
+        // items = materials
+        // .Where(m =>
+        //     (string.IsNullOrWhiteSpace(search_term)
+        //         || m.Name.Contains(search_term, StringComparison.OrdinalIgnoreCase)
+        //         || m.Id.Contains(search_term, StringComparison.OrdinalIgnoreCase))
+        //     && (string.IsNullOrEmpty(select_value)
+        //         || select_value.Equals("Toàn bộ")
+        //         || m.Type.Name == select_value)
+        //     && (!show_only_with_stocks || m.Stocks.Sum(m => m.Stock) > 0)
+        // )
+        // .Skip((current_page - 1) * pageSize)
+        // .Take(pageSize)
+        // .ToArray();
+        // InvokeAsync(StateHasChanged);
+        items = stockReceipts.ToArray();
+    }
+
+    void ToggleAdding()
+    {
+        is_adding = !is_adding;
+    }
+}

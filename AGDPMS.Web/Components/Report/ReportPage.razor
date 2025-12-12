@@ -1,0 +1,24 @@
+﻿@page "/report"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+
+@inject IReportService reportSerivce
+@inject NavigationManager navigationManager
+
+<PageTitle>Báo cáo</PageTitle>
+
+<h3>Báo cáo</h3>
+
+<button class="btn btn-secondary" @onclick='e => navigationManager.NavigateTo("/report/issue")'>Tạo xuất kho</button>
+<button class="btn btn-secondary" @onclick='e => navigationManager.NavigateTo("/report/receipt")'>Tạo nhập kho</button>
+<button class="btn btn-secondary" @onclick='e => navigationManager.NavigateTo("/report/quotation")'>Tạo báo giá</button>
+<button class="btn btn-secondary" @onclick='e => navigationManager.NavigateTo("/report/material-planning")'>Tạo dự trù vật tư</button>
+
+@code {
+	
+}

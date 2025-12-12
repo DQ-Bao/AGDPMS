@@ -1,0 +1,36 @@
+﻿@page "/report/receipt"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+
+@inject IReportService reportSerivce
+
+<PageTitle>Inventory</PageTitle>
+
+<button @onclick="GenerateIssue">Generate Issue</button>
+<button>Generate receipt</button>
+<button>Generate quotation</button>
+<button>Generate material planning</button>
+
+@code {
+	public void GenerateIssue()
+	{
+		reportSerivce.GenerateIssue(new List<StockIssue>());
+	}
+	public void GenerateReceipt()
+	{
+		reportSerivce.GenerateReceipt(new List<StockReceipt>());
+	}
+	public void GenerateQuotation()
+	{
+		reportSerivce.GenerateQuotation(null);
+	}
+	public void GenerateMaterialPlanning()
+	{
+		reportSerivce.GenerateMaterialPlanning(null);
+	}
+}

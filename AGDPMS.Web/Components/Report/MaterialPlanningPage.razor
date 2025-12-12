@@ -1,0 +1,21 @@
+﻿@page "/report/material-planning"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+
+@inject IReportService reportSerivce
+
+<PageTitle>Inventory</PageTitle>
+
+<button>Generate material planning</button>
+
+@code {
+	public void GenerateMaterialPlanning()
+	{
+		reportSerivce.GenerateMaterialPlanning(null);
+	}
+}

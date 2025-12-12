@@ -1,0 +1,238 @@
+﻿@page "/inventory/stocks"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+
+@inject IInventoryService inventoryService
+
+<PageTitle>Quản lý tồn kho</PageTitle>
+
+<h3>Quản lý tồn kho</h3>
+
+<div class="card mb-3">
+    <h5 class="card-header">Tìm kiếm</h5>
+    <div class="m-3">
+        <div class="row">
+            <div class="col-6">
+                <input type="search"
+                        class="form-row form-control col-10" 
+                        placeholder="Tìm kiếm theo mã hoặc tên"
+                        value="@search_term" @oninput="Search" />
+            </div>
+            <label class="col-form-label col-1">Loại vật tư</label>
+            <div class="col-2">
+                <select class="form-control form-row" @oninput="Select">
+                    <option>Toàn bộ</option>
+                    @for (int i = 0; i < material_types.Count(); i++)
+                    {
+                        <option>@material_types.ElementAt(i).Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    @* <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Kho </h4> *@
+    <div>
+        <button class="btn btn-primary me-2" @onclick=ToggleAddMaterial>
+            <i class="me-1"></i> Thêm vật tư mới
+        </button>
+    </div>
+</div>
+
+<div class="card">
+    <h5 class="card-header">
+        Danh sách vật tư (Số lượng: @(items.Count()))
+    </h5>
+    <div class="table-responsive text-nowrap">
+        @if (is_loading)
+        {
+            <div class="p-3">Đang tải dữ liệu...</div>
+        }
+        @if (materials == null || !materials.Any())
+        {
+            <div class="p-3">Không tìm thấy vật tư nào.</div>
+        }
+        @if (load_error)
+        {
+            <div class="p-3">Lỗi tải dữ liệu</div>
+            <div class="p-3">@m_res.ErrorMessage</div>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Mã</th>
+                        <th>Tên</th>
+                        <th>Loại vật tư</th>
+                        <th>Kích thước</th>
+                        <th>Tồn kho</th>
+                        <th>Giá</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    @foreach(Material m in items)
+                    {
+                        <tr>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Id</td>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Name</td>
+                            <td rowspan="@(@m.Stocks.Count() + 1)">@m.Type.Name</td>
+                        </tr>
+                        @foreach(MaterialStock ms in m.Stocks)
+                        {
+                            <tr>
+                                <td>@ms.Length</td>
+                                <td>@ms.Stock</td>
+                                <td>@ms.BasePrice</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        }
+    </div>
+</div>
+
+@if (is_adding)
+{
+    <div class="card">
+        <h5 class="card-header">Thêm vật tư</h5>
+        <form class="m-3">
+            <div class="row mb-3">
+                <label class="col-1 form-label">Mã</label>
+                <div class="col-11">
+                    <input class="col-11 form-control" type="text" value="@add_material.Id" />
+				</div>
+            </div>
+            <div class="row mb-3">
+                <label class="col-1 form-label">Tên</label>
+                <div class="col-11">
+                    <input class="col-11 form-control" type="text" value="@add_material.Name" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <label class="col-1 form-label">Loại vật tư</label>
+                <div class="col-11">
+                    <select class="form-control form-row" @bind="add_material.Type.Id">
+                        @foreach(MaterialType mt in material_types)
+                        {
+                            <option value="@mt.Id">@mt.Name</option>
+                        }
+                    </select>
+                </div>
+            </div>
+            <div class="row mb-3">
+                <label class="col-1 form-label">Tỷ trọng</label>
+                <div class="col-11">
+                    <input class="col-11 form-control" type="text" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <label class="col-1 form-label">Chiều dài</label>
+                <div class="col-11">
+                    <input class="col-11 form-control" type="text" />
+                </div>
+            </div>
+            <div class="row mb-3">
+                <label class="col-1 form-label">Chiều rộng</label>
+                <div class="col-11">
+                    <input class="col-11 form-control" type="text" />
+                </div>
+            </div>
+        </form>
+    </div>
+}
+
+@code {
+    private Material add_material;
+    private GetMaterialResult m_res = null;
+    private GetMaterialTypeResult mt_res = null;
+    private bool load_error = false;
+    private bool is_loading = true;
+    private bool is_adding = false;
+    //filter
+    private string search_term = string.Empty;
+    private string select_value = string.Empty;
+
+    private IEnumerable<Material> materials = new List<Material> { };
+    private IEnumerable<MaterialType> material_types = new List<MaterialType> { };
+    private Material[] items = new Material[] { };
+    private System.Threading.Timer? search_timer;
+    private int current_page = 1;
+    private int pageSize = Int32.MaxValue;
+
+    protected override async Task OnInitializedAsync()
+    {
+        is_loading = true;
+
+        mt_res = await inventoryService.GetMaterialType();
+        if (mt_res.Success)
+        {
+            material_types = mt_res.MaterialTypes;
+            // select_value = 
+        }
+        m_res = await inventoryService.GetMaterial();
+        if (m_res.Success)
+        {
+            materials = m_res.Materials;
+            items = materials.ToArray();
+        }
+        else
+        {
+            load_error = true;
+        }
+        PerformSearch(null);
+        is_loading = false;
+        StateHasChanged();
+    }
+
+    private void Search(ChangeEventArgs e)
+    {
+        search_term = e.Value?.ToString() ?? string.Empty;
+        search_timer?.Dispose();
+        search_timer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
+    private void Select(ChangeEventArgs e)
+    {
+        select_value = e.Value?.ToString();
+        search_timer?.Dispose();
+        search_timer = new System.Threading.Timer(PerformSearch, null, 100, Timeout.Infinite);
+    }
+
+    void PerformSearch(object? state)
+    {
+        items = materials
+        .Where(m =>
+            (string.IsNullOrWhiteSpace(search_term)
+                || m.Name.Contains(search_term, StringComparison.OrdinalIgnoreCase)
+                || m.Id.Contains(search_term, StringComparison.OrdinalIgnoreCase))
+            && (string.IsNullOrEmpty(select_value)
+                || select_value.Equals("Toàn bộ")
+                || m.Type.Name == select_value)
+        )
+        .Skip((current_page - 1) * pageSize)
+        .Take(pageSize)
+        .ToArray();
+        InvokeAsync(StateHasChanged);
+    }
+
+    void ToggleAddMaterial()
+    {
+        is_adding = !is_adding;
+        add_material = new Material { Id=string.Empty, Name=string.Empty, Type=material_types.ElementAt(0)};
+    }
+
+    void AddMaterial()
+    {
+        inventoryService.AddMaterial(add_material);
+    }
+}

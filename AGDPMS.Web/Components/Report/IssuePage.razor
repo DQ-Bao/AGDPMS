@@ -1,0 +1,69 @@
+﻿@page "/report/issue"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using ClosedXML.Excel
+
+@inject IReportService reportService
+
+<PageTitle>Inventory</PageTitle>
+
+@if (excelData.Any())
+{
+    <h3>Excel Data:</h3>
+
+    <table class="table">
+        <thead>
+            <tr>
+                @foreach (var header in excelData.First())
+                {
+                    <th>@header</th>
+                }
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var row in excelData.Skip(1))
+            {
+                <tr>
+                    @foreach (var cell in row)
+                    {
+                        <td>@cell</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+<button class="btn btn-primary" @onclick="GenerateIssue">Generate Issue</button>
+
+@code {
+    // Excel represented as List<List<string>>
+    private List<List<string>> excelData = new();
+    private StockIssue issue = new StockIssue();
+
+    protected override void OnInitialized()
+    {
+        // Optional: Load an excel file at startup
+        LoadExcel(Path.Combine(AppContext.BaseDirectory, "Templates", "xuat_kho.xlsx"));
+    }
+
+    private void LoadExcel(string filePath)
+    {
+        using var wb = new XLWorkbook(filePath);
+        var ws = wb.Worksheet(1);
+
+        excelData = ws.RowsUsed()
+            .Select(r => r.Cells()
+                .Select(c => c.GetString())
+                .ToList())
+            .ToList();
+    }
+
+    private void GenerateIssue()
+    {
+        reportService.GenerateIssue(new List<StockIssue>());
+    }
+}

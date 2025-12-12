@@ -136,3 +136,33 @@ public sealed class CavityOtherMaterialSummary : Material
     public required decimal UnitPrice { get; set; }
     public decimal TotalPrice => GasketLength is null ? UnitPrice * Quantity : UnitPrice * (decimal)GasketLength * Quantity;
 }
+
+public class Quotation
+{
+    public class QuotationDetails
+    {
+        public required string Code { get; set; }
+        public string Description { get; set; } = string.Empty;
+        public required double Width { get; set; }
+        public required double Height { get; set; }
+        public required int Quantity { get; set; }
+        public required double Weight { get; set; }
+        public required decimal MaterialPrice { get; set; }
+        public required decimal LaborCost { get; set; }
+        public required decimal ProfitPercentage { get; set; }
+        public required decimal TaxPercentage { get; set; }
+        public required decimal TransportCost { get; set; }
+        public required decimal Contingency { get; set; }
+        public decimal UnitPrice =>
+            MaterialPrice +
+            LaborCost +
+            (MaterialPrice * ProfitPercentage) +
+            (MaterialPrice * TaxPercentage) +
+            TransportCost +
+            Contingency;
+        public decimal TotalPrice => UnitPrice * Quantity;
+    }
+    public List<QuotationDetails> Details { get; set; } = [];
+    public double TotalWeight => Details.Sum(d => d.Weight);
+    public decimal TotalPrice => Details.Sum(d => d.TotalPrice);
+}

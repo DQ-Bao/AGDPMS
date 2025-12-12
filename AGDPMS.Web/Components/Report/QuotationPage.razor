@@ -1,0 +1,21 @@
+﻿@page "/report/quotation"
+@rendermode InteractiveServer
+
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using System.ComponentModel.DataAnnotations
+
+@* @attribute [Authorize(Roles = "Admin")] *@
+
+@inject IReportService reportSerivce
+
+<PageTitle>Inventory</PageTitle>
+
+<button>Generate quotation</button>
+
+@code {
+	public void GenerateQuotation()
+	{
+		reportSerivce.GenerateQuotation(null);
+	}
+}
