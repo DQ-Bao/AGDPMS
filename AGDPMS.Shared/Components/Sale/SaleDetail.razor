@@ -2,7 +2,9 @@
 @rendermode InteractiveServer
 
 @using AGDPMS.Shared.Models
-@using AGDPMS.Shared.Services 
+@using AGDPMS.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Sale")] 
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
 

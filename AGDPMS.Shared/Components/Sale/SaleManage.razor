@@ -4,6 +4,8 @@
 
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Sale")]
 
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
@@ -13,9 +15,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Khách hàng</h4>
     <div>
-        <button class="btn btn-secondary me-1" @onclick="GoToAllProjects">
-            <i class="bx bx-list-ul me"></i> Quản lý Dự án
-        </button>
+        
         <button class="btn btn-primary" @onclick="GoToCreateCustomerPage">
             <i class="bx bx-plus me"></i> Thêm Khách hàng
         </button>
@@ -98,10 +98,8 @@
                                             title="Xóa khách hàng">
                                         <i class="bx bx-trash me"></i> Xóa
                                     </button>
-                                    <button class="btn btn-outline-success"
-                                            @onclick="() => GoToAddProjectPage(client.Id)"
-                                            title="Thêm dự án RFQ mới cho khách hàng này">
-                                        <i class="bx bx-plus me"></i> Thêm DA
+                                    <button class="btn btn-success me-1" @onclick="() => GoToCreateRFQPage(client.Id)">
+                                        <i class="bx bx-plus me"></i> Tạo RFQ
                                     </button>
                                 </td>
                             </tr>
@@ -329,9 +327,11 @@ else
 
     private void GoToCreateCustomerPage() => NavManager.NavigateTo("/sale/customercontact/add");
     private void GoToEditCustomerPage(int id) => NavManager.NavigateTo($"/sale/customercontact/edit/{id}");
-    private void GoToAllProjects() => NavManager.NavigateTo("/sale/projectrfq");
+    private void GoToAllProjects() => NavManager.NavigateTo("/projects");
+    private void GoToCreateProjectPage() => NavManager.NavigateTo("/sale/projectrfq/add");
     private void GoToEditProjectPage(int projectId) => NavManager.NavigateTo($"/sale/projectrfq/edit/{projectId}");
-    private void GoToAddProjectPage(int clientId) => NavManager.NavigateTo($"/sale/projectrfq/add?clientId={clientId}");
+    <!-- private void GoToAddProjectPage(int clientId) => NavManager.NavigateTo($"/sale/projectrfq/add?clientId={clientId}"); -->
+    private void GoToCreateRFQPage(int clientId) => NavManager.NavigateTo($"/sale/projectrfq/add?clientId={clientId}");
  
     private List<AppRFQ> GetProjectsForClient(int clientId)
     {

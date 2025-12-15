@@ -56,7 +56,7 @@ builder.Services.AddScoped<IFileStorageService, FileStorageService>();
 builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportService, ReportSerivce>();
 
-// enable SignalR
+
 builder.Services.AddSignalR();
 
 builder.Services.AddSingleton<IWebHostEnvironment>(builder.Environment);

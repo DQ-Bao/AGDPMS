@@ -1,16 +1,19 @@
 ﻿@page "/sale/projectrfq/add"
 @rendermode InteractiveServer
+@implements IDisposable
 
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Sale")]
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
 @inject IFileStorageService FileStorageService
 
 <PageTitle>Tạo mới dự án RFQ</PageTitle>
 
-<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Dự án RFQ /</span> Tạo mới</h4>
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Dự án RFQ /</span> Tạo yêu cầu dự án</h4>
 
 @if (customers == null)
 {
@@ -23,6 +26,10 @@ else
 
         <div class="card">
             <h5 class="card-header">Thông tin dự án mới</h5>
+            <div class="alert alert-info m-3 mb-3" role="alert">
+                <i class="bx bx-info-circle me-2"></i>
+                <strong>Lưu ý:</strong> Dự án được tạo sẽ ở trạng thái "Chờ phê duyệt" và cần được Admin phê duyệt trước khi trở thành dự án chính thức. Bạn không thể thay đổi trạng thái thủ công.
+            </div>
             <div class="card-body">
 
                 <div class="row">
@@ -39,14 +46,52 @@ else
                 </div>
                 <div class="row">
                     <div class="mb-3 col-md-6">
-                        <label for="clientId" class="form-label">Khách hàng</label>
-                        <InputSelect id="clientId" class="form-select" @bind-Value="project.ClientId">
-                            <option value="0">-- Chọn khách hàng --</option>
-                            @foreach (var customer in customers)
+                        <label for="customerSearch" class="form-label">Khách hàng <span class="text-danger">*</span></label>
+                        <div class="position-relative">
+                            <input type="text" 
+                                   id="customerSearch"
+                                   class="form-control @(customerValidationError ? "is-invalid" : "")"
+                                   value="@customerSearchText"
+                                   @oninput="HandleCustomerSearch"
+                                   @onfocus="HandleCustomerFocus"
+                                   @onblur="HandleCustomerBlur"
+                                   @onkeydown="HandleCustomerKeyDown"
+                                   placeholder="Nhập tên khách hàng để tìm kiếm..."
+                                   autocomplete="off" />
+                            @if (showSuggestions && filteredCustomers.Any())
                             {
-                                <option value="@customer.Id">@customer.Name</option>
+                                <div class="list-group position-absolute w-100" style="z-index: 1000; max-height: 300px; overflow-y: auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                                    @for (int i = 0; i < filteredCustomers.Count; i++)
+                                    {
+                                        var customer = filteredCustomers[i];
+                                        var index = i;
+                                        <a href="#" 
+                                           class="list-group-item list-group-item-action @(index == highlightedIndex ? "active" : "")"
+                                           @onclick:preventDefault="true"
+                                           @onclick="() => SelectCustomer(customer)"
+                                           @onmouseenter="() => highlightedIndex = index">
+                                            <div class="fw-semibold">@customer.Name</div>
+                                            @if (!string.IsNullOrEmpty(customer.Email))
+                                            {
+                                                <small class="text-muted">@customer.Email</small>
+                                            }
+                                        </a>
+                                    }
+                                </div>
                             }
-                        </InputSelect>
+                        </div>
+                        @if (customerValidationError)
+                        {
+                            <div class="invalid-feedback d-block">
+                                Vui lòng chọn một khách hàng hợp lệ từ danh sách gợi ý.
+                            </div>
+                        }
+                        @if (selectedCustomer != null && !customerValidationError)
+                        {
+                            <small class="text-success">
+                                <i class="bx bx-check-circle me-1"></i>Đã chọn: @selectedCustomer.Name
+                            </small>
+                        }
                         <ValidationMessage For="@(() => project.ClientId)" />
                     </div>
                     <div class="mb-3 col-md-6">
@@ -63,19 +108,18 @@ else
                     </div>
                     <div class="mb-3 col-md-6">
                         <label for="status" class="form-label">Trạng thái</label>
-                        <InputSelect id="status" class="form-select" @bind-Value="project.Status">
-                            @foreach (var status in (ProjectRFQStatus[])Enum.GetValues(typeof(ProjectRFQStatus)))
-                            {
-                                <option value="@status">@GetVietnameseStatus(status)</option>
-                            }
-                        </InputSelect>
-                        <ValidationMessage For="@(() => project.Status)" />
+                        <div class="input-group">
+                            <span class="badge @GetStatusClass(project.Status) form-control d-flex align-items-center" style="font-size: 1rem; height: 38px;">
+                                @GetVietnameseStatus(project.Status)
+                            </span>
+                        </div>
+                        <small class="form-text text-muted">Dự án mới sẽ ở trạng thái "Chờ phê duyệt"</small>
                     </div>
                 </div>
 
                 <div class="mb-3">
-                    <label for="designFile" class="form-label">File thiết kế (PDF, DOCX - Tối đa 100MB)</label>
-                    <InputFile id="designFile" class="form-control" OnChange="HandleDesignFileSelected" />
+                    <label for="designFile" class="form-label">File thiết kế (PDF, DOCX, JPG, PNG - Tối đa 100MB)</label>
+                    <InputFile id="designFile" class="form-control" OnChange="HandleDesignFileSelected" accept=".pdf,.docx,.jpg,.jpeg,.png" />
                     @if (isUploadingDesignFile)
                     {
                         <div class="mt-2 small text-info">
@@ -95,8 +139,8 @@ else
                 </div>
 
                 <div class="mb-3">
-                    <label for="document" class="form-label">Tài liệu (PDF, DOCX - Tối đa 10MB)</label>
-                    <InputFile id="document" class="form-control" OnChange="HandleDocumentSelected" />
+                    <label for="document" class="form-label">Tài liệu (PDF, DOCX, JPG, PNG - Tối đa 100MB)</label>
+                    <InputFile id="document" class="form-control" OnChange="HandleDocumentSelected" accept=".pdf,.docx,.jpg,.jpeg,.png" />
                     @if (isUploadingDocument)
                     {
                         <div class="mt-2 small text-info">
@@ -147,10 +191,17 @@ else
     {
         CompletionDate = DateTime.Now,
         CreatedAt = DateTime.Now,
-        Status = ProjectRFQStatus.Planning
+        Status = ProjectRFQStatus.Planning // Projects created by Sales start as Planning (pending Admin approval)
     };
 
     private List<AppClient>? customers;
+    private List<AppClient> filteredCustomers = new();
+    private AppClient? selectedCustomer;
+    private string customerSearchText = string.Empty;
+    private bool showSuggestions = false;
+    private int highlightedIndex = -1; // Index in filteredCustomers list
+    private bool customerValidationError = false;
+    private System.Threading.Timer? searchTimer;
 
     private string? submitErrorMessage;
 
@@ -176,62 +227,227 @@ else
         if (ClientIdFromQuery > 0)
         {
             project.ClientId = ClientIdFromQuery;
+            // Auto-populate customer name if clientId is provided
+            if (customers != null)
+            {
+                selectedCustomer = customers.FirstOrDefault(c => c.Id == ClientIdFromQuery);
+                if (selectedCustomer != null)
+                {
+                    customerSearchText = selectedCustomer.Name;
+                }
+            }
         }
+    }
+
+    private void HandleCustomerSearch(ChangeEventArgs e)
+    {
+        customerSearchText = e.Value?.ToString() ?? string.Empty;
+        customerValidationError = false;
+        highlightedIndex = -1;
+
+        // Debounce search
+        searchTimer?.Dispose();
+        searchTimer = new System.Threading.Timer(PerformSearch, null, 150, Timeout.Infinite);
+
+        if (string.IsNullOrWhiteSpace(customerSearchText))
+        {
+            selectedCustomer = null;
+            project.ClientId = 0;
+            filteredCustomers.Clear();
+            showSuggestions = false;
+        }
+        else
+        {
+            showSuggestions = true;
+        }
+        
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void PerformSearch(object? state)
+    {
+        if (customers == null || string.IsNullOrWhiteSpace(customerSearchText))
+        {
+            filteredCustomers.Clear();
+            InvokeAsync(StateHasChanged);
+            return;
+        }
+
+        var searchTerm = customerSearchText.Trim().ToLowerInvariant();
+        
+        // Fuzzy search: filter customers by name (contains match, case-insensitive)
+        filteredCustomers = customers
+            .Where(c => c.Name.ToLowerInvariant().Contains(searchTerm))
+            .OrderBy(c => 
+            {
+                // Prioritize exact matches at the start
+                var nameLower = c.Name.ToLowerInvariant();
+                if (nameLower == searchTerm) return 0;
+                if (nameLower.StartsWith(searchTerm)) return 1;
+                return 2;
+            })
+            .Take(10) // Limit to 10 suggestions
+            .ToList();
+
+        InvokeAsync(StateHasChanged);
+    }
+
+    private void HandleCustomerFocus()
+    {
+        if (!string.IsNullOrWhiteSpace(customerSearchText) && filteredCustomers.Any())
+        {
+            showSuggestions = true;
+        }
+    }
+
+    private void HandleCustomerBlur()
+    {
+        // Delay hiding suggestions to allow click events to fire
+        Task.Delay(200).ContinueWith(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                showSuggestions = false;
+                StateHasChanged();
+            });
+        });
+    }
+
+    private void HandleCustomerKeyDown(KeyboardEventArgs e)
+    {
+        if (!showSuggestions || !filteredCustomers.Any()) return;
+
+        switch (e.Key)
+        {
+            case "ArrowDown":
+                if (highlightedIndex < filteredCustomers.Count - 1)
+                {
+                    highlightedIndex++;
+                }
+                else
+                {
+                    highlightedIndex = 0;
+                }
+                InvokeAsync(StateHasChanged);
+                break;
+
+            case "ArrowUp":
+                if (highlightedIndex > 0)
+                {
+                    highlightedIndex--;
+                }
+                else
+                {
+                    highlightedIndex = filteredCustomers.Count - 1;
+                }
+                InvokeAsync(StateHasChanged);
+                break;
+
+            case "Enter":
+                if (highlightedIndex >= 0 && highlightedIndex < filteredCustomers.Count)
+                {
+                    SelectCustomer(filteredCustomers[highlightedIndex]);
+                }
+                else if (filteredCustomers.Any())
+                {
+                    SelectCustomer(filteredCustomers[0]);
+                }
+                break;
+
+            case "Escape":
+                showSuggestions = false;
+                highlightedIndex = -1;
+                InvokeAsync(StateHasChanged);
+                break;
+        }
+    }
+
+    private void SelectCustomer(AppClient customer)
+    {
+        selectedCustomer = customer;
+        customerSearchText = customer.Name;
+        project.ClientId = customer.Id;
+        showSuggestions = false;
+        customerValidationError = false;
+        highlightedIndex = -1;
+        InvokeAsync(StateHasChanged);
     }
 
     private async Task HandleDesignFileSelected(InputFileChangeEventArgs e)
     {
+        // Prevent multiple simultaneous uploads
+        if (isUploadingDesignFile) return;
+
         isUploadingDesignFile = true;
         designFileError = null;
-        StateHasChanged(); // Force UI update to show loading
+        await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
 
         try
         {
             var file = e.File;
-            if (file == null) return;
+            if (file == null)
+            {
+                designFileError = "Không có file được chọn.";
+                return;
+            }
 
+            Console.WriteLine($"Bắt đầu upload design file: {file.Name}, Size: {file.Size} bytes");
             savedDesignFilePath = await FileStorageService.SaveFileAsync(
                 file, "designs", allowedExtensions, maxFileSize);
-
+            
+            Console.WriteLine($"Design file đã được lưu thành công: {savedDesignFilePath}");
             designFileError = null;
         }
         catch (Exception ex)
         {
             designFileError = ex.Message;
             savedDesignFilePath = null;
+            Console.WriteLine($"Lỗi khi upload design file: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
         finally
         {
             isUploadingDesignFile = false;
-            StateHasChanged(); // Force UI update to hide loading
+            await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
         }
     }
 
     private async Task HandleDocumentSelected(InputFileChangeEventArgs e)
     {
+        // Prevent multiple simultaneous uploads
+        if (isUploadingDocument) return;
+
         isUploadingDocument = true;
         documentFileError = null;
-        StateHasChanged(); // Force UI update to show loading
+        await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
 
         try
         {
             var file = e.File;
-            if (file == null) return;
+            if (file == null)
+            {
+                documentFileError = "Không có file được chọn.";
+                return;
+            }
 
+            Console.WriteLine($"Bắt đầu upload document file: {file.Name}, Size: {file.Size} bytes");
             savedDocumentPath = await FileStorageService.SaveFileAsync(
                 file, "documents", allowedExtensions, maxFileSize);
-
+            
+            Console.WriteLine($"Document file đã được lưu thành công: {savedDocumentPath}");
             documentFileError = null;
         }
         catch (Exception ex)
         {
             documentFileError = ex.Message;
             savedDocumentPath = null;
+            Console.WriteLine($"Lỗi khi upload document file: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
         }
         finally
         {
             isUploadingDocument = false;
-            StateHasChanged(); // Force UI update to hide loading
+            await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
         }
     }
 
@@ -239,9 +455,41 @@ else
     {
         if (isSubmitting) return;
 
+        // Validate customer selection
+        if (selectedCustomer == null || project.ClientId == 0)
+        {
+            // Check if the entered text matches any customer
+            if (customers != null && !string.IsNullOrWhiteSpace(customerSearchText))
+            {
+                var matchingCustomer = customers.FirstOrDefault(c => 
+                    c.Name.Equals(customerSearchText, StringComparison.OrdinalIgnoreCase));
+                
+                if (matchingCustomer != null)
+                {
+                    selectedCustomer = matchingCustomer;
+                    project.ClientId = matchingCustomer.Id;
+                }
+                else
+                {
+                    customerValidationError = true;
+                    submitErrorMessage = "Vui lòng chọn một khách hàng hợp lệ từ danh sách gợi ý.";
+                    await InvokeAsync(StateHasChanged);
+                    return;
+                }
+            }
+            else
+            {
+                customerValidationError = true;
+                submitErrorMessage = "Vui lòng chọn khách hàng.";
+                await InvokeAsync(StateHasChanged);
+                return;
+            }
+        }
+
         isSubmitting = true;
         submitErrorMessage = null;
-        StateHasChanged(); // Force UI update
+        customerValidationError = false;
+        await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
 
         try
         {
@@ -256,7 +504,9 @@ else
             project.DesignFilePath = savedDesignFilePath;
             project.DocumentPath = savedDocumentPath;
 
+            // Create project request (status will be Planning, awaiting Admin approval)
             await SaleService.CreateProjectRFQAsync(project);
+            Console.WriteLine($"Đã tạo yêu cầu dự án: {project.ProjectRFQName}. Yêu cầu đang chờ phê duyệt từ Admin.");
             GoBack();
         }
         catch (Exception ex)
@@ -267,25 +517,43 @@ else
         finally
         {
             isSubmitting = false;
-            StateHasChanged(); // Force UI update
+            await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
         }
     }
 
     private void GoBack()
     {
-        NavManager.NavigateTo("/sale/projectrfq");
+            NavManager.NavigateTo("/projects");
     }
 
     private string GetVietnameseStatus(ProjectRFQStatus status)
     {
         return status switch
         {
-            ProjectRFQStatus.Planning => "Lên kế hoạch",
+            ProjectRFQStatus.Planning => "Chờ phê duyệt",
             ProjectRFQStatus.Production => "Đang sản xuất",
             ProjectRFQStatus.Deploying => "Đang lắp đặt",
-            ProjectRFQStatus.Completed => "Đã xong",
-            ProjectRFQStatus.Cancelled => "Bị hủy",
+            ProjectRFQStatus.Completed => "Đã hoàn thành",
+            ProjectRFQStatus.Cancelled => "Đã hủy",
             _ => status.ToString()
         };
+    }
+
+    private string GetStatusClass(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Planning => "bg-primary text-white",
+            ProjectRFQStatus.Production => "bg-warning text-dark",
+            ProjectRFQStatus.Deploying => "bg-info text-white",
+            ProjectRFQStatus.Completed => "bg-success text-white",
+            ProjectRFQStatus.Cancelled => "bg-danger text-white",
+            _ => "bg-secondary text-white"
+        };
+    }
+
+    public void Dispose()
+    {
+        searchTimer?.Dispose();
     }
 }

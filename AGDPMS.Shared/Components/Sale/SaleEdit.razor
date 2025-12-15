@@ -1,5 +1,7 @@
 ﻿@page "/sale/customercontact/edit/{id:int}"
-@rendermode InteractiveServer 
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Sale")] 
 
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services 
