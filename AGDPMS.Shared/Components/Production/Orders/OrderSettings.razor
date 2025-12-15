@@ -1,0 +1,233 @@
+@page "/production/orders/settings"
+@using AGDPMS.Shared.Models.DTOs
+@inject HttpClient Http
+@inject NavigationManager Nav
+
+<div class="container py-3">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="/production/orders">Lệnh sản xuất</a></li>
+            <li class="breadcrumb-item active">Cài đặt</li>
+        </ol>
+    </nav>
+
+    <h4 class="mb-3">Cài đặt sản xuất</h4>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <ul class="nav nav-tabs mb-3">
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "time" ? "active" : string.Empty)" @onclick="@(() => SetTab("time"))">Thời gian giai đoạn</button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link @(activeTab == "labor" ? "active" : string.Empty)" @onclick="@(() => SetTab("labor"))">Chi phí nhân công</button>
+        </li>
+    </ul>
+
+    @if (activeTab == "time")
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Thiết lập mặc định</h6>
+                    <button class="btn btn-sm btn-primary" @onclick="SaveStageTimes" disabled="@savingTime">Lưu</button>
+                </div>
+                @if (loadingTime)
+                {
+                    <div>Đang tải...</div>
+                }
+                else if (stageTimes.Any())
+                {
+                    <div class="table-responsive" style="max-height:60vh; overflow:auto;">
+                        <table class="table table-sm align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Giai đoạn</th>
+                                    <th style="width:140px;">Setup (phút)</th>
+                                    <th style="width:140px;">Finish (phút)</th>
+                                    <th style="width:180px;">Thời gian thực hiện</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var s in stageTimes)
+                                {
+                                    <tr>
+                                        <td>
+                                            <div class="fw-semibold">@s.StageTypeName</div>
+                                            <small class="text-muted">@s.StageTypeCode</small>
+                                        </td>
+                                        <td>
+                                            <div class="small text-muted mb-1" style="visibility: hidden;">Phút</div>
+                                            <input type="number" min="0" step="0.1" class="form-control form-control-sm" @bind-value="s.SetupMinutes" @bind-value:event="oninput" />
+                                        </td>
+                                        <td>
+                                            <div class="small text-muted mb-1" style="visibility: hidden;">Phút</div>
+                                            <input type="number" min="0" step="0.1" class="form-control form-control-sm" @bind-value="s.FinishMinutes" @bind-value:event="oninput" />
+                                        </td>
+                                        <td>
+                                            <div class="small text-muted mb-1">@s.DoLabel</div>
+                                            <input type="number" min="0" step="0.1" class="form-control form-control-sm" @bind-value="s.DoMinutes" @bind-value:event="oninput" />
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-muted">Không có dữ liệu giai đoạn.</div>
+                }
+            </div>
+        </div>
+    }
+    else if (activeTab == "labor")
+    {
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0">Chi phí nhân công thống nhất</h6>
+                    <button class="btn btn-sm btn-primary" @onclick="SaveLabor" disabled="@savingLabor">Lưu</button>
+                </div>
+                @if (loadingLabor)
+                {
+                    <div>Đang tải...</div>
+                }
+                else
+                {
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Đơn giá nhân công (đồng/giờ)</label>
+                            <input type="number" min="0" step="1000" class="form-control" @bind-value="unifiedLaborCost.HourlyRate" @bind-value:event="oninput" />
+                            <small class="text-muted">Đơn giá này sẽ áp dụng cho tất cả các giai đoạn sản xuất.</small>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string activeTab = "time";
+    private List<StageTimeSettingViewDto> stageTimes = new();
+    private UnifiedLaborCostDto unifiedLaborCost = new() { HourlyRate = 100000m };
+    private bool loadingTime;
+    private bool loadingLabor;
+    private bool savingTime;
+    private bool savingLabor;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadStageTimes();
+        await LoadLaborCosts();
+    }
+
+    private void SetTab(string tab) => activeTab = tab;
+
+    private async Task LoadStageTimes()
+    {
+        try
+        {
+            loadingTime = true;
+            errorMessage = null;
+            stageTimes = await Http.GetFromJsonAsync<List<StageTimeSettingViewDto>>("/api/order-settings/stage-time") ?? new();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Không thể tải thời gian giai đoạn: {ex.Message}";
+        }
+        finally
+        {
+            loadingTime = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadLaborCosts()
+    {
+        try
+        {
+            loadingLabor = true;
+            errorMessage = null;
+            var result = await Http.GetFromJsonAsync<UnifiedLaborCostDto>("/api/order-settings/labor-cost");
+            if (result != null)
+            {
+                unifiedLaborCost = result;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Không thể tải chi phí nhân công: {ex.Message}";
+        }
+        finally
+        {
+            loadingLabor = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveStageTimes()
+    {
+        try
+        {
+            savingTime = true;
+            errorMessage = null;
+            var payload = stageTimes.Select(s => new StageTimeSettingUpdateDto
+            {
+                StageTypeId = s.StageTypeId,
+                StageTypeCode = s.StageTypeCode,
+                SetupMinutes = s.SetupMinutes,
+                FinishMinutes = s.FinishMinutes,
+                DoMinutes = s.DoMinutes
+            }).ToList();
+            var res = await Http.PutAsJsonAsync("/api/order-settings/stage-time", payload);
+            if (!res.IsSuccessStatusCode)
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                errorMessage = $"Lưu thất bại: {res.StatusCode} - {err}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lưu thất bại: {ex.Message}";
+        }
+        finally
+        {
+            savingTime = false;
+        }
+    }
+
+    private async Task SaveLabor()
+    {
+        try
+        {
+            savingLabor = true;
+            errorMessage = null;
+            var res = await Http.PutAsJsonAsync("/api/order-settings/labor-cost", unifiedLaborCost);
+            if (!res.IsSuccessStatusCode)
+            {
+                var err = await res.Content.ReadAsStringAsync();
+                errorMessage = $"Lưu thất bại: {res.StatusCode} - {err}";
+            }
+            else
+            {
+                errorMessage = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lưu thất bại: {ex.Message}";
+        }
+        finally
+        {
+            savingLabor = false;
+            StateHasChanged();
+        }
+    }
+}
+

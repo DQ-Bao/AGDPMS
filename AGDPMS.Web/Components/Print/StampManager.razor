@@ -1,22 +1,36 @@
 ﻿@page "/print/stamp-manager"
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Components.Print
+@using System.Net.Http
+@using System.Net.Http.Json
+@using System.Text.Json
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject IJSRuntime JS
 @rendermode InteractiveServer
 
 <PageTitle>Quản lý & In Tem Bảo Hành</PageTitle>
 
 <div class="container-fluid">
     <div class="d-flex justify-content-between align-items-center mb-4 d-print-none">
+        <div>
         <h3 class="mb-0">
             @if (isPreviewMode)
             {
-                <span>🖨️ Xem trước bản in</span>
+                    <span>Xem trước bản in</span>
             }
             else
             {
-                <span>📝 Quản lý Tem Bảo Hành</span>
+                    <span>Quản lý Tem Bảo Hành</span>
             }
         </h3>
+            @if (isQuickMode && !isPreviewMode)
+            {
+                <span class="badge bg-warning text-dark mt-2">
+                    <i class="bx bx-flash me-1"></i> Chế độ in nhanh
+                </span>
+            }
+        </div>
 
         @if (isPreviewMode)
         {
@@ -26,74 +40,45 @@
         }
         else
         {
+            <div class="d-flex gap-2">
+                @if (selectedStamps.Any())
+                {
+                    <button class="btn btn-warning" @onclick="OpenBatchEditDateModal">
+                        <i class="bx bx-edit me-1"></i> Sửa ngày (@selectedStamps.Count)
+                    </button>
+                    <button class="btn btn-danger" @onclick='@(async () => await RemoveSelectedStamps())'>
+                        <i class="bx bx-trash me-1"></i> Xóa (@selectedStamps.Count)
+                    </button>
+                }
+                <button class="btn btn-success" @onclick="OpenSelectModal">
+                    <i class="bx bx-plus me-1"></i> Thêm sản phẩm
+                </button>
             <button class="btn btn-primary" @onclick="GoToPreview" disabled="@(stampsToPrint.Count == 0)">
                 <i class="bx bx-show me-1"></i> XEM TRƯỚC BẢN IN (@stampsToPrint.Count tem)
             </button>
+            </div>
         }
     </div>
 
     @if (!isPreviewMode)
     {
-        <div class="row d-print-none">
-            <div class="col-md-4">
-                <div class="card shadow-sm mb-4">
-                    <div class="card-header bg-white fw-bold py-3">
-                        <i class="bx bx-plus-circle me-1 text-primary"></i> Thêm tem mới
-                    </div>
-                    <div class="card-body">
-                        <EditForm Model="@newStamp" OnValidSubmit="AddStamp">
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted">Tên Sản Phẩm</label>
-                                <InputText class="form-control" @bind-Value="newStamp.ProductName" placeholder="VD: Cửa đi mở quay..." />
-                            </div>
-                            <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label small fw-bold text-muted">Mã Lệnh TC</label>
-                                    <InputText class="form-control" @bind-Value="newStamp.CommandCode" placeholder="VD: LC-2025-001" />
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label small fw-bold text-muted">Mã Sản Phẩm (Tạo QR)</label>
-                                    <InputText class="form-control" @bind-Value="newStamp.ProductCode" placeholder="VD: W6T2-001" />
-                                    <div class="form-text small text-primary"><i class="bx bx-info-circle"></i> Mã này sẽ được dùng để tạo QR.</div>
-                                </div>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label small fw-bold text-muted">Ngày Lắp Đặt</label>
-                                <InputDate class="form-control" @bind-Value="newStamp.InstallDate" />
-                            </div>
-                            <button type="submit" class="btn btn-primary w-100 fw-bold">
-                                <i class="bx bx-list-plus me-1"></i> Thêm vào danh sách
-                            </button>
-                        </EditForm>
-
-                        <hr class="text-muted my-3" />
-                        <button class="btn btn-outline-secondary btn-sm w-100" @onclick="AddDummyData">
-                            <i class="bx bx-test-tube me-1"></i> + Thêm nhanh 10 tem mẫu (Test)
-                        </button>
-
-                        <hr class="text-muted my-3" />
-                        <button class="btn btn-outline-secondary btn-sm w-100" @onclick="AddDummyData2">
-                            <i class="bx bx-test-tube me-1"></i> + Thêm nhanh 12 tem mẫu (Test)
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-8">
-                <div class="card shadow-sm">
+        <div class="card shadow-sm d-print-none">
                     <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
                         <span class="fw-bold"><i class="bx bx-list-ul me-1 text-primary"></i> Danh sách chờ in</span>
-                        <span class="badge bg-primary rounded-pill">@stampsToPrint.Count / 10 tem (Trang 1)</span>
+                <span class="badge bg-primary rounded-pill">@stampsToPrint.Count tem</span>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive" style="max-height: 600px; overflow-y: auto;">
                             <table class="table table-hover table-striped mb-0 align-middle">
                                 <thead class="table-light sticky-top small text-muted text-uppercase">
                                     <tr>
-                                        <th class="ps-3">#</th>
-                                        <th>Mã SP (QR)</th>
+                                <th class="ps-3" style="width: 40px;">
+                                    <input type="checkbox" @bind="selectAll" @bind:after="ToggleSelectAll" />
+                                </th>
+                                <th>#</th>
+                                <th>Mã SP</th>
                                         <th>Tên Sản Phẩm</th>
-                                        <th>Mã Lệnh</th>
+                                <th>Mã Lệnh TC</th>
                                         <th>Ngày lắp</th>
                                         <th class="text-center">Xóa</th>
                                     </tr>
@@ -102,9 +87,9 @@
                                     @if (stampsToPrint.Count == 0)
                                     {
                                         <tr>
-                                            <td colspan="6" class="text-center text-muted py-5">
+                                    <td colspan="7" class="text-center text-muted py-5">
                                                 <i class="bx bx-inbox fs-1 d-block mb-2"></i>
-                                                Chưa có tem nào trong danh sách. Hãy thêm tem mới.
+                                        Chưa có tem nào trong danh sách. Hãy thêm sản phẩm từ lệnh sản xuất.
                                             </td>
                                         </tr>
                                     }
@@ -113,16 +98,34 @@
                                         @for (int i = 0; i < stampsToPrint.Count; i++)
                                         {
                                             var item = stampsToPrint[i];
-                                            var index = i; // Biến cục bộ cho vòng lặp
-                                                           <tr>
-                                                               <td class="ps-3 fw-bold text-muted">@(index + 1)</td>
-                                                               <td><span class="badge bg-info text-dark">@item.ProductCode</span></td>
+                                    var index = i;
+                                    var isSelected = selectedStamps.Contains(item);
+                                    <tr style="cursor: pointer;" @onclick='@(() => ToggleSelect(item, !isSelected))'>
+                                        <td class="ps-3" @onclick:stopPropagation="true">
+                                            <input type="checkbox" checked="@isSelected" @onchange='@((e) => ToggleSelect(item, (bool)e.Value!))' @onclick:stopPropagation="true" />
+                                        </td>
+                                        <td class="fw-bold text-muted">@(index + 1)</td>
+                                        <td><span class="badge bg-info text-dark">@item.OrderItemCode</span></td>
                                                                <td class="text-truncate" style="max-width: 200px;" title="@item.ProductName">@item.ProductName</td>
-                                                               <td><small>@item.CommandCode</small></td>
-                                                               <td><small>@(item.InstallDate?.ToString("dd/MM/yyyy"))</small></td>
-                                                               <td class="text-center">
-                                                                   <button class="btn btn-outline-danger btn-sm rounded-circle" @onclick="() => RemoveStamp(item)" title="Xóa tem này">
-                                                                       <i class="bx bx-x"></i>
+                                        <td><small>@item.OrderCode</small></td>
+                                        <td @onclick:stopPropagation="true">
+                                            @if (editingDateIndex == index)
+                                            {
+                                                <input type="date" class="form-control form-control-sm" style="width: 150px;"
+                                                       value="@(item.InstallDate?.ToString("yyyy-MM-dd") ?? DateTime.Now.ToString("yyyy-MM-dd"))"
+                                                       @onchange='@(async (e) => await UpdateDate(index, e))'
+                                                       @onblur="() => editingDateIndex = null" />
+                                            }
+                                            else
+                                            {
+                                                <span style="cursor: pointer;" @onclick="() => editingDateIndex = index" title="Click để sửa">
+                                                    @(item.InstallDate?.ToString("dd/MM/yyyy") ?? "Chưa có")
+                                                </span>
+                                            }
+                                        </td>
+                                        <td class="text-center" @onclick:stopPropagation="true">
+                                            <button class="btn btn-sm btn-link text-danger p-0" @onclick='@(async () => await RemoveStamp(item))' title="Xóa tem này">
+                                                <i class="bx bx-trash"></i>
                                                                    </button>
                                                                </td>
                                                            </tr>
@@ -134,8 +137,6 @@
                     </div>
                     <div class="card-footer bg-light small text-muted">
                         <i class="bx bx-bulb me-1"></i> Mẹo: Mỗi trang A4 in được 10-12 tem. Hãy nhập đúng số lượng để tiết kiệm giấy.
-                    </div>
-                </div>
             </div>
         </div>
     }
@@ -145,76 +146,288 @@
         <PrintWarrantyStamps Stamps="@stampsToPrint" />
     }
 
+    @if (showSelectModal)
+    {
+        <SelectOrderItemsModal OnClose="CloseSelectModal" OnItemsSelected="HandleItemsSelected" />
+    }
+
+    @if (showBatchEditDateModal)
+    {
+        <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5); z-index: 1060;">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Sửa ngày lắp đặt cho @selectedStamps.Count tem</h5>
+                        <button type="button" class="btn-close" @onclick="CloseBatchEditDateModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label class="form-label">Ngày lắp đặt</label>
+                            <input type="date" class="form-control" @bind="batchEditDate" />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" @onclick="CloseBatchEditDateModal">Hủy</button>
+                        <button type="button" class="btn btn-primary" @onclick='@(async () => await ApplyBatchEditDate())'>Áp dụng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 </div>
 
 @code {
-    // Danh sách chính chứa các tem sẽ in
     private List<WarrantyStamp> stampsToPrint = new();
-
-    // Model tạm dùng cho form nhập liệu
-    private WarrantyStamp newStamp = new() { InstallDate = DateTime.Now };
-
-    // Biến trạng thái: true = đang xem trước, false = đang nhập liệu
+    private HashSet<WarrantyStamp> selectedStamps = new();
     private bool isPreviewMode = false;
+    private bool isQuickMode = false;
+    private bool showSelectModal = false;
+    private bool showBatchEditDateModal = false;
+    private bool selectAll = false;
+    private int? editingDateIndex = null;
+    private DateTime? batchEditDate = DateTime.Now;
 
-    // Hàm xử lý khi nhấn nút "Thêm vào danh sách"
-    private void AddStamp()
+    protected override async Task OnInitializedAsync()
     {
-        // Tạo một đối tượng mới (copy dữ liệu từ form) để thêm vào danh sách
-        // Điều này quan trọng để ngắt tham chiếu với form nhập liệu
-        stampsToPrint.Add(new WarrantyStamp
+        // Check for query string parameters (items=1,2,3 or orderId=1)
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query);
+        
+        bool hasQueryParams = false;
+        
+        if (query.TryGetValue("items", out var itemIds))
         {
-            ProductName = newStamp.ProductName,
-            CommandCode = newStamp.CommandCode,
-            ProductCode = newStamp.ProductCode, // Mã này sẽ được dùng tạo QR
-            InstallDate = newStamp.InstallDate
-        });
+            var ids = itemIds.ToString().Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(id => int.TryParse(id, out var v) ? v : (int?)null)
+                .Where(id => id.HasValue)
+                .Select(id => id!.Value)
+                .ToList();
+            
+            if (ids.Any())
+            {
+                isQuickMode = true; // Enable quick mode when adding from "In tem nhanh"
+                await LoadItemsFromIds(ids);
+                hasQueryParams = true;
+            }
+        }
+        else if (query.TryGetValue("orderId", out var orderIdStr) && int.TryParse(orderIdStr, out var orderId))
+        {
+            isQuickMode = true; // Enable quick mode when adding from "In tem nhanh"
+            await LoadItemsFromOrder(orderId);
+            hasQueryParams = true;
+        }
 
-        // Reset form để nhập tem tiếp theo (giữ lại ngày hiện tại cho tiện)
-        var currentDate = newStamp.InstallDate;
-        newStamp = new WarrantyStamp { InstallDate = currentDate, ProductCode = "" };
+        // Only load from localStorage if no query params (i.e., user clicked from menu)
+        if (!hasQueryParams)
+        {
+            await LoadFromLocalStorage();
+        }
     }
 
-    // Hàm xóa một tem khỏi danh sách
-    private void RemoveStamp(WarrantyStamp item)
+    private async Task LoadItemsFromIds(List<int> itemIds)
+    {
+        try
+        {
+            var url = $"/api/lookup/order-items-for-stamps?items={string.Join(",", itemIds)}";
+            var response = await Http.GetFromJsonAsync<List<OrderWithItemsDto>>(url);
+            if (response != null)
+            {
+                var allItems = response.SelectMany(o => o.items).Where(i => itemIds.Contains(i.itemId)).ToList();
+                var stamps = allItems.Select(item => new WarrantyStamp
+                {
+                    OrderItemId = item.itemId,
+                    OrderCode = item.orderCode ?? "",
+                    OrderItemCode = item.itemCode,
+                    ProductName = item.productName ?? "",
+                    QrImage = item.qrImage,
+                    InstallDate = DateTime.Now
+                }).ToList();
+
+                foreach (var stamp in stamps)
+                {
+                    if (!stampsToPrint.Any(s => s.OrderItemId == stamp.OrderItemId))
+                    {
+                        stampsToPrint.Add(stamp);
+                    }
+                }
+                // Don't save to localStorage when adding from "In tem nhanh" - only save when user explicitly makes changes
+                StateHasChanged();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading items: {ex.Message}");
+        }
+    }
+
+    private async Task LoadItemsFromOrder(int orderId)
+    {
+        try
+        {
+            // Get order details to get all item IDs
+            var orderResponse = await Http.GetFromJsonAsync<OrderDetailsResponse>($"/api/orders/{orderId}");
+            if (orderResponse?.items != null && orderResponse.items.Any())
+            {
+                var itemIds = orderResponse.items.Select(i => i.Id).ToList();
+                await LoadItemsFromIds(itemIds);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading order items: {ex.Message}");
+        }
+    }
+
+    private class OrderWithItemsDto
+    {
+        public int orderId { get; set; }
+        public string? orderCode { get; set; }
+        public List<OrderItemDto> items { get; set; } = new();
+    }
+
+    private class OrderItemDto
+    {
+        public int itemId { get; set; }
+        public string itemCode { get; set; } = "";
+        public int orderId { get; set; }
+        public string? orderCode { get; set; }
+        public ProductionOrderStatus orderStatus { get; set; }
+        public StageStatus stageStatus { get; set; }
+        public string productName { get; set; } = "";
+        public string? qrImage { get; set; }
+    }
+
+    private class OrderDetailsResponse
+    {
+        public List<ItemDto>? items { get; set; }
+    }
+
+    private class ItemDto
+    {
+        public int Id { get; set; }
+    }
+
+    private void OpenSelectModal()
+    {
+        showSelectModal = true;
+    }
+
+    private void CloseSelectModal()
+    {
+        showSelectModal = false;
+    }
+
+    private async Task HandleItemsSelected(List<WarrantyStamp> items)
+    {
+        foreach (var item in items)
+        {
+            // Avoid duplicates
+            if (!stampsToPrint.Any(s => s.OrderItemId == item.OrderItemId))
+            {
+                stampsToPrint.Add(item);
+            }
+        }
+        showSelectModal = false;
+        if (!isQuickMode)
+        {
+            await SaveToLocalStorage();
+        }
+        StateHasChanged();
+    }
+
+    private void ToggleSelect(WarrantyStamp item, bool isSelected)
+    {
+        if (isSelected)
+        {
+            selectedStamps.Add(item);
+        }
+        else
+        {
+            selectedStamps.Remove(item);
+        }
+        selectAll = selectedStamps.Count == stampsToPrint.Count && stampsToPrint.Any();
+        StateHasChanged();
+    }
+
+    private void ToggleSelectAll()
+    {
+        if (selectAll)
+        {
+            selectedStamps = new HashSet<WarrantyStamp>(stampsToPrint);
+        }
+        else
+        {
+            selectedStamps.Clear();
+        }
+    }
+
+    private async Task RemoveStamp(WarrantyStamp item)
     {
         stampsToPrint.Remove(item);
-    }
-
-    // Hàm thêm dữ liệu giả để test nhanh chức năng
-    private void AddDummyData()
-    {
-        int startId = stampsToPrint.Count + 1;
-        for (int i = 0; i < 10; i++)
+        selectedStamps.Remove(item);
+        if (!isQuickMode)
         {
-            int id = startId + i;
-            stampsToPrint.Add(new WarrantyStamp
-            {
-                ProductName = $"Cửa Nhôm Hệ Xingfa (Mẫu test #{id})",
-                CommandCode = $"LC-{DateTime.Now.Year}-{id:000}",
-                ProductCode = $"W6T2-{id:000}", // Mã QR sẽ là W6T2-001, W6T2-002...
-                InstallDate = DateTime.Now.AddDays(-i)
-            });
+            await SaveToLocalStorage();
         }
     }
 
-    // Hàm thêm dữ liệu giả để test nhanh chức năng
-    private void AddDummyData2()
+    private async Task RemoveSelectedStamps()
     {
-        int startId = stampsToPrint.Count + 1;
-        for (int i = 0; i < 12; i++)
+        foreach (var stamp in selectedStamps.ToList())
         {
-            int id = startId + i;
-            stampsToPrint.Add(new WarrantyStamp
-            {
-                ProductName = $"Cửa Nhôm Hệ Xingfa (Mẫu test #{id})",
-                CommandCode = $"LC-{DateTime.Now.Year}-{id:000}",
-                ProductCode = $"W6T2-{id:000}", // Mã QR sẽ là W6T2-001, W6T2-002...
-                InstallDate = DateTime.Now.AddDays(-i)
-            });
+            stampsToPrint.Remove(stamp);
+        }
+        selectedStamps.Clear();
+        selectAll = false;
+        if (!isQuickMode)
+        {
+            await SaveToLocalStorage();
         }
     }
-    // Chuyển sang chế độ xem trước
+
+    private async Task UpdateDate(int index, ChangeEventArgs e)
+    {
+        if (index >= 0 && index < stampsToPrint.Count)
+        {
+            var dateStr = e.Value?.ToString();
+            if (DateTime.TryParse(dateStr, out var date))
+            {
+                stampsToPrint[index].InstallDate = date;
+                if (!isQuickMode)
+                {
+                    await SaveToLocalStorage();
+                }
+            }
+        }
+        editingDateIndex = null;
+    }
+
+    private void OpenBatchEditDateModal()
+    {
+        batchEditDate = DateTime.Now;
+        showBatchEditDateModal = true;
+    }
+
+    private void CloseBatchEditDateModal()
+    {
+        showBatchEditDateModal = false;
+    }
+
+    private async Task ApplyBatchEditDate()
+    {
+        foreach (var stamp in selectedStamps)
+        {
+            stamp.InstallDate = batchEditDate;
+        }
+        selectedStamps.Clear();
+        selectAll = false;
+        showBatchEditDateModal = false;
+        if (!isQuickMode)
+        {
+            await SaveToLocalStorage();
+        }
+    }
+
     private void GoToPreview()
     {
         if (stampsToPrint.Any())
@@ -223,9 +436,42 @@
         }
     }
 
-    // Quay lại chế độ nhập liệu
     private void BackToEdit()
     {
         isPreviewMode = false;
+    }
+
+    private async Task SaveToLocalStorage()
+    {
+        try
+        {
+            var json = JsonSerializer.Serialize(stampsToPrint);
+            await JS.InvokeVoidAsync("localStorage.setItem", "warrantyStamps", json);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error saving to localStorage: {ex.Message}");
+        }
+    }
+
+    private async Task LoadFromLocalStorage()
+    {
+        try
+        {
+            var json = await JS.InvokeAsync<string>("localStorage.getItem", "warrantyStamps");
+            if (!string.IsNullOrWhiteSpace(json))
+            {
+                var loaded = JsonSerializer.Deserialize<List<WarrantyStamp>>(json);
+                if (loaded != null && loaded.Any())
+                {
+                    stampsToPrint = loaded;
+                    StateHasChanged();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error loading from localStorage: {ex.Message}");
+        }
     }
 }

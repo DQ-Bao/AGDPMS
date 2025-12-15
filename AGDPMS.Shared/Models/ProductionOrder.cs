@@ -9,6 +9,7 @@ public class ProductionOrder
 
     public ProductionOrderStatus Status { get; set; }
     public bool IsCancelled { get; set; }
+    public int? AssignedQaUserId { get; set; }
 
     public DateTime? PlannedStartDate { get; set; }
     public DateTime? PlannedFinishDate { get; set; }

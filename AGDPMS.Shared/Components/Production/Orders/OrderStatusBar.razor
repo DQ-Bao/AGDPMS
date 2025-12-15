@@ -17,19 +17,20 @@
                     {
                         (ProductionOrderStatus.Draft, "Nháp"),
                         (ProductionOrderStatus.PendingDirectorApproval, "Chờ giám đốc duyệt"),
-                        (ProductionOrderStatus.DirectorRejected, "Giám đốc từ chối"),
                         (ProductionOrderStatus.PendingQACheckMachines, "Chờ QA kiểm tra máy"),
                         (ProductionOrderStatus.PendingQACheckMaterial, "Chờ QA kiểm tra vật tư"),
                         (ProductionOrderStatus.InProduction, "Đang sản xuất"),
                         (ProductionOrderStatus.Finished, "Hoàn thành"),
-                        (ProductionOrderStatus.Cancelled, "Đã hủy")
+                        (ProductionOrderStatus.Cancelled, "Đã hủy"),
+                        (ProductionOrderStatus.DirectorRejected, "Giám đốc từ chối")
                     };
                 }
                 @foreach (var (status, label) in statuses)
                 {
                     var isActive = (int)status <= (int)orderStatus.Value;
                     var isCurrent = status == orderStatus.Value;
-                    var statusClass = isCurrent ? "bg-primary" : (isActive ? "bg-success" : "bg-secondary");
+                    var isRejectedOrCancelled = isCurrent && (status == ProductionOrderStatus.DirectorRejected || status == ProductionOrderStatus.Cancelled);
+                    var statusClass = isRejectedOrCancelled ? "bg-danger" : (isCurrent ? "bg-primary" : (isActive ? "bg-success" : "bg-secondary"));
                     <div class="d-flex flex-column align-items-center" style="min-width: 120px;">
                         <div class="badge @statusClass mb-1" style="width: 100%; padding: 8px; @(isCurrent ? "font-weight: bold;" : "")">
                             @label

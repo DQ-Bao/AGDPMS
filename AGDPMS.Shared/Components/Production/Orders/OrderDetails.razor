@@ -9,6 +9,7 @@
 @using System.Linq
 @using System.Text
 @using System.Text.RegularExpressions
+@using System.Globalization
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
@@ -36,12 +37,14 @@
                 <div class="text-secondary small">
                     <span>Thực tế: Bắt đầu: @FormatDate(model.order?.StartedAt) | Kết thúc: @FormatDate(model.order?.FinishedAt)</span>
                 </div>
+                <div class="text-secondary small mt-1">
+                    <span>QA phụ trách: @(string.IsNullOrWhiteSpace(orderQaName) ? "Chưa phân công" : orderQaName)</span>
+                </div>
                 @if (model.items?.Any() == true)
                 {
                     <div class="text-secondary small mt-1">
-                        <span>Tiến độ: @CompletedItems/@TotalItems item (@(TotalItems == 0 ? 0 : (CompletedItems * 100 / TotalItems))%)</span>
-                        <span class="ms-3">Giờ kế hoạch: @($"{TotalPlannedHours:F1}h")</span>
-                        <span class="ms-3">Giờ thực tế: @($"{TotalActualHours:F1}h")</span>
+                        <span class="ms-3">Giờ ước tính: @FormatHoursVerbose(TotalPlannedHours)</span>
+                        <span class="ms-3">Giờ thực tế: @FormatHoursVerbose(TotalActualHours)</span>
                     </div>
                 }
             </div>
@@ -78,9 +81,23 @@
                 {
                     <button class="btn btn-outline-success btn-sm" @onclick="QaMaterial">Xác nhận vật tư</button>
                 }
+                @if (ShouldShowAssignQa())
+                {
+                    <button class="btn btn-outline-warning btn-sm" @onclick="OpenAssignQaModal">Phân công QA</button>
+                }
                 @if (IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft)
                 {
                     <button class="btn btn-outline-info btn-sm" @onclick="OpenPlanModal">Cập nhật kế hoạch</button>
+                }
+                @if (IsProductionManager() || IsDirector())
+                {
+                    <button class="btn btn-outline-dark btn-sm" @onclick="OpenCostModal">Quản lý chi phí</button>
+                }
+                @if (model?.items?.Any() == true)
+                {
+                    <button class="btn btn-outline-info btn-sm" @onclick="AddAllItemsToStamps">
+                        <i class="bx bx-printer"></i> In tem nhanh
+                    </button>
                 }
             </div>
         </div>
@@ -96,48 +113,180 @@
             <div class="mb-3">
                 <OrderStatusBar OrderId="@Id" />
                 <div class="small text-secondary mb-1">Tiến độ tổng thể: @CompletedItems/@TotalItems item</div>
-                <div class="progress" style="height: 30px;">
+                <div class="progress" style="height: 30px; position: relative;">
                     @{
-                        var totalItems = TotalItems;
-                        var completedItems = CompletedItems;
-                        var overallProgressPercent = totalItems > 0 
-                            ? (completedItems * 100.0 / totalItems) 
-                            : 0;
-                        var overallProgressClass = overallProgressPercent == 100 ? "bg-success" : (overallProgressPercent > 0 ? "bg-info" : "bg-secondary");
+                        // Calculate hours from all items (using PlannedTimeHours which comes from filtered stages)
+                        var notCompletedHours = model.items.Where(i => !i.IsCompleted).Sum(i => i.PlannedTimeHours ?? 0);
+                        var completedHours = model.items.Where(i => i.IsCompleted && !i.IsStored).Sum(i => i.PlannedTimeHours ?? 0);
+                        var storedHours = model.items.Where(i => i.IsCompleted && i.IsStored).Sum(i => i.PlannedTimeHours ?? 0);
+                        
+                        // Total is the sum of all three groups to ensure 100%
+                        var totalPlannedHours = notCompletedHours + completedHours + storedHours;
+                        
+                        var notCompletedPercent = totalPlannedHours > 0 ? (double)notCompletedHours * 100.0 / (double)totalPlannedHours : 0;
+                        var completedPercent = totalPlannedHours > 0 ? (double)completedHours * 100.0 / (double)totalPlannedHours : 0;
+                        var storedPercent = totalPlannedHours > 0 ? (double)storedHours * 100.0 / (double)totalPlannedHours : 0;
+                        
+                        // Ensure percentages add up to 100% (handle rounding)
+                        var totalPercent = notCompletedPercent + completedPercent + storedPercent;
+                        if (totalPercent > 0 && Math.Abs(totalPercent - 100.0) > 0.1)
+                        {
+                            // Normalize if there's a rounding issue
+                            var factor = 100.0 / totalPercent;
+                            notCompletedPercent *= factor;
+                            completedPercent *= factor;
+                            storedPercent *= factor;
+                        }
+                        
+                        var notCompletedCount = model.items.Count(i => !i.IsCompleted);
+                        var completedCount = model.items.Count(i => i.IsCompleted && !i.IsStored);
+                        var storedCount = model.items.Count(i => i.IsCompleted && i.IsStored);
                     }
-                    <div class="progress-bar @overallProgressClass" role="progressbar" 
-                         style="width: @($"{overallProgressPercent:F1}%")" 
-                         aria-valuenow="@overallProgressPercent" 
-                         aria-valuemin="0" 
-                         aria-valuemax="100">
-                        <span class="ms-2">@($"{overallProgressPercent:F1}%")</span>
+                    @if (notCompletedPercent > 0)
+                    {
+                        var widthStr = notCompletedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = notCompletedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-secondary" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Chưa hoàn thành: @notCompletedCount item (@percentStr)">
+                            @if (notCompletedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (completedPercent > 0)
+                    {
+                        var widthStr = completedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = completedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Đã hoàn thành: @completedCount item (@percentStr)">
+                            @if (completedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (storedPercent > 0)
+                    {
+                        var widthStr = storedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        var percentStr = storedPercent.ToString("F1", CultureInfo.InvariantCulture) + "%";
+                        <div class="progress-bar bg-primary" role="progressbar" 
+                             style="width: @widthStr" 
+                             title="Đã lưu kho: @storedCount item (@percentStr)">
+                            @if (storedPercent >= 5)
+                            {
+                                <span class="ms-2 text-white">@percentStr</span>
+                            }
+                        </div>
+                    }
+                    @if (totalPlannedHours == 0)
+                    {
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%" title="Chưa có dữ liệu">
+                            <span class="ms-2 text-white">0%</span>
+                        </div>
+                    }
+                </div>
+                <div class="small text-muted mt-1 d-flex gap-3">
+                    <span><span class="badge bg-secondary">●</span> Chưa hoàn thành: @notCompletedCount</span>
+                    <span><span class="badge bg-success">●</span> Đã hoàn thành: @completedCount</span>
+                    <span><span class="badge bg-primary">●</span> Đã lưu kho: @storedCount</span>
+                </div>
+            </div>
+        }
+
+        @if (showCostModal)
+        {
+            <CostManagementModal OrderId="@Id" OnClose="CloseCostModal" />
+        }
+        @if (showAssignQaModal)
+        {
+            <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Phân công QA cho lệnh @model?.order?.Code</h5>
+                            <button type="button" class="btn-close" @onclick="CloseAssignQaModal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row g-2 mb-3">
+                                <div class="col-6">
+                                    <input class="form-control" placeholder="Tìm QA..." @bind-value="qaSearch" @bind-value:event="oninput" @bind-value:after="OnQaSearchChanged" />
+                                </div>
+                            </div>
+                            <div class="list-group" style="max-height:300px; overflow:auto;">
+                                @if (qaUsers is null)
+                                {
+                                    <div class="px-2">Đang tải...</div>
+                                }
+                                else if (!qaUsers.Any())
+                                {
+                                    <div class="px-2">Không tìm thấy nhân viên QA</div>
+                                }
+                                else
+                                {
+                                    var sortedQa = qaUsers.OrderBy(q => q.PendingItemsCount).ThenBy(q => q.Name).ToList();
+                                    var minCount = sortedQa.FirstOrDefault()?.PendingItemsCount ?? 0;
+                                    @foreach (var qa in sortedQa)
+                                    {
+                                        var isRecommended = qa.PendingItemsCount == minCount && sortedQa.Count > 1;
+                                        <button type="button" class="list-group-item list-group-item-action @(isRecommended ? "border-primary border-2" : "")" @onclick='@(() => SelectOrderQa(qa.Id))'>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <div>
+                                                        <strong>@qa.Name</strong>
+                                                        @if (isRecommended)
+                                                        {
+                                                            <span class="badge bg-primary ms-2">Đề xuất</span>
+                                                        }
+                                                    </div>
+                                                    <small class="text-muted">@qa.Phone</small>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
+                                                </div>
+                                            </div>
+                                        </button>
+                                    }
+                                }
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" @onclick="CloseAssignQaModal">Đóng</button>
+                        </div>
                     </div>
                 </div>
             </div>
         }
 
-        @if (model?.ProgressTimeline?.Any() == true)
-        {
-            <div class="mt-3">
-                <div class="small text-secondary mb-1">Biểu đồ tiến độ (số item hoàn thành theo ngày)</div>
-                @{
-                    var maxCount = model.ProgressTimeline.Max(p => p.CompletedCount);
-                    if (maxCount == 0) { maxCount = 1; }
-                }
-                <div class="d-flex align-items-end gap-1" style="height:80px;">
-                    @foreach (var point in model.ProgressTimeline)
-                    {
-                        var heightPercent = point.CompletedCount * 100 / maxCount;
-                        <div class="d-flex flex-column align-items-center" style="width:28px;">
-                            <div style="width:100%; background-color:#0d6efd; height:@($"{heightPercent}%");"
-                                 title="@($"{point.CompletedCount} item ngày {point.Date:dd/MM}")">
-                            </div>
-                            <small class="text-muted" style="font-size:9px;">@point.Date.ToString("dd/MM")</small>
-                        </div>
-                    }
+        @* Search and Filter *@
+        <div class="mb-3">
+            <div class="row g-2">
+                <div class="col-md-6">
+                    <input type="text" class="form-control" placeholder="Tìm theo mã, cavity code/name..." 
+                           @bind="itemSearch" @bind:event="oninput" />
+                </div>
+                <div class="col-md-3">
+                    <div class="dropdown w-100">
+                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            @GetItemStatusFilterLabel()
+                        </button>
+                        <ul class="dropdown-menu p-2 w-100">
+                            @foreach (var opt in ItemStatusOptions)
+                            {
+                                <li class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="it-st-@opt.Value"
+                                           checked="@itemStatusFilters.Contains(opt.Value)"
+                                           @onchange="(e => ToggleItemStatusFilter(opt.Value, (bool)e.Value))" />
+                                    <label class="form-check-label" for="it-st-@opt.Value">@opt.Label</label>
+                                </li>
+                            }
+                        </ul>
+                    </div>
                 </div>
             </div>
-        }
+        </div>
 
         <div class="table-responsive" style="max-height:60vh; overflow:auto;">
             <table class="table table-sm align-middle">
@@ -145,14 +294,15 @@
                     <tr>
                         <th>Mã</th>
                         <th>Cavity</th>
+                        <th>Trạng thái</th>
                         <th>Kế hoạch</th>
                         <th>Thực tế</th>
                         <th>Chênh lệch</th>
-                        <th>Hoàn thành</th>
+                        <th>Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var it in model.items)
+                    @foreach (var it in GetFilteredItems())
                     {
                         var rowClass = string.Empty;
                         if (it.IsLate)
@@ -205,6 +355,20 @@
                                 @if (it.IsLate)
                                 {
                                     <span class="badge bg-danger ms-1" title="@GetLateTooltip(it)">Trễ</span>
+                                }
+                            </td>
+                            <td>
+                                @if (it.IsStored)
+                                {
+                                    <span class="badge bg-primary">Đã lưu kho</span>
+                                }
+                                else if (it.IsCompleted)
+                                {
+                                    <span class="badge bg-success">Đã hoàn thành</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">Chưa hoàn thành</span>
                                 }
                             </td>
                             <td>
@@ -267,18 +431,23 @@
                                 @GetDifferenceInfo(it)
                             </td>
                             <td>
-                                @if (CanEditItemCompletion())
-                                {
-                                    <button class="btn btn-sm @(it.IsCompleted ? "btn-success" : "btn-outline-secondary")"
-                                            @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true"
-                                            disabled="@(!CanCompleteItem(it))">
-                                        @(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")
-                                    </button>
-                                }
-                                else
-                                {
-                                    <span>@(it.IsCompleted ? "Đã hoàn thành" : "Chưa hoàn thành")</span>
-                                }
+                                <div class="d-flex gap-1 flex-wrap">
+                                    @if (CanEditItemCompletion())
+                                    {
+                                        @if (!it.IsCompleted && CanCompleteItem(it))
+                                        {
+                                            <button class="btn btn-sm btn-success" @onclick='@(() => ToggleItemCompletion(it))' @onclick:stopPropagation="true">
+                                                Đã hoàn thành
+                                            </button>
+                                        }
+                                        else if (it.IsCompleted && !it.IsStored)
+                                        {
+                                            <button class="btn btn-sm btn-primary" @onclick='@(() => StoreItem(it.Id))' @onclick:stopPropagation="true">
+                                                Lưu kho
+                                            </button>
+                                        }
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }
@@ -294,6 +463,7 @@
     private OrderDetailsResponse? model;
     private string? userRole;
     private string? errorMessage;
+    private string? orderQaName;
     private bool showCancelConfirm;
     private string? cancelConfirmInput;
     private bool showPlanModal;
@@ -308,6 +478,11 @@
     private int? editingItemCodeId;
     private string? editingItemCode;
     private string? codeValidationError;
+    private string itemSearch = string.Empty;
+    private HashSet<string> itemStatusFilters = new();
+    private bool showAssignQaModal;
+    private string? qaSearch;
+    private List<QaUser>? qaUsers;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -324,12 +499,15 @@
     private async Task Load()
     {
         errorMessage = null;
+        orderQaName = null;
         try
         {
             var response = await Http.GetAsync($"/api/orders/{Id}");
             if (response.IsSuccessStatusCode)
             {
-                model = await response.Content.ReadFromJsonAsync<OrderDetailsResponse>();
+                var dto = await response.Content.ReadFromJsonAsync<OrderDetailsResponse>();
+                model = dto;
+                orderQaName = dto?.orderQaName;
             }
             else
             {
@@ -348,7 +526,7 @@
     private bool ShouldShowButton(string buttonName) => buttonName switch
     {
         "Submit" => IsProductionManager() && CanSubmit(),
-        "Cancel" => IsProductionManager() && CanCancel(),
+        "Cancel" => (IsProductionManager() || IsDirector()) && CanCancel(),
         "Finish" => IsProductionManager() && CanFinish(),
         "DirectorApprove" => IsDirector() && CanDirectorApprove(),
         "DirectorReject" => IsDirector() && CanDirectorReject(),
@@ -359,7 +537,7 @@
     };
 
     private bool CanSubmit() => model?.order?.Status == ProductionOrderStatus.Draft;
-    private bool CanCancel() => model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial;
+    private bool CanCancel() => model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial or ProductionOrderStatus.InProduction;
     private bool CanFinish() => model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanDirectorApprove() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
     private bool CanDirectorReject() => model?.order?.Status == ProductionOrderStatus.PendingDirectorApproval;
@@ -395,6 +573,17 @@
 
     private string FormatDate(DateTime? value) => value.HasValue ? value.Value.ToString("dd/MM/yyyy HH:mm") : "-";
 
+    private string FormatHoursVerbose(decimal hours)
+    {
+        if (hours <= 0) return "-";
+        var totalMinutes = (int)Math.Round((double)hours * 60.0);
+        var h = totalMinutes / 60;
+        var m = totalMinutes % 60;
+        if (h > 0 && m > 0) return $"{h} giờ {m} phút";
+        if (h > 0) return $"{h} giờ";
+        return $"{m} phút";
+    }
+
     private string GetStatusLabel(ProductionOrderStatus status) => status switch
     {
         ProductionOrderStatus.Draft => "Nháp",
@@ -412,6 +601,9 @@
     private bool CanEditItemActual() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanEditItemCompletion() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.InProduction;
     private bool CanEditItemCode() => IsProductionManager() && model?.order?.Status == ProductionOrderStatus.Draft;
+    private bool ShouldShowAssignQa() =>
+        (IsProductionManager() || IsDirector()) &&
+        model?.order?.Status is ProductionOrderStatus.Draft or ProductionOrderStatus.PendingDirectorApproval or ProductionOrderStatus.PendingQACheckMachines or ProductionOrderStatus.PendingQACheckMaterial or ProductionOrderStatus.InProduction;
 
     private bool CanCompleteItem(ItemDto item)
     {
@@ -519,6 +711,28 @@
             IsCompleted = !item.IsCompleted
         };
         await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/items/{item.Id}/completion", dto));
+    }
+
+    private async Task StoreItem(int itemId)
+    {
+        if (!CanEditItemCompletion()) return;
+        var success = await ExecuteOrderAction(() => Http.PutAsync($"/api/items/{itemId}/stored", null));
+        if (success)
+        {
+            await Load();
+        }
+    }
+
+    private void AddItemToStamps(int itemId)
+    {
+        Nav.NavigateTo($"/print/stamp-manager?items={itemId}");
+    }
+
+    private void AddAllItemsToStamps()
+    {
+        if (model?.items == null || !model.items.Any()) return;
+        var itemIds = string.Join(",", model.items.Select(i => i.Id));
+        Nav.NavigateTo($"/print/stamp-manager?items={itemIds}");
     }
 
     private void StartEditItemCode(ItemDto item)
@@ -748,15 +962,132 @@
     private int CompletedItems => model?.items?.Count(i => i.IsCompleted) ?? 0;
     private decimal TotalPlannedHours => model?.items?.Sum(i => i.PlannedTimeHours ?? 0) ?? 0;
     private decimal TotalActualHours => model?.items?.Sum(i => i.ActualTimeHours ?? 0) ?? 0;
+
+    private readonly List<(string Value, string Label)> ItemStatusOptions = new()
+    {
+        ("chua_hoan_thanh", "Chưa hoàn thành"),
+        ("da_hoan_thanh", "Đã hoàn thành"),
+        ("da_luu_kho", "Đã lưu kho")
+    };
+
+    private string GetItemStatusFilterLabel()
+    {
+        if (!itemStatusFilters.Any()) return "Tất cả trạng thái";
+        if (itemStatusFilters.Count == 1)
+        {
+            var v = itemStatusFilters.First();
+            var label = ItemStatusOptions.FirstOrDefault(o => o.Value == v).Label;
+            return label ?? "1 trạng thái";
+        }
+        return $"{itemStatusFilters.Count} trạng thái";
+    }
+
+    private void ToggleItemStatusFilter(string value, bool isChecked)
+    {
+        if (isChecked)
+            itemStatusFilters.Add(value);
+        else
+            itemStatusFilters.Remove(value);
+    }
+
+    private IEnumerable<ItemDto> GetFilteredItems()
+    {
+        var items = model?.items ?? Enumerable.Empty<ItemDto>();
+        
+        // Apply search filter
+        if (!string.IsNullOrWhiteSpace(itemSearch))
+        {
+            var searchLower = itemSearch.ToLower();
+            items = items.Where(it => 
+                (it.Code?.ToLower().Contains(searchLower) ?? false) ||
+                (it.CavityCode?.ToLower().Contains(searchLower) ?? false) ||
+                (it.CavityName?.ToLower().Contains(searchLower) ?? false)
+            );
+        }
+        
+        // Apply status filter
+        if (itemStatusFilters.Any())
+        {
+            items = items.Where(it =>
+                (itemStatusFilters.Contains("chua_hoan_thanh") && !it.IsCompleted) ||
+                (itemStatusFilters.Contains("da_hoan_thanh") && it.IsCompleted && !it.IsStored) ||
+                (itemStatusFilters.Contains("da_luu_kho") && it.IsCompleted && it.IsStored));
+        }
+        
+        return items;
+    }
     private async Task DirectorApprove() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/approve", null));
     private async Task DirectorReject() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/director/reject", null));
     private async Task RevertToDraft() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/revert-to-draft", null));
     private async Task QaMachines() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/machines-approve", null));
     private async Task QaMaterial() => await ExecuteOrderAction(() => Http.PostAsync($"/api/orders/{Id}/qa/material-approve", null));
 
+    private bool showCostModal;
+
+    private void OpenCostModal()
+    {
+        showCostModal = true;
+        StateHasChanged();
+    }
+
+    private void CloseCostModal()
+    {
+        showCostModal = false;
+        StateHasChanged();
+    }
+
+    private void OpenAssignQaModal()
+    {
+        showAssignQaModal = true;
+        qaSearch = null;
+        qaUsers = null;
+        _ = LoadQaUsers();
+        StateHasChanged();
+    }
+
+    private void CloseAssignQaModal()
+    {
+        showAssignQaModal = false;
+        qaSearch = null;
+        qaUsers = null;
+        StateHasChanged();
+    }
+
+    private async Task LoadQaUsers()
+    {
+        try
+        {
+            var query = new List<string> { "scope=order" };
+            if (!string.IsNullOrWhiteSpace(qaSearch))
+            {
+                query.Add($"q={Uri.EscapeDataString(qaSearch!)}");
+            }
+            var url = "/api/lookup/qa-users" + (query.Any() ? "?" + string.Join("&", query) : "");
+            qaUsers = await Http.GetFromJsonAsync<List<QaUser>>(url) ?? new();
+        }
+        catch
+        {
+            qaUsers = new();
+        }
+        StateHasChanged();
+    }
+
+    private async Task OnQaSearchChanged()
+    {
+        await LoadQaUsers();
+    }
+
+    private async Task SelectOrderQa(int qaUserId)
+    {
+        await ExecuteOrderAction(() => Http.PutAsJsonAsync($"/api/orders/{Id}/assign-qa", new AssignQaOrderDto { QaUserId = qaUserId }));
+        await Load();
+        CloseAssignQaModal();
+    }
+
     private class OrderDetailsResponse
     {
         public ProductionOrder? order { get; set; }
+        public string? orderQaName { get; set; }
         public List<ItemDto> items { get; set; } = new();
         public List<ProgressPointDto> ProgressTimeline { get; set; } = new();
     }
@@ -770,6 +1101,7 @@
         public int LineNo { get; set; }
         public string? QRCode { get; set; }
         public bool IsCompleted { get; set; }
+        public bool IsStored { get; set; }
         public DateTime? PlannedStartDate { get; set; }
         public DateTime? PlannedFinishDate { get; set; }
         public DateTime? ActualStartDate { get; set; }
@@ -784,7 +1116,14 @@
         public bool IsOverdue { get; set; }
         public int DaysLate { get; set; }
     }
-    
+    private class QaUser
+    {
+        public int Id { get; set; }
+        public string? Name { get; set; }
+        public string? Phone { get; set; }
+        public int PendingItemsCount { get; set; }
+    }
+
     private class StageDto
     {
         public int Id { get; set; }
@@ -803,6 +1142,9 @@
 @* Finish Confirmation Modal *@
 @if (showFinishConfirm)
 {
+    var hasIncompleteItems = model?.items?.Any(i => !i.IsCompleted) ?? false;
+    var hasUnstoredItems = model?.items?.Any(i => i.IsCompleted && !i.IsStored) ?? false;
+
     <div class="modal show d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
         <div class="modal-dialog">
             <div class="modal-content">
@@ -812,6 +1154,18 @@
                 </div>
                 <div class="modal-body">
                     <p>Bạn có chắc chắn muốn hoàn tất lệnh sản xuất này?</p>
+                    @if (hasIncompleteItems)
+                    {
+                        <div class="alert alert-danger mb-2">
+                            <strong>Vẫn còn sản phẩm chưa hoàn thành</strong>
+                        </div>
+                    }
+                    @if (hasUnstoredItems)
+                    {
+                        <div class="alert alert-danger mb-0">
+                            <strong>Vẫn còn sản phẩm chưa lưu kho</strong>
+                        </div>
+                    }
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" @onclick="CancelFinishConfirm">Hủy</button>

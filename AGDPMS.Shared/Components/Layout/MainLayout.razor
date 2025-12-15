@@ -25,9 +25,12 @@
             <li class="nav-item">
                 <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i>Projects</NavLink>
             </li>
-            <AuthorizeView Roles="Director,Qa,Production Manager">
+            <AuthorizeView Roles="Director,QA,Production Manager">
                 <li class="nav-item">
                     <NavLink href="/production/orders" class="nav-link text-white"><i class="bi bi-gear me-2"></i>Production Orders</NavLink>
+                </li>
+                <li class="nav-item">
+                    <NavLink href="/print/stamp-manager" class="nav-link text-white"><i class="bi bi-printer me-2"></i>In mã bảo hành</NavLink>
                 </li>
             </AuthorizeView>
         </ul>
@@ -65,12 +68,15 @@
                 <span>Công trình</span>
             </NavLink>
         </li>
-        <AuthorizeView Roles="Director,Qa,Production Manager">
+        <AuthorizeView Roles="Director,QA,Production Manager">
             <li class="nav-item">
                 <NavLink href="/production/orders" class="nav-link text-white">
                     <i class="bi bi-gear me-2"></i>
                     <span>Lệnh sản xuất</span>
                 </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink href="/print/stamp-manager" class="nav-link text-white"><i class="bi bi-printer me-2"></i><span>In mã bảo hành</span></NavLink>
             </li>
         </AuthorizeView>
         <li class="nav-item">

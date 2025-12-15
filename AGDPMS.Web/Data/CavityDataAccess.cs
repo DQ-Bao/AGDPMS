@@ -21,7 +21,9 @@ public class CavityDataAccess(IDbConnection conn)
     {
         Cavity? cavity = null;
         List<CavityBOM> boms = [];
-        await conn.QueryAsync<Cavity, CavityBOM, Material, MaterialType, Cavity>(@"
+        var materialStockMap = new Dictionary<string, List<MaterialStock>>();
+        
+        await conn.QueryAsync<Cavity, CavityBOM, Material, MaterialType, MaterialStock, Cavity>(@"
             select cav.id as Id, cav.code as Code, cav.project_id as ProjectId, cav.description as Description, 
                    cav.width as Width, cav.height as Height, cav.location as Location, cav.quantity as Quantity, cav.window_type as WindowType,
 
@@ -29,13 +31,15 @@ public class CavityDataAccess(IDbConnection conn)
                    bom.color as Color, bom.unit as Unit,
 
                    m.id as Id, m.name as Name, m.weight as Weight,
-                   mt.id as Id, mt.name as Name
+                   mt.id as Id, mt.name as Name,
+                   ms.id as Id, ms.length as Length, ms.width as Width, ms.stock as Stock, ms.base_price as BasePrice
             from cavities as cav
             left join cavity_boms as bom on cav.id = bom.cavity_id
             left join materials as m on bom.material_id = m.id
             left join material_type as mt on m.type = mt.id
+            left join material_stock as ms on m.id = ms.material_id
             where cav.id = @CavityId",
-            (cav, bom, material, materialType) =>
+            (cav, bom, material, materialType, stock) =>
             {
                 if (cavity == null)
                 {
@@ -46,11 +50,34 @@ public class CavityDataAccess(IDbConnection conn)
                 {
                     material.Type = materialType;
                     bom.Material = material;
-                    boms.Add(bom);
+                    if (!boms.Any(b => b.Id == bom.Id))
+                    {
+                        boms.Add(bom);
+                    }
+                    if (stock is not null)
+                    {
+                        if (!materialStockMap.ContainsKey(material.Id))
+                        {
+                            materialStockMap[material.Id] = new List<MaterialStock>();
+                        }
+                        if (!materialStockMap[material.Id].Any(s => s.Id == stock.Id))
+                        {
+                            materialStockMap[material.Id].Add(stock);
+                        }
+                    }
                 }
                 return cav;
             },
-            new { CavityId = cavityId }, tran);
+            new { CavityId = cavityId }, tran, splitOn: "Id,Id,Id");
+        
+        foreach (var bom in boms)
+        {
+            if (bom.Material != null && materialStockMap.TryGetValue(bom.Material.Id, out var stocks))
+            {
+                bom.Material.Stocks = stocks;
+            }
+        }
+        
         return cavity;
     }
 

@@ -312,7 +312,10 @@
 
     private async Task OnStatusChange(ChangeEventArgs e, int machineId)
     {
-        if (Enum.TryParse<MachineStatus>(e.Value.ToString(), out var newStatus))
+        var raw = e.Value?.ToString();
+        if (string.IsNullOrWhiteSpace(raw))
+            return;
+        if (Enum.TryParse<MachineStatus>(raw, out var newStatus))
         {
             var machineInList = pagedResult?.Items.FirstOrDefault(p => p.Id == machineId);
             if (machineInList == null) return;

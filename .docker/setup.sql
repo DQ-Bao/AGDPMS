@@ -158,6 +158,7 @@ create table if not exists production_orders (
     "code" varchar(50),
     "status" smallint not null,
     "is_cancelled" boolean not null default false,
+    "assigned_qa_user_id" integer null references users("id"),
     "planned_start_date" timestamp null,
     "planned_finish_date" timestamp null,
     "submitted_at" timestamp null,
@@ -208,6 +209,7 @@ create table if not exists production_order_items (
     "qr_image" bytea null,
     "is_completed" boolean not null default false,
     "completed_at" timestamp null,
+    "is_stored" boolean not null default false,
     "is_canceled" boolean not null default false,
     "created_at" timestamp null default now(),
     "updated_at" timestamp null,
@@ -237,6 +239,8 @@ create table if not exists production_item_stages (
     "actual_finish_date" timestamp null,
     "planned_time_hours" numeric(10,2) null,
     "actual_time_hours" numeric(10,2) null,
+    "planned_units" integer null,
+    "actual_units" integer null,
     "is_completed" boolean not null default false,
     "completed_at" timestamp null,
     "note" text null,
@@ -280,6 +284,7 @@ create table if not exists stage_reviews (
     "reviewed_by_user_id" integer null,
     "status" varchar(50) not null default 'pending' check ("status" in ('pending', 'in_progress', 'passed', 'failed')),
     "notes" text null,
+    "attachments" text null,
     "requested_at" timestamp null default now(),
     "reviewed_at" timestamp null,
     "created_at" timestamp null default now(),
@@ -315,16 +320,79 @@ create table if not exists stage_review_criteria_results (
 create index if not exists "ix_review_criteria_review"
     on stage_review_criteria_results ("stage_review_id");
 
+-- Global stage time settings
+create table if not exists global_stage_time_settings (
+    "id" serial,
+    "stage_type_id" integer not null unique,
+    "setup_minutes" numeric(10,2) not null default 3.0,
+    "finish_minutes" numeric(10,2) not null default 1.0,
+    "cut_al_minutes_per_unit" numeric(10,2) null,
+    "mill_lock_minutes_per_group" numeric(10,2) null,
+    "corner_cut_minutes_per_corner" numeric(10,2) null,
+    "assemble_frame_minutes_per_corner" numeric(10,2) null,
+    "cut_glass_minutes_per_square_meter" numeric(10,2) null,
+    "glass_install_minutes_per_unit" numeric(10,2) null,
+    "gasket_minutes_per_unit" numeric(10,2) null,
+    "accessory_minutes_per_unit" numeric(10,2) null,
+    "cut_flush_minutes_per_unit" numeric(10,2) null,
+    "silicon_minutes_per_meter" numeric(10,2) null,
+    "updated_at" timestamp null default now(),
+    constraint "pk_global_stage_time_settings" primary key ("id"),
+    constraint "fk_global_stage_time_stage_type" foreign key ("stage_type_id") references stage_types ("id")
+);
+
+-- Global labor cost settings (unified rate for all stages)
+-- Only one row should exist (enforced by application logic)
+create table if not exists global_labor_cost_settings (
+    "id" serial,
+    "hourly_rate" numeric(10,2) not null default 100000,
+    "updated_at" timestamp null default now(),
+    constraint "pk_global_labor_cost_settings" primary key ("id")
+);
+
+-- Production order specific time settings
+create table if not exists production_order_settings (
+    "id" serial,
+    "production_order_id" integer not null,
+    "stage_type_id" integer not null,
+    "setup_minutes" numeric(10,2) null,
+    "finish_minutes" numeric(10,2) null,
+    "cut_al_minutes_per_unit" numeric(10,2) null,
+    "mill_lock_minutes_per_group" numeric(10,2) null,
+    "corner_cut_minutes_per_corner" numeric(10,2) null,
+    "assemble_frame_minutes_per_corner" numeric(10,2) null,
+    "cut_glass_minutes_per_square_meter" numeric(10,2) null,
+    "glass_install_minutes_per_unit" numeric(10,2) null,
+    "gasket_minutes_per_unit" numeric(10,2) null,
+    "accessory_minutes_per_unit" numeric(10,2) null,
+    "cut_flush_minutes_per_unit" numeric(10,2) null,
+    "silicon_minutes_per_meter" numeric(10,2) null,
+    "created_at" timestamp null default now(),
+    "updated_at" timestamp null,
+    constraint "pk_production_order_settings" primary key ("id"),
+    constraint "fk_order_settings_order" foreign key ("production_order_id") references production_orders ("id") on delete cascade,
+    constraint "fk_order_settings_stage_type" foreign key ("stage_type_id") references stage_types ("id"),
+    constraint "uq_order_settings" unique ("production_order_id", "stage_type_id")
+);
+
+create index if not exists "ix_order_settings_order"
+    on production_order_settings ("production_order_id");
+
+create index if not exists "ix_order_settings_stage_type"
+    on production_order_settings ("stage_type_id");
+
 -- INSERT --
 insert into roles ("name")
-values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA'), ('Production Manager');;
+values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA'), ('Production Manager');
 
 insert into users ("fullname", "phone", "password_hash", "role_id", "need_change_password")
 values 
 ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1, false),
 ('Nguyễn Bảo Khánh', '0966699704', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 1, false),
 ('Nguyễn Bảo Khánh', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3, false),
-('QA Tester', '0900000000', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
+('QA Tester 0', '0900000000', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
+('QA Tester 2', '0900000002', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
+('QA Tester 3', '0900000003', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
 ('Production Manager', '0900000001', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 6, false);
 
 insert into material_type ("name")
@@ -746,95 +814,95 @@ values
 ('H1H2', 5, 'Tầng 1', 2, 'Cửa sổ mở quay', 'Cửa sổ tầng 1', 1000, 1200);
 
 -- Cavity BOMs dummy data
--- C001: Cửa đi chính phòng khách (Project 1)
+-- S0S1: Cửa đi chính phòng khách (Project 1)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'S0S1' and c.project_id = 1
 union all
-select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'S0S1' and c.project_id = 1
 union all
-select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'C001' and c.project_id = 1
+select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'S0S1' and c.project_id = 1
 union all
-select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C001' and c.project_id = 1;
+select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'S0S1' and c.project_id = 1;
 
--- C002: Cửa sổ phòng khách (Project 1)
+-- S2S3: Cửa sổ phòng khách (Project 1)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'S2S3' and c.project_id = 1
 union all
-select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'S2S3' and c.project_id = 1
 union all
-select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C002' and c.project_id = 1
+select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'S2S3' and c.project_id = 1
 union all
-select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C002' and c.project_id = 1;
+select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'S2S3' and c.project_id = 1;
 
--- C101: Cửa đi chính (Project 2)
+-- E0E1: Cửa đi chính (Project 2)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3328', 2, 1000, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+select c.id, 'C3328', 2, 1000, 0, null, 'm' from cavities c where c.code = 'E0E1' and c.project_id = 2
 union all
-select c.id, 'C3303', 2, 2200, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+select c.id, 'C3303', 2, 2200, 0, null, 'm' from cavities c where c.code = 'E0E1' and c.project_id = 2
 union all
-select c.id, 'C3319', 1, 1000, 0, null, 'm' from cavities c where c.code = 'C101' and c.project_id = 2
+select c.id, 'C3319', 1, 1000, 0, null, 'm' from cavities c where c.code = 'E0E1' and c.project_id = 2
 union all
-select c.id, 'C3295', 1, (1000 + 2200) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C101' and c.project_id = 2;
+select c.id, 'C3295', 1, (1000 + 2200) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'E0E1' and c.project_id = 2;
 
--- C102: Cửa sổ phòng khách (Project 2)
+-- E1E2: Cửa sổ phòng khách (Project 2)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3318', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+select c.id, 'C3318', 2, 1500, 0, null, 'm' from cavities c where c.code = 'E1E2' and c.project_id = 2
 union all
-select c.id, 'C3202', 2, 1800, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+select c.id, 'C3202', 2, 1800, 0, null, 'm' from cavities c where c.code = 'E1E2' and c.project_id = 2
 union all
-select c.id, 'C3033', 1, 1500, 0, null, 'm' from cavities c where c.code = 'C102' and c.project_id = 2
+select c.id, 'C3033', 1, 1500, 0, null, 'm' from cavities c where c.code = 'E1E2' and c.project_id = 2
 union all
-select c.id, 'C3295', 1, (1500 + 1800) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C102' and c.project_id = 2;
+select c.id, 'C3295', 1, (1500 + 1800) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'E1E2' and c.project_id = 2;
 
--- C201: Cửa đi chính mặt tiền (Project 3)
+-- F0F1: Cửa đi chính mặt tiền (Project 3)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3328', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+select c.id, 'C3328', 2, 1200, 0, null, 'm' from cavities c where c.code = 'F0F1' and c.project_id = 3
 union all
-select c.id, 'C3303', 2, 2400, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+select c.id, 'C3303', 2, 2400, 0, null, 'm' from cavities c where c.code = 'F0F1' and c.project_id = 3
 union all
-select c.id, 'C3319', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C201' and c.project_id = 3
+select c.id, 'C3319', 1, 1200, 0, null, 'm' from cavities c where c.code = 'F0F1' and c.project_id = 3
 union all
-select c.id, 'C3295', 1, (1200 + 2400) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'C201' and c.project_id = 3;
+select c.id, 'C3295', 1, (1200 + 2400) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'F0F1' and c.project_id = 3;
 
--- C202: Cửa sổ mặt tiền (Project 3)
+-- F1F2: Cửa sổ mặt tiền (Project 3)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3318', 2, 1800, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+select c.id, 'C3318', 2, 1800, 0, null, 'm' from cavities c where c.code = 'F1F2' and c.project_id = 3
 union all
-select c.id, 'C3202', 2, 2000, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+select c.id, 'C3202', 2, 2000, 0, null, 'm' from cavities c where c.code = 'F1F2' and c.project_id = 3
 union all
-select c.id, 'C3033', 1, 1800, 0, null, 'm' from cavities c where c.code = 'C202' and c.project_id = 3
+select c.id, 'C3033', 1, 1800, 0, null, 'm' from cavities c where c.code = 'F1F2' and c.project_id = 3
 union all
-select c.id, 'C3295', 1, (1800 + 2000) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'C202' and c.project_id = 3;
+select c.id, 'C3295', 1, (1800 + 2000) * 2, 0, 'Nâu', 'm' from cavities c where c.code = 'F1F2' and c.project_id = 3;
 
--- C301: Cửa phòng 101 (Project 4)
+-- I0I1: Cửa phòng 101 (Project 4)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+select c.id, 'C3328', 2, 900, 0, null, 'm' from cavities c where c.code = 'I0I1' and c.project_id = 4
 union all
-select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+select c.id, 'C3303', 2, 2100, 0, null, 'm' from cavities c where c.code = 'I0I1' and c.project_id = 4
 union all
-select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'C301' and c.project_id = 4
+select c.id, 'C3319', 1, 900, 0, null, 'm' from cavities c where c.code = 'I0I1' and c.project_id = 4
 union all
-select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C301' and c.project_id = 4;
+select c.id, 'C3295', 1, (900 + 2100) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'I0I1' and c.project_id = 4;
 
--- C302: Cửa sổ phòng 101 (Project 4)
+-- I1I2: Cửa sổ phòng 101 (Project 4)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+select c.id, 'C3318', 2, 1200, 0, null, 'm' from cavities c where c.code = 'I1I2' and c.project_id = 4
 union all
-select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+select c.id, 'C3202', 2, 1500, 0, null, 'm' from cavities c where c.code = 'I1I2' and c.project_id = 4
 union all
-select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'C302' and c.project_id = 4
+select c.id, 'C3033', 1, 1200, 0, null, 'm' from cavities c where c.code = 'I1I2' and c.project_id = 4
 union all
-select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C302' and c.project_id = 4;
+select c.id, 'C3295', 1, (1200 + 1500) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'I1I2' and c.project_id = 4;
 
--- C401: Cửa đi chính (Project 5)
+-- H0H1: Cửa đi chính (Project 5)
 insert into cavity_boms ("cavity_id", "material_id", "quantity", "length", "width", "color", "unit")
-select c.id, 'C3328', 2, 800, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+select c.id, 'C3328', 2, 800, 0, null, 'm' from cavities c where c.code = 'H0H1' and c.project_id = 5
 union all
-select c.id, 'C3303', 2, 2000, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+select c.id, 'C3303', 2, 2000, 0, null, 'm' from cavities c where c.code = 'H0H1' and c.project_id = 5
 union all
-select c.id, 'C3319', 1, 800, 0, null, 'm' from cavities c where c.code = 'C401' and c.project_id = 5
+select c.id, 'C3319', 1, 800, 0, null, 'm' from cavities c where c.code = 'H0H1' and c.project_id = 5
 union all
-select c.id, 'C3295', 1, (800 + 2000) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'C401' and c.project_id = 5;
+select c.id, 'C3295', 1, (800 + 2000) * 2, 0, 'Trắng', 'm' from cavities c where c.code = 'H0H1' and c.project_id = 5;
 
 -- Seed default stage types (if not exists)
 insert into stage_types ("code", "name", "is_active", "is_default")
@@ -845,6 +913,7 @@ from (
       ('MILL_LOCK', 'Phay ổ khóa'),
       ('DOOR_CORNER_CUT', 'Cắt góc cửa'),
       ('ASSEMBLE_FRAME', 'Ghép khung'),
+      ('CUT_GLASS', 'Cắt kính'),
       ('GLASS_INSTALL', 'Lắp kính'),
       ('PRESS_GASKET', 'Ép gioăng'),
       ('INSTALL_ACCESSORIES', 'Bắn phụ kiện'),
@@ -987,196 +1056,200 @@ VALUES
 ('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);
 
 -- Stage Criteria for QA Review
--- Tiêu chí cho giai đoạn Cắt nhôm (CUT_AL)
+-- =========================
+-- CUT_AL – Cắt nhôm (1)
+-- =========================
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'CUT_AL_01', 'Kích thước đúng theo bản vẽ', 'Kiểm tra kích thước thanh nhôm sau khi cắt có đúng theo bản vẽ thiết kế', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'CUT_AL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_AL_01', 'Kích thước tổng thể đúng theo bản vẽ', 'Chiều dài & chiều rộng sai số ≤ ±1mm.', 'numeric', true, 1
+FROM stage_types st WHERE st.code = 'CUT_AL' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'CUT_AL_02', 'Độ dài chính xác (±0.5mm)', 'Kiểm tra độ dài thanh nhôm có nằm trong dung sai cho phép', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'CUT_AL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_AL_02', 'Dung sai chiều dài sau cắt', 'Sai số chiều dài ≤ ±1mm.', 'numeric', true, 2
+FROM stage_types st WHERE st.code = 'CUT_AL' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'CUT_AL_03', 'Độ vuông góc (90° ±0.5°)', 'Kiểm tra góc cắt có vuông góc không', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'CUT_AL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_AL_03', 'Đầu cắt vuông góc', 'Độ lệch góc ≤ 1°.', 'numeric', true, 3
+FROM stage_types st WHERE st.code = 'CUT_AL' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'CUT_AL_04', 'Bề mặt cắt không có vết nứt', 'Kiểm tra bề mặt cắt không có vết nứt, vỡ', 'boolean', true, 4
-FROM stage_types st WHERE st.code = 'CUT_AL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_AL_04', 'Bề mặt cắt sạch, không ba via', 'Không ba via, răng cưa hoặc cháy cạnh.', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'CUT_AL' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'CUT_AL_05', 'Số lượng thanh đúng', 'Kiểm tra số lượng thanh nhôm đã cắt đúng theo yêu cầu', 'numeric', true, 5
-FROM stage_types st WHERE st.code = 'CUT_AL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_AL_05', 'Số lượng cắt đúng theo kế hoạch', 'Đủ số lượng theo lệnh sản xuất.', 'numeric', true, 5
+FROM stage_types st WHERE st.code = 'CUT_AL' ON CONFLICT DO NOTHING;
 
--- Tiêu chí cho giai đoạn Phay ổ khóa (MILL_LOCK)
+-- =========================
+-- MILL_LOCK – Phay ổ khóa (2)
+-- =========================
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'MILL_LOCK_01', 'Vị trí ổ khóa đúng', 'Kiểm tra vị trí phay ổ khóa có đúng theo bản vẽ', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'MILL_LOCK'
-ON CONFLICT DO NOTHING;
-
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'MILL_LOCK_02', 'Kích thước ổ khóa chính xác', 'Kiểm tra kích thước ổ khóa có đúng theo yêu cầu', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'MILL_LOCK'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'MILL_LOCK_01', 'Vị trí phay đúng bản vẽ', 'Sai lệch vị trí ≤ ±1mm.', 'numeric', true, 1
+FROM stage_types st WHERE st.code = 'MILL_LOCK' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'MILL_LOCK_03', 'Độ sâu phay đúng (±0.2mm)', 'Kiểm tra độ sâu phay ổ khóa có đúng', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'MILL_LOCK'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'MILL_LOCK_02', 'Kích thước hốc phay đúng', 'Chiều dài & chiều rộng sai số ≤ ±1mm.', 'numeric', true, 2
+FROM stage_types st WHERE st.code = 'MILL_LOCK' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'MILL_LOCK_04', 'Bề mặt phay nhẵn, không có ba via', 'Kiểm tra bề mặt phay không có ba via, gờ', 'boolean', true, 4
-FROM stage_types st WHERE st.code = 'MILL_LOCK'
-ON CONFLICT DO NOTHING;
-
--- Tiêu chí cho giai đoạn Cắt góc cửa (DOOR_CORNER_CUT)
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'DOOR_CORNER_01', 'Góc cắt đúng (45° ±0.5°)', 'Kiểm tra góc cắt có đúng 45 độ', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'MILL_LOCK_03', 'Độ sâu hốc phay đúng', 'Độ sâu phay sai số ≤ ±0.5mm.', 'numeric', true, 3
+FROM stage_types st WHERE st.code = 'MILL_LOCK' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'DOOR_CORNER_02', 'Độ khớp góc tốt', 'Kiểm tra khi ghép góc, khe hở không quá 0.3mm', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'MILL_LOCK_04', 'Không ba via, không sứt mẻ', 'Mép phay sạch, không gãy nhôm.', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'MILL_LOCK' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- DOOR_CORNER_CUT – Cắt góc cửa (3)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'DOOR_CORNER_01', 'Vị trí cắt góc', 'Sai lệch vị trí ≤ ±1mm.', 'numeric', true, 1
+FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'DOOR_CORNER_03', 'Bề mặt cắt không có vết nứt', 'Kiểm tra bề mặt cắt góc không có vết nứt', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT'
-ON CONFLICT DO NOTHING;
-
--- Tiêu chí cho giai đoạn Ghép khung (ASSEMBLE_FRAME)
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ASSEMBLE_01', 'Khung vuông góc', 'Kiểm tra khung có vuông góc, không bị vênh', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'DOOR_CORNER_02', 'Góc cắt đúng thông số', 'Sai lệch góc ≤ 1°.', 'numeric', true, 2
+FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ASSEMBLE_02', 'Ke góc được bắn đúng vị trí', 'Kiểm tra ke góc được bắn đúng vị trí và chắc chắn', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'DOOR_CORNER_03', 'Khu vực cắt không nứt vỡ', 'Không xuất hiện vết nứt hoặc sứt cạnh.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'DOOR_CORNER_CUT' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- ASSEMBLE_FRAME – Ghép khung (4)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ASSEMBLE_01', 'Lắp đúng mã chi tiết & đúng hướng', 'Theo đúng bản vẽ.', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ASSEMBLE_03', 'Kích thước khung đúng (±1mm)', 'Kiểm tra kích thước khung có đúng theo bản vẽ', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'ASSEMBLE_02', 'Lỗ bắt vít thẳng hàng', 'Sai lệch ≤ 1mm.', 'numeric', true, 2
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ASSEMBLE_04', 'Không có khe hở lớn giữa các thanh', 'Kiểm tra khe hở giữa các thanh không quá 0.5mm', 'boolean', true, 4
-FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'ASSEMBLE_03', 'Khung không vênh trong quá trình ghép', 'Kiểm tra độ vênh thô.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ASSEMBLE_05', 'Độ phẳng của khung', 'Kiểm tra khung không bị cong vênh, độ phẳng trong phạm vi cho phép', 'boolean', true, 5
-FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME'
-ON CONFLICT DO NOTHING;
-
--- Tiêu chí cho giai đoạn Lắp kính (GLASS_INSTALL)
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GLASS_01', 'Kích thước kính đúng', 'Kiểm tra kích thước kính có đúng theo bản vẽ', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'ASSEMBLE_04', 'Khe hở giữa các góc ≤ 0.5mm', 'Không có khe hở lớn gây mất thẩm mỹ.', 'numeric', true, 4
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GLASS_02', 'Kính không có vết nứt, vỡ', 'Kiểm tra kính không có vết nứt, vỡ, xước', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'ASSEMBLE_05', 'Độ vênh tổng thể của khung < 1mm', 'Đo đường chéo đảm bảo khung không méo.', 'numeric', true, 5
+FROM stage_types st WHERE st.code = 'ASSEMBLE_FRAME' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- CUT_GLASS – Cắt kính (5)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'CUT_GLASS_01', 'Kích thước tổng thể đúng bản vẽ', 'Sai số ≤ ±1mm.', 'numeric', true, 1
+FROM stage_types st WHERE st.code = 'CUT_GLASS' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GLASS_03', 'Kính được lắp chắc chắn', 'Kiểm tra kính được lắp chắc chắn, không bị lỏng', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_GLASS_02', 'Mặt cắt thẳng', 'Sai lệch đường cắt ≤ 1mm/m.', 'numeric', true, 2
+FROM stage_types st WHERE st.code = 'CUT_GLASS' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GLASS_04', 'Khe hở đều xung quanh', 'Kiểm tra khe hở giữa kính và khung đều nhau (2-3mm)', 'boolean', true, 4
-FROM stage_types st WHERE st.code = 'GLASS_INSTALL'
-ON CONFLICT DO NOTHING;
-
--- Tiêu chí cho giai đoạn Ép gioăng (PRESS_GASKET)
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GASKET_01', 'Gioăng được ép đều', 'Kiểm tra gioăng được ép đều, không bị nhăn', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'PRESS_GASKET'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_GLASS_03', 'Không mẻ cạnh, không nứt chân', 'Mép cắt đảm bảo an toàn.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'CUT_GLASS' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GASKET_02', 'Gioăng không bị đứt, rách', 'Kiểm tra gioăng không bị đứt, rách trong quá trình ép', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'PRESS_GASKET'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'CUT_GLASS_04', 'Không trầy xước bề mặt kính', 'Không có vết xước do cắt hoặc vận chuyển.', 'boolean', true, 4
+FROM stage_types st WHERE st.code = 'CUT_GLASS' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- GLASS_INSTALL – Lắp kính (6)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GLASS_INSTALL_01', 'Kích thước kính đúng bản vẽ', 'Sai số ≤ ±1mm.', 'numeric', true, 1
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GASKET_03', 'Gioăng khít với kính', 'Kiểm tra gioăng khít với kính, không có khe hở', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'PRESS_GASKET'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'GLASS_INSTALL_02', 'Kính đặt đúng vị trí', 'Không lệch khỏi gờ đỡ.', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'GASKET_04', 'Gioăng đúng loại, màu sắc', 'Kiểm tra gioăng đúng loại và màu sắc theo yêu cầu', 'boolean', true, 4
-FROM stage_types st WHERE st.code = 'PRESS_GASKET'
-ON CONFLICT DO NOTHING;
-
--- Tiêu chí cho giai đoạn Bắn phụ kiện (INSTALL_ACCESSORIES)
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ACCESSORY_01', 'Phụ kiện đúng loại, số lượng', 'Kiểm tra phụ kiện đúng loại và đủ số lượng', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'GLASS_INSTALL_03', 'Kính cố định chắc chắn', 'Không rung lắc.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ACCESSORY_02', 'Vị trí lắp đặt đúng', 'Kiểm tra vị trí lắp đặt phụ kiện đúng theo bản vẽ', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'GLASS_INSTALL_04', 'Khe hở đều 2–3mm', 'Chuẩn để bơm keo và ép gioăng.', 'numeric', true, 4
+FROM stage_types st WHERE st.code = 'GLASS_INSTALL' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- PRESS_GASKET – Ép gioăng (7)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'GASKET_01', 'Gioăng ép đều', 'Gioăng ép liên tục, không hở.', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'PRESS_GASKET' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ACCESSORY_03', 'Phụ kiện được bắn chắc chắn', 'Kiểm tra phụ kiện được bắn chắc chắn, không bị lỏng', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'GASKET_02', 'Không lồi lõm hoặc bung', 'Đảm bảo tính kín khít.', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'PRESS_GASKET' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'ACCESSORY_04', 'Không có vết xước, móp', 'Kiểm tra phụ kiện và bề mặt nhôm không bị xước, móp', 'boolean', true, 4
-FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES'
-ON CONFLICT DO NOTHING;
-
--- Tiêu chí cho giai đoạn Cắt sập (CUT_FLUSH)
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'FLUSH_01', 'Cắt sập đều, phẳng', 'Kiểm tra cắt sập đều, phẳng, không bị lệch', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'CUT_FLUSH'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'GASKET_03', 'Gioăng khít với kính & khung', 'Không hở khe.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'PRESS_GASKET' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'FLUSH_02', 'Không có vết cắt thừa', 'Kiểm tra không có vết cắt thừa, ba via', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'CUT_FLUSH'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'GASKET_04', 'Đúng loại & màu gioăng', 'Theo BOM.', 'select', true, 4
+FROM stage_types st WHERE st.code = 'PRESS_GASKET' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- INSTALL_ACCESSORIES – Bắn phụ kiện (8)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'ACCESSORIES_01', 'Vị trí lắp đúng theo bản vẽ', 'Lắp đặt đúng điểm định vị.', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'FLUSH_03', 'Bề mặt cắt nhẵn', 'Kiểm tra bề mặt cắt nhẵn, không có vết xước', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'CUT_FLUSH'
-ON CONFLICT DO NOTHING;
-
--- Tiêu chí cho giai đoạn Hoàn thiện silicon (FINISH_SILICON)
-INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'SILICON_01', 'Silicon được bơm đều', 'Kiểm tra silicon được bơm đều, không bị đứt quãng', 'boolean', true, 1
-FROM stage_types st WHERE st.code = 'FINISH_SILICON'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'ACCESSORIES_02', 'Vít bắt chặt, không rơ lỏng', 'Đảm bảo an toàn.', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'SILICON_02', 'Độ dày silicon đúng (3-5mm)', 'Kiểm tra độ dày lớp silicon có đúng yêu cầu', 'boolean', true, 2
-FROM stage_types st WHERE st.code = 'FINISH_SILICON'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'ACCESSORIES_03', 'Không trầy xước khung', 'Không gây hư hại bề mặt.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'SILICON_03', 'Silicon không bị bong, nứt', 'Kiểm tra silicon không bị bong, nứt sau khi khô', 'boolean', true, 3
-FROM stage_types st WHERE st.code = 'FINISH_SILICON'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'ACCESSORIES_04', 'Đúng chủng loại phụ kiện', 'Theo BOM.', 'select', true, 4
+FROM stage_types st WHERE st.code = 'INSTALL_ACCESSORIES' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- CUT_FLUSH – Cắt sập (9)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'FLUSH_01', 'Kích thước đúng thông số', 'Sai số ≤ ±1mm.', 'numeric', true, 1
+FROM stage_types st WHERE st.code = 'CUT_FLUSH' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'SILICON_04', 'Bề mặt silicon nhẵn, đẹp', 'Kiểm tra bề mặt silicon nhẵn, đẹp, không có bọt khí', 'boolean', true, 4
-FROM stage_types st WHERE st.code = 'FINISH_SILICON'
-ON CONFLICT DO NOTHING;
+SELECT st.id, 'FLUSH_02', 'Vị trí cắt chính xác', 'Theo đúng bản vẽ.', 'numeric', true, 2
+FROM stage_types st WHERE st.code = 'CUT_FLUSH' ON CONFLICT DO NOTHING;
 
 INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
-SELECT st.id, 'SILICON_05', 'Màu silicon đúng yêu cầu', 'Kiểm tra màu silicon đúng theo yêu cầu khách hàng', 'boolean', true, 5
-FROM stage_types st WHERE st.code = 'FINISH_SILICON'
+SELECT st.id, 'FLUSH_03', 'Bề mặt cắt nhẵn', 'Không ba via, không mẻ.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'CUT_FLUSH' ON CONFLICT DO NOTHING;
+
+-- =========================
+-- FINISH_SILICON – Hoàn thiện silicon (10)
+-- =========================
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_01', 'Đường keo thẳng & đều', 'Không phình, không lõm.', 'boolean', true, 1
+FROM stage_types st WHERE st.code = 'FINISH_SILICON' ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_02', 'Không hở keo', 'Đảm bảo độ kín.', 'boolean', true, 2
+FROM stage_types st WHERE st.code = 'FINISH_SILICON' ON CONFLICT DO NOTHING;
+
+INSERT INTO stage_criteria ("stage_type_id", "code", "name", "description", "check_type", "required", "order_index")
+SELECT st.id, 'SILICON_03', 'Giáp nối mượt', 'Không gợn hoặc ngắt quãng.', 'boolean', true, 3
+FROM stage_types st WHERE st.code = 'FINISH_SILICON' ON CONFLICT DO NOTHING;
+
+-- Default global stage time settings
+INSERT INTO global_stage_time_settings ("stage_type_id", "setup_minutes", "finish_minutes", "cut_al_minutes_per_unit", "mill_lock_minutes_per_group", "corner_cut_minutes_per_corner", "assemble_frame_minutes_per_corner", "cut_glass_minutes_per_square_meter", "glass_install_minutes_per_unit", "gasket_minutes_per_unit", "accessory_minutes_per_unit", "cut_flush_minutes_per_unit", "silicon_minutes_per_meter")
+SELECT st.id, 3.0, 1.0, 0.5, 2.0, 1.5, 2.0, 3.0, 2.0, 1.0, 1.5, 0.8, 0.5
+FROM stage_types st
+WHERE st.is_default = true
+ON CONFLICT (stage_type_id) DO NOTHING;
+
+-- Default global labor cost settings (unified rate for all stages)
+INSERT INTO global_labor_cost_settings ("hourly_rate")
+VALUES (100000)
 ON CONFLICT DO NOTHING;

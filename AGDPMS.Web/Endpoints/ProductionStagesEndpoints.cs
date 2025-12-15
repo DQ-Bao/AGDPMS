@@ -15,7 +15,7 @@ public static class ProductionStagesEndpoints
     public static IEndpointRouteBuilder MapProductionStages(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/stages")
-            .RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
+            .RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
 
         group.MapPut("/{stageId:int}/assign-qa", async (int stageId, AssignStageQaDto dto, StageService svc) =>
         {
@@ -47,6 +47,19 @@ public static class ProductionStagesEndpoints
         group.MapPut("/{stageId:int}/dates", async (int stageId, UpdateStageDatesDto dto, StageService svc) =>
         {
             await svc.UpdateActualDatesAsync(stageId, dto.ActualStartDate, dto.ActualFinishDate, dto.ActualTimeHours);
+            return Results.Ok();
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
+
+        group.MapPut("/{stageId:int}/units", async (int stageId, UpdateStageUnitsDto dto, ProductionItemStageDataAccess stageAccess) =>
+        {
+            if (dto.PlannedUnits.HasValue)
+            {
+                await stageAccess.UpdatePlannedUnitsAsync(stageId, dto.PlannedUnits.Value);
+            }
+            if (dto.ActualUnits.HasValue)
+            {
+                await stageAccess.UpdateActualUnitsAsync(stageId, dto.ActualUnits.Value);
+            }
             return Results.Ok();
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
@@ -90,6 +103,17 @@ public static class ProductionStagesEndpoints
             return Results.Ok();
         });
 
+        itemGroup.MapPut("/{itemId:int}/stored", async (int itemId, ProductionItemDataAccess itemAccess) =>
+        {
+            var item = await itemAccess.GetByIdAsync(itemId);
+            if (item is null) return Results.NotFound();
+            if (!item.IsCompleted)
+                return Results.BadRequest("Item must be completed before storing");
+            
+            await itemAccess.SetStoredAsync(itemId, true);
+            return Results.Ok();
+        });
+
         // Get item details with stages
         app.MapGet("/api/items/{itemId:int}", async (
             int itemId,
@@ -119,7 +143,7 @@ public static class ProductionStagesEndpoints
                 { "FINISH_SILICON", 9 }
             };
             var allUsers = (await userAccess.GetAllAsync()).ToDictionary(u => u.Id);
-            var cavity = item != null ? (await cavityAccess.GetAllFromProjectAsync(order.ProjectId)).FirstOrDefault(c => c.Id == item.CavityId) : null;
+            var cavity = await cavityAccess.GetByIdWithBOMsAsync(item.CavityId);
             var stages = (await stageAccess.ListByItemAsync(itemId)).ToList();
             // Filter: Hide stages with planned_time_hours = 0 or NULL unless order is Draft
             var filteredStages = stages.Where(s =>
@@ -151,6 +175,8 @@ public static class ProductionStagesEndpoints
                     s.ActualFinishDate,
                     s.PlannedTimeHours,
                     s.ActualTimeHours,
+                    s.PlannedUnits,
+                    s.ActualUnits,
                     s.AssignedQaUserId,
                     AssignedQaUserName = s.AssignedQaUserId.HasValue && allUsers.ContainsKey(s.AssignedQaUserId.Value)
                         ? allUsers[s.AssignedQaUserId.Value].FullName
@@ -195,6 +221,7 @@ public static class ProductionStagesEndpoints
                     item.LineNo,
                     item.QRCode,
                     item.IsCompleted,
+                    item.IsStored,
                     item.CompletedAt,
                     item.PlannedStartDate,
                     item.PlannedFinishDate,
@@ -208,6 +235,17 @@ public static class ProductionStagesEndpoints
                     CompletedStages = completedStagesCount,
                     TotalStages = stageDtos.Count
                 },
+                materials = cavity?.BOMs?.Select(b => new
+                {
+                    MaterialId = b.Material?.Id,
+                    MaterialName = b.Material?.Name,
+                    MaterialType = b.Material?.Type?.Name,
+                    Quantity = b.Quantity,
+                    Length = b.Length,
+                    Width = b.Width,
+                    Unit = b.Unit,
+                    Color = b.Color
+                }).ToList() ?? new(),
                 order = new
                 {
                     order.Id,
@@ -217,7 +255,7 @@ public static class ProductionStagesEndpoints
                 },
                 stages = stageDtos
             });
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
 
         itemGroup.MapPost("/{itemId:int}/assign-qa-bulk", async (int itemId, AssignItemQaDto dto, StageService svc) =>
         {
@@ -265,7 +303,15 @@ public static class ProductionStagesEndpoints
         });
 
         // Stage Review Endpoints
-        group.MapPost("/{stageId:int}/request-review", async (int stageId, StageReviewDataAccess reviewAccess, HttpContext httpContext) =>
+        group.MapPost("/{stageId:int}/request-review", async (
+            int stageId, 
+            StageReviewDataAccess reviewAccess, 
+            ProductionItemStageDataAccess stageAccess,
+            ProductionItemDataAccess itemAccess,
+            ProductionOrderDataAccess orderAccess,
+            StageTypeDataAccess stageTypeAccess,
+            INotificationService notificationService,
+            HttpContext httpContext) =>
         {
             var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
@@ -273,6 +319,38 @@ public static class ProductionStagesEndpoints
                 return Results.BadRequest("Invalid user");
             }
             var reviewId = await reviewAccess.CreateReviewRequestAsync(stageId, userId);
+            
+            // Send notification to assigned QA
+            try
+            {
+                var stage = await stageAccess.GetByIdAsync(stageId);
+                if (stage != null && stage.AssignedQaUserId.HasValue)
+                {
+                    var item = await itemAccess.GetByIdAsync(stage.ProductionOrderItemId);
+                    if (item != null)
+                    {
+                        var order = await orderAccess.GetByIdAsync(item.ProductionOrderId);
+                        var allStageTypes = await stageTypeAccess.GetAllAsync();
+                        var stageType = allStageTypes.FirstOrDefault(st => st.Id == stage.StageTypeId);
+                        
+                        if (order != null && stageType != null)
+                        {
+                            await notificationService.AddNotificationAsync(new Notification
+                            {
+                                Message = $"PM đã yêu cầu kiểm tra giai đoạn {stageType.Name} cho sản phẩm {item.Code}",
+                                Url = $"/production/orders/{order.Id}/items/{item.Id}",
+                                RecipientUserId = stage.AssignedQaUserId.Value.ToString()
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail the request
+                System.Diagnostics.Debug.WriteLine($"Failed to send notification: {ex.Message}");
+            }
+            
             return Results.Created($"/api/stages/{stageId}/review/{reviewId}", new { id = reviewId });
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
@@ -284,6 +362,7 @@ public static class ProductionStagesEndpoints
             if (stage == null) return Results.NotFound();
             var criteria = (await reviewAccess.GetCriteriaByStageTypeIdAsync(stage.StageTypeId)).ToList();
             var results = (await reviewAccess.GetCriteriaResultsByReviewIdAsync(review.Id)).ToList();
+            var reviewAttachments = GetAttachmentsList(review.Attachments) ?? new List<string>();
             return Results.Ok(new
             {
                 review = new
@@ -294,6 +373,7 @@ public static class ProductionStagesEndpoints
                     review.ReviewedByUserId,
                     review.Status,
                     review.Notes,
+                    Attachments = reviewAttachments,
                     review.RequestedAt,
                     review.ReviewedAt
                 },
@@ -326,9 +406,18 @@ public static class ProductionStagesEndpoints
                     };
                 }).OrderBy(c => c.OrderIndex).ThenBy(c => c.Id)
             });
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
 
-        group.MapPost("/{stageId:int}/submit-review", async (int stageId, SubmitStageReviewDto dto, StageReviewDataAccess reviewAccess, HttpContext httpContext) =>
+        group.MapPost("/{stageId:int}/submit-review", async (
+            int stageId, 
+            SubmitStageReviewDto dto, 
+            StageReviewDataAccess reviewAccess,
+            ProductionItemStageDataAccess stageAccess,
+            ProductionItemDataAccess itemAccess,
+            ProductionOrderDataAccess orderAccess,
+            StageTypeDataAccess stageTypeAccess,
+            INotificationService notificationService,
+            HttpContext httpContext) =>
         {
             var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (string.IsNullOrEmpty(userIdClaim) || !int.TryParse(userIdClaim, out var userId))
@@ -352,10 +441,44 @@ public static class ProductionStagesEndpoints
                     ? System.Text.Json.JsonSerializer.Serialize(cr.Attachments)
                     : null
             }).ToList();
-            var allPassed = criteriaResults.All(cr => cr.IsPassed == true);
-            await reviewAccess.SubmitReviewAsync(review.Id, userId, criteriaResults, dto.Notes, allPassed);
+            // Use manual IsPassed from DTO if provided, otherwise calculate from criteria results
+            var allPassed = dto.IsPassed ?? criteriaResults.All(cr => cr.IsPassed == true);
+            await reviewAccess.SubmitReviewAsync(review.Id, userId, criteriaResults, dto.Notes, allPassed, dto.Attachments);
+            
+            // Send notification to PM who requested the review
+            try
+            {
+                var stage = await stageAccess.GetByIdAsync(stageId);
+                if (stage != null)
+                {
+                    var item = await itemAccess.GetByIdAsync(stage.ProductionOrderItemId);
+                    if (item != null)
+                    {
+                        var order = await orderAccess.GetByIdAsync(item.ProductionOrderId);
+                        var allStageTypes = await stageTypeAccess.GetAllAsync();
+                        var stageType = allStageTypes.FirstOrDefault(st => st.Id == stage.StageTypeId);
+                        
+                        if (order != null && stageType != null)
+                        {
+                            var resultText = allPassed ? "Đạt" : "Không đạt";
+                            await notificationService.AddNotificationAsync(new Notification
+                            {
+                                Message = $"QA đã hoàn thành kiểm tra giai đoạn {stageType.Name} cho sản phẩm {item.Code}. Kết quả: {resultText}",
+                                Url = $"/production/orders/{order.Id}/items/{item.Id}",
+                                RecipientUserId = review.RequestedByUserId.ToString()
+                            });
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log error but don't fail the request
+                System.Diagnostics.Debug.WriteLine($"Failed to send notification: {ex.Message}");
+            }
+            
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA" });
 
         group.MapGet("/{stageId:int}/latest-review", async (int stageId, StageReviewDataAccess reviewAccess, ProductionItemStageDataAccess stageAccess) =>
         {
@@ -374,6 +497,7 @@ public static class ProductionStagesEndpoints
             }
             var criteria = (await reviewAccess.GetCriteriaByStageTypeIdAsync(stage.StageTypeId)).ToList();
             var results = (await reviewAccess.GetCriteriaResultsByReviewIdAsync(review.Id)).ToList();
+            var reviewAttachments = GetAttachmentsList(review.Attachments) ?? new List<string>();
             System.Diagnostics.Debug.WriteLine($"Found {results.Count} criteria results for review {review.Id}");
             foreach (var result in results)
             {
@@ -404,6 +528,7 @@ public static class ProductionStagesEndpoints
                     review.ReviewedByUserId,
                     review.Status,
                     review.Notes,
+                    Attachments = reviewAttachments,
                     review.RequestedAt,
                     review.ReviewedAt
                 },
@@ -436,7 +561,7 @@ public static class ProductionStagesEndpoints
                     };
                 }).OrderBy(c => c.OrderIndex).ThenBy(c => c.Id)
             });
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
 
         // File upload endpoint for review attachments
         group.MapPost("/upload-attachment", async (HttpRequest request) =>
@@ -505,7 +630,7 @@ public static class ProductionStagesEndpoints
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
 
         return app;
     }

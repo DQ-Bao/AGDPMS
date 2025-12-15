@@ -4,6 +4,8 @@ public class SubmitStageReviewDto
 {
     public string? Notes { get; set; }
     public List<StageReviewCriteriaResultDto> CriteriaResults { get; set; } = new();
+    public bool? IsPassed { get; set; } // Manual pass/fail decision by QA
+    public List<string>? Attachments { get; set; }
 }
 
 public class StageReviewCriteriaResultDto

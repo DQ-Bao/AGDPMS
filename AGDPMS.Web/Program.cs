@@ -53,7 +53,7 @@ builder.Services.AddScoped<ISaleServices, SaleService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddSingleton<INotificationService, NotificationService>();
 builder.Services.AddScoped<IReportService, ReportSerivce>();
 
 // enable SignalR
@@ -82,8 +82,10 @@ app.MapUserEndpoints();
 app.MapProductionOrders();
 app.MapProductionStages();
 app.MapStageTypes();
+app.MapOrderSettings();
 app.MapQr();
 app.MapLookup();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

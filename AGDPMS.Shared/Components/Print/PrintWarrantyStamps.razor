@@ -98,8 +98,8 @@
                             <div class="stamp-right">
                                 <div class="stamp-info">
                                     <div class="stamp-row">Tên SP: <span class="stamp-data">@item.ProductName</span></div>
-                                    <div class="stamp-row">Mã lệnh TC: <span class="stamp-data">@item.CommandCode</span></div>
-                                    <div class="stamp-row">Mã SP: <span class="stamp-data">@item.ProductCode</span></div>
+                                    <div class="stamp-row">Mã lệnh TC: <span class="stamp-data">@item.OrderCode</span></div>
+                                    <div class="stamp-row">Mã SP: <span class="stamp-data">@item.OrderItemCode</span></div>
                                     <div class="stamp-row">
                                         Ngày lắp đặt:
                                         <span class="stamp-data">
@@ -204,8 +204,8 @@
         return new WarrantyStamp
         {
             ProductName = $"Sản phẩm mẫu #{index}",
-            CommandCode = $"LC-2025-{index:000}",
-            ProductCode = $"W872-{index:000}",
+            OrderCode = $"LC-2025-{index:000}",
+            OrderItemCode = $"W872-{index:000}",
             InstallDate = DateTime.Now,
             QrImage = GetSampleQr()
         };

@@ -4,6 +4,7 @@ using AGDPMS.Web.Services;
 using AGDPMS.Web.Data;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Linq;
 
 namespace AGDPMS.Web.Endpoints;
 
@@ -17,15 +18,20 @@ public static class ProductionOrdersEndpoints
         group.MapGet("/test", () => Results.Ok(new { message = "Endpoint is accessible" }))
             .AllowAnonymous();
         
-        group = group.RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Qa,Director" });
+        group = group.RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
 
         group.MapPost("", async (ProductionOrderService svc, ProductionOrderCreateDto dto, HttpContext ctx) =>
         {
-            var userId = 0; // TODO: take from auth
+            var userIdClaim = ctx.User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = 0;
+            if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var parsedUserId))
+                userId = parsedUserId;
+            
             var spec = new ProductionOrderCreateSpec
             {
                 ProjectId = dto.ProjectId,
-                Items = dto.Items.Select(i => new ProductionOrderCreateSpecItem { CavityId = i.CavityId, Quantity = i.Quantity }).ToList()
+                Items = dto.Items.Select(i => new ProductionOrderCreateSpecItem { CavityId = i.CavityId, Quantity = i.Quantity }).ToList(),
+                TimeSettings = dto.TimeSettings
             };
             var id = await svc.CreateOrderAsync(spec, userId);
             return Results.Created($"/api/orders/{id}", new { id });
@@ -39,16 +45,31 @@ public static class ProductionOrdersEndpoints
             string? q,
             string? sort,
             string? dir,
+            string? statuses,
             int? status,
             ProductionOrderDataAccess orderAccess,
             ProductionItemDataAccess itemAccess,
             ProductionItemStageDataAccess stageAccess,
+            UserDataAccess userAccess,
             HttpContext httpContext) =>
         {
             int? pid = null;
             if (!string.IsNullOrWhiteSpace(projectId) && int.TryParse(projectId, out var parsedId))
                 pid = parsedId;
             var allOrders = (await orderAccess.ListAsync(pid, q, sort ?? "created_at", dir ?? "desc")).ToList();
+            var statusList = new List<int>();
+            if (!string.IsNullOrWhiteSpace(statuses))
+            {
+                statusList = statuses.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                     .Select(s => int.TryParse(s, out var v) ? v : (int?)null)
+                                     .Where(v => v.HasValue)
+                                     .Select(v => v!.Value)
+                                     .ToList();
+            }
+            else if (status.HasValue)
+            {
+                statusList.Add(status.Value);
+            }
 
             // Get user role and ID for filtering
             var userRole = httpContext.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
@@ -102,10 +123,12 @@ public static class ProductionOrdersEndpoints
                 orders = new List<ProductionOrder>();
             }
 
-            if (status.HasValue)
+            if (statusList.Any())
             {
-                orders = orders.Where(o => (int)o.Status == status.Value).ToList();
+                orders = orders.Where(o => statusList.Contains((int)o.Status)).ToList();
             }
+
+            var allUsers = (await userAccess.GetAllAsync()).ToDictionary(u => u.Id);
 
             // compute hasPendingQa per order: any stage assigned and not completed
             var result = new List<object>();
@@ -122,12 +145,16 @@ public static class ProductionOrdersEndpoints
                         break;
                     }
                 }
+                allUsers.TryGetValue(o.AssignedQaUserId ?? -1, out var qaUser);
+
                 result.Add(new
                 {
                     o.Id,
                     o.ProjectId,
                     o.Code,
                     o.Status,
+                    o.AssignedQaUserId,
+                    AssignedQaUserName = qaUser?.FullName,
                     o.PlannedStartDate,
                     o.PlannedFinishDate,
                     o.CreatedAt,
@@ -258,6 +285,7 @@ public static class ProductionOrdersEndpoints
                     it.LineNo,
                     it.QRCode,
                     it.IsCompleted,
+                    it.IsStored,
                     it.CompletedAt,
                     it.PlannedStartDate,
                     it.PlannedFinishDate,
@@ -296,14 +324,32 @@ public static class ProductionOrdersEndpoints
                     Date = g.Key,
                     CompletedCount = g.Count()
                 }).ToList();
-            return Results.Ok(new { order, items = itemsWithStages, progressTimeline });
+            var orderQaName = order.AssignedQaUserId.HasValue && allUsers.ContainsKey(order.AssignedQaUserId.Value)
+                ? allUsers[order.AssignedQaUserId.Value].FullName
+                : null;
+
+            return Results.Ok(new { order, orderQaName, items = itemsWithStages, progressTimeline });
         });
+
+        // Project cost management (EVM) data
+        group.MapGet("/{id:int}/cost-management", async (int id, bool? includeLaborCost, ProjectCostManagementService svc) =>
+        {
+            try
+            {
+                var dto = await svc.CalculateEVMAsync(id, includeLaborCost ?? true);
+                return Results.Ok(dto);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Results.NotFound(new { message = ex.Message });
+            }
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Director" });
 
         group.MapPost("/{id:int}/submit", async (int id, ProductionOrderService svc) =>
         {
             await svc.SubmitAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Director" });
 
         group.MapPost("/{id:int}/cancel", async (int id, ProductionOrderService svc) =>
         {
@@ -327,13 +373,13 @@ public static class ProductionOrdersEndpoints
         {
             await svc.QaMachinesApproveAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA" });
 
         group.MapPost("/{id:int}/qa/material-approve", async (int id, ProductionOrderService svc) =>
         {
             await svc.QaMaterialApproveAsync(id);
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Qa" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA" });
 
         group.MapPost("/{id:int}/finish", async (int id, ProductionOrderService svc) =>
         {
@@ -346,6 +392,12 @@ public static class ProductionOrdersEndpoints
             await svc.RevertToDraftAsync(id);
             return Results.Ok();
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
+
+        group.MapPut("/{id:int}/assign-qa", async (int id, AssignQaOrderDto dto, ProductionOrderService svc) =>
+        {
+            await svc.AssignQaAsync(id, dto.QaUserId);
+            return Results.Ok();
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Director" });
 
         group.MapPut("/{id:int}/plan", async (int id, UpdateOrderPlanDto dto, ProductionOrderService svc) =>
         {

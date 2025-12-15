@@ -32,9 +32,14 @@ public static class ConfigureServices
         services.AddScoped<StageReviewDataAccess>();
         services.AddScoped<ProjectDataAccess>();
         services.AddScoped<ProductDataAccess>();
+        services.AddScoped<ProductionOrderSettingDataAccess>();
+        services.AddScoped<GlobalStageTimeSettingDataAccess>();
+        services.AddScoped<GlobalLaborCostSettingDataAccess>();
         // production services
         services.AddScoped<ProductionOrderService>();
         services.AddScoped<StageService>();
+        services.AddScoped<StageTimeEstimationService>();
+        services.AddScoped<ProjectCostManagementService>();
         services.AddScoped<QrService>();
         return services;
     }
