@@ -8,9 +8,9 @@
 @inject ISaleServices SaleService
 @inject IFileStorageService FileStorageService
 
-<PageTitle>Tạo mới dự án RFQ</PageTitle>
+<PageTitle>Tạo yêu cầu công trình</PageTitle>
 
-<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Dự án RFQ /</span> Tạo mới</h4>
+<h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Dự án RFQ /</span> Tạo yêu cầu công trình</h4>
 
 @if (customers == null)
 {
@@ -63,7 +63,7 @@ else
                     </div>
                     <div class="mb-3 col-md-6">
                         <label for="status" class="form-label">Trạng thái</label>
-                        <InputSelect id="status" class="form-select" @bind-Value="project.Status">
+                        <InputSelect id="status" class="form-select" @bind-Value="project.Status" disabled>
                             @foreach (var status in (ProjectRFQStatus[])Enum.GetValues(typeof(ProjectRFQStatus)))
                             {
                                 <option value="@status">@GetVietnameseStatus(status)</option>
