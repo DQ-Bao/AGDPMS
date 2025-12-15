@@ -64,8 +64,13 @@
                 </div>
                 @if (IsWStarFileLoading)
                 {
-                    <div class="spinner-border spinner-border-sm text-primary mx-2" role="status">
-                        <span class="visually-hidden">Loading...</span>
+                    <div class="progress mx-2 w-25">
+                        <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                role="progressbar"
+                                style="width:@(WStarFileUploadProgress)%;"
+                                aria-valuenow="@WStarFileUploadProgress"
+                                aria-valuemin="0"
+                                aria-valuemax="100">@WStarFileUploadProgress%</div>
                     </div>
                 }
                 @if (IsAddingCavitiesFromWStar)
@@ -763,6 +768,7 @@
     private Cavity? CavityToDelete;
 
     private bool IsWStarFileLoading { get; set; } = false;
+    private int WStarFileUploadProgress { get; set; } = 0;
     private bool IsAddingCavitiesFromWStar { get; set; } = false;
     private bool IsLoadingProfileSummaries { get; set; } = false;
 
@@ -824,16 +830,28 @@
     private async Task OnInputFileChange(InputFileChangeEventArgs e)
     {
         IsWStarFileLoading = true;
+        WStarFileUploadProgress = 0;
         var file = e.File;
         if (file is null || !file.Name.EndsWith(".mdb", StringComparison.OrdinalIgnoreCase))
         {
             UploadedFilePath = null;
             StatusMessage = StatusMessage.Error("File không tồn tại hoặc không đúng định dạng");
+            IsWStarFileLoading = false;
             return;
         }
         var tempFile = Path.Combine(Path.GetTempPath(), file.Name);
-        using var stream = File.Create(tempFile);
-        await file.OpenReadStream(1024 * 1024 * 1024).CopyToAsync(stream);
+        await using var input = file.OpenReadStream(1024L * 1024 * 1024);
+        await using var output = File.Create(tempFile);
+        var buffer = new byte[81920];
+        long totalRead = 0;
+        int read;
+        while ((read = await input.ReadAsync(buffer)) > 0)
+        {
+            await output.WriteAsync(buffer.AsMemory(0, read));
+            totalRead += read;
+            WStarFileUploadProgress = (int)(totalRead * 100 / file.Size);
+            await InvokeAsync(StateHasChanged);
+        }
         UploadedFilePath = tempFile;
         IsWStarFileLoading = false;
     }
