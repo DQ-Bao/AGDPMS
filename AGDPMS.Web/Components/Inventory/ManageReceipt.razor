@@ -8,6 +8,7 @@
 @* @attribute [Authorize(Roles = "Admin")] *@
 
 @inject IInventoryService inventoryService
+@inject IReportService reportService
 
 <PageTitle>Quản lý nhập kho</PageTitle>
 
@@ -41,6 +42,9 @@
     <div>
         <button class="btn btn-primary me-2" @onclick=ToggleAdding>
             <i class="me-1"></i> Tạo mới
+        </button>
+        <button class="btn btn-primary me-2" @onclick=Export>
+            <i class="me-1"></i> Xuất file nhập kho
         </button>
     </div>
 </div>
@@ -383,5 +387,10 @@
     void ToggleAdding()
     {
         is_adding = !is_adding;
+    }
+
+    void Export()
+    {
+        reportService.GenerateReceipt(stockReceipts);
     }
 }

@@ -77,18 +77,39 @@ public class WStarService
 
     private static async Task<GetAllWStarProjectResult> GetProjectsUsingMdbToolsAsync(string dbPath)
     {
-        var projectTable = await ExportTableAsync(dbPath, "wsProject");
-        var cavityTable = await ExportTableAsync(dbPath, "wsCavity");
-        var bomTable = await ExportTableAsync(dbPath, "wsBOMAccessory");
-        var materialTable = await ExportTableAsync(dbPath, "wsMaterial");
-        var matTypeTable = await ExportTableAsync(dbPath, "wsMaterialType");
-        var vendorTable = await ExportTableAsync(dbPath, "wsVendor");
-        var colorTable = await ExportTableAsync(dbPath, "wsColor");
-        var windowTypeTable = await ExportTableAsync(dbPath, "wsWindowType");
+        var exportTasks = new[]
+        {
+            ExportTableAsync(dbPath, "wsProject"),
+            ExportTableAsync(dbPath, "wsCavity"),
+            ExportTableAsync(dbPath, "wsBOMAccessory"),
+            ExportTableAsync(dbPath, "wsMaterial"),
+            ExportTableAsync(dbPath, "wsMaterialType"),
+            ExportTableAsync(dbPath, "wsVendor"),
+            ExportTableAsync(dbPath, "wsColor"),
+            ExportTableAsync(dbPath, "wsWindowType")
+        };
+        await Task.WhenAll(exportTasks);
+        var projectTable = exportTasks[0].Result;
+        var cavityTable = exportTasks[1].Result;
+        var bomTable = exportTasks[2].Result;
+        var materialTable = exportTasks[3].Result;
+        var matTypeTable = exportTasks[4].Result;
+        var vendorTable = exportTasks[5].Result;
+        var colorTable = exportTasks[6].Result;
+        var windowTypeTable = exportTasks[7].Result;
         var matTypes = matTypeTable.ToDictionary(r => r["Code"], r => r.GetValueOrDefault("Description", string.Empty));
         var vendors = vendorTable.ToDictionary(r => r["Code"], r => r.GetValueOrDefault("Description", string.Empty));
         var colors = colorTable.ToDictionary(r => r["ClrRGB"], r => r.GetValueOrDefault("ClrDescription", string.Empty));
         var winTypes = windowTypeTable.ToDictionary(r => r["Code"], r => r.GetValueOrDefault("Description", string.Empty));
+
+        var cavitiesByProject = cavityTable
+            .Where(c => !string.IsNullOrWhiteSpace(c.GetValueOrDefault("ProjectCode")))
+            .GroupBy(c => c.GetValueOrDefault("ProjectCode")!)
+            .ToDictionary(g => g.Key, g => g.ToList());
+        var bomsByCavity = bomTable
+            .Where(b => !string.IsNullOrWhiteSpace(b.GetValueOrDefault("CavityCode")))
+            .GroupBy(b => b.GetValueOrDefault("CavityCode")!)
+            .ToDictionary(g => g.Key, g => g.ToList());
         var projects = new List<WStarProject>();
 
         foreach (var projRow in projectTable)
@@ -99,7 +120,11 @@ public class WStarService
                 CreateDate = DateTime.TryParse(projRow.GetValueOrDefault("CreateDate"), out var dt) ? dt : DateTime.MinValue,
             };
 
-            var cavities = cavityTable.Where(c => c.GetValueOrDefault("ProjectCode") == project.Code);
+            if (!cavitiesByProject.TryGetValue(project.Code, out var cavities))
+            {
+                projects.Add(project);
+                continue;
+            }
             foreach (var cavRow in cavities)
             {
                 var cavity = new WStarCavity
@@ -113,25 +138,27 @@ public class WStarService
                     Height = double.TryParse(cavRow.GetValueOrDefault("Height"), out var h) ? h : 0
                 };
 
-                var boms = bomTable.Where(b => b.GetValueOrDefault("CavityCode") == cavity.Code);
-                foreach (var bomRow in boms)
+                if (bomsByCavity.TryGetValue(cavity.Code, out var boms))
                 {
-                    var matRow = materialTable.FirstOrDefault(m => m["Code"] == bomRow["Code"]);
-                    if (matRow == null) continue;
-                    var material = new WStarBOMAccessory
+                    foreach (var bomRow in boms)
                     {
-                        Code = matRow["Code"],
-                        Description = matRow.GetValueOrDefault("Description", string.Empty),
-                        Symbol = matRow.GetValueOrDefault("Symbol", string.Empty),
-                        MatType = matTypes.GetValueOrDefault(matRow.GetValueOrDefault("MaterialType", string.Empty), string.Empty),
-                        MatVendor = vendors.GetValueOrDefault(matRow.GetValueOrDefault("VendorCode", string.Empty), string.Empty),
-                        Num = int.TryParse(bomRow.GetValueOrDefault("Num"), out var num) ? num : 0,
-                        Length = double.TryParse(bomRow.GetValueOrDefault("Length"), out var len) ? len : 0,
-                        Width = double.TryParse(bomRow.GetValueOrDefault("Width"), out var width) ? width : 0,
-                        Color = colors.GetValueOrDefault(matRow.GetValueOrDefault("ClrRGB", string.Empty)),
-                        Unit = matRow.GetValueOrDefault("Unit", string.Empty)
-                    };
-                    AddOrMergeMaterial(cavity, material);
+                        var matRow = materialTable.FirstOrDefault(m => m["Code"] == bomRow["Code"]);
+                        if (matRow == null) continue;
+                        var material = new WStarBOMAccessory
+                        {
+                            Code = matRow["Code"],
+                            Description = matRow.GetValueOrDefault("Description", string.Empty),
+                            Symbol = matRow.GetValueOrDefault("Symbol", string.Empty),
+                            MatType = matTypes.GetValueOrDefault(matRow.GetValueOrDefault("MaterialType", string.Empty), string.Empty),
+                            MatVendor = vendors.GetValueOrDefault(matRow.GetValueOrDefault("VendorCode", string.Empty), string.Empty),
+                            Num = int.TryParse(bomRow.GetValueOrDefault("Num"), out var num) ? num : 0,
+                            Length = double.TryParse(bomRow.GetValueOrDefault("Length"), out var len) ? len : 0,
+                            Width = double.TryParse(bomRow.GetValueOrDefault("Width"), out var width) ? width : 0,
+                            Color = colors.GetValueOrDefault(matRow.GetValueOrDefault("ClrRGB", string.Empty)),
+                            Unit = matRow.GetValueOrDefault("Unit", string.Empty)
+                        };
+                        AddOrMergeMaterial(cavity, material);
+                    }
                 }
                 project.Cavities.Add(cavity);
             }
