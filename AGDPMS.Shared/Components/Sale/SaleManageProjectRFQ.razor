@@ -2,6 +2,8 @@
 
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Sale")]
 
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
@@ -15,7 +17,7 @@
             <i class="bx bx-user me-1"></i> Quản lý Khách hàng
         </button>
         <button class="btn btn-primary" @onclick="GoToCreatePage">
-            <i class="bx bx-plus me-1"></i> Tạo mới Dự án
+            <i class="bx bx-plus me-1"></i> Tạo yêu cầu dự án
         </button>
     </div>
 </div>
@@ -68,18 +70,9 @@
                             <td>@project.DesignCompany</td>
                             <td>@project.CompletionDate.ToString("dd/MM/yyyy")</td>
                             <td>
-                                <select class="form-select @GetStatusClass(project.Status)"
-                                        style="width: auto; min-width: 140px;"
-                                        value="@project.Status.ToString()"
-                                        @onchange="(e) => OnStatusChange(e, project.Id)">
-
-                                    @foreach (var status in (ProjectRFQStatus[])Enum.GetValues(typeof(ProjectRFQStatus)))
-                                    {
-                                        <option value="@status" class="@GetStatusClass(status)">
-                                            @GetVietnameseStatus(status)
-                                        </option>
-                                    }
-                                </select>
+                                <span class="badge @GetStatusClass(project.Status)">
+                                    @GetVietnameseStatus(project.Status)
+                                </span>
                             </td>
                             <td>
                                 <button class="btn btn-outline-primary me-1"
@@ -235,21 +228,6 @@
         showDeleteConfirmation = false;
     }
 
-    private async Task OnStatusChange(ChangeEventArgs e, int projectId)
-    {
-        if (Enum.TryParse<ProjectRFQStatus>(e.Value.ToString(), out var newStatus))
-        {
-
-            var projectInList = pagedResult?.Items.FirstOrDefault(p => p.Id == projectId);
-            if (projectInList != null)
-            {
-                projectInList.Status = newStatus;
-                StateHasChanged(); 
-            }
-
-            await SaleService.UpdateProjectRFQStatusAsync(projectId, newStatus);
-        }
-    }
 
     private void GoToCreatePage() => NavManager.NavigateTo("/sale/projectrfq/add");
     private void GoToEditPage(int id) => NavManager.NavigateTo($"/sale/projectrfq/edit/{id}");

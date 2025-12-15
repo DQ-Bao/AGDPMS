@@ -1,11 +1,14 @@
 ﻿@page "/sale/projectrfq/edit/{id:int}"
-@rendermode InteractiveServer 
+@rendermode InteractiveServer
 
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services 
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Sale")]
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
+@inject IFileStorageService FileStorageService
 
 <PageTitle>Chỉnh sửa dự án RFQ</PageTitle>
 
@@ -22,6 +25,10 @@ else
 
         <div class="card">
             <h5 class="card-header">Chỉnh sửa: @project.ProjectRFQName</h5>
+            <div class="alert alert-warning m-3 mb-3" role="alert">
+                <i class="bx bx-info-circle me-2"></i>
+                <strong>Lưu ý:</strong> Trạng thái dự án được quản lý tự động theo quy trình và không thể thay đổi thủ công từ màn hình này.
+            </div>
             <div class="card-body">
 
                  <div class="row">
@@ -63,36 +70,68 @@ else
                     </div>
                     <div class="mb-3 col-md-6">
                         <label for="status" class="form-label">Trạng thái</label>
-                        <InputSelect id="status" class="form-select" @bind-Value="project.Status">
-                            @foreach (var status in (ProjectRFQStatus[])Enum.GetValues(typeof(ProjectRFQStatus)))
-                            {
-                                <option value="@status">@GetVietnameseStatus(status)</option>
-                            }
-                        </InputSelect>
+                        <div class="input-group">
+                            <span class="badge @GetStatusClass(project.Status) form-control d-flex align-items-center" style="font-size: 1rem; height: 38px;">
+                                @GetVietnameseStatus(project.Status)
+                            </span>
+                        </div>
+                        <small class="form-text text-muted">Trạng thái được quản lý tự động theo quy trình dự án</small>
                     </div>
                 </div>
 
                 <div class="mb-3">
-                    <label for="designFile" class="form-label">File thiết kế (Tải lên file mới để thay thế)</label>
-                    <InputFile id="designFile" class="form-control" OnChange="HandleDesignFileSelected" />
-                    @if (!string.IsNullOrEmpty(project.DesignFilePath))
+                    <label for="designFile" class="form-label">File thiết kế (PDF, DOCX, JPG, PNG - Tối đa 100MB)</label>
+                    <InputFile id="designFile" class="form-control" OnChange="HandleDesignFileSelected" accept=".pdf,.docx,.jpg,.jpeg,.png" />
+                    @if (isUploadingDesignFile)
+                    {
+                        <div class="mt-2 small text-info">
+                            <i class="bx bx-loader bx-spin"></i> Đang tải lên...
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(newDesignFilePath))
+                    {
+                        <div class="mt-2 small text-success">
+                            <i class="bx bx-check"></i> Đã tải lên: @Path.GetFileName(newDesignFilePath)
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(project.DesignFilePath))
                     {
                         <div class="mt-2">
                              <i class="bx bx-file me-1"></i> File hiện tại: 
                              <a href="@project.DesignFilePath" target="_blank">@Path.GetFileName(project.DesignFilePath)</a> 
                         </div>
                     }
+                    @if (!string.IsNullOrEmpty(designFileError))
+                    {
+                        <div class="text-danger small mt-1">@designFileError</div>
+                    }
                 </div>
 
                 <div class="mb-3">
-                    <label for="document" class="form-label">Tài liệu (Tải lên file mới để thay thế)</label>
-                    <InputFile id="document" class="form-control" OnChange="HandleDocumentSelected" />
-                    @if (!string.IsNullOrEmpty(project.DocumentPath))
+                    <label for="document" class="form-label">Tài liệu (PDF, DOCX, JPG, PNG - Tối đa 100MB)</label>
+                    <InputFile id="document" class="form-control" OnChange="HandleDocumentSelected" accept=".pdf,.docx,.jpg,.jpeg,.png" />
+                    @if (isUploadingDocument)
+                    {
+                        <div class="mt-2 small text-info">
+                            <i class="bx bx-loader bx-spin"></i> Đang tải lên...
+                        </div>
+                    }
+                    @if (!string.IsNullOrEmpty(newDocumentPath))
+                    {
+                        <div class="mt-2 small text-success">
+                            <i class="bx bx-check"></i> Đã tải lên: @Path.GetFileName(newDocumentPath)
+                        </div>
+                    }
+                    else if (!string.IsNullOrEmpty(project.DocumentPath))
                     {
                          <div class="mt-2">
                              <i class="bx bx-file me-1"></i> File hiện tại: 
                              <a href="@project.DocumentPath" target="_blank">@Path.GetFileName(project.DocumentPath)</a> 
                          </div>
+                    }
+                    @if (!string.IsNullOrEmpty(documentFileError))
+                    {
+                        <div class="text-danger small mt-1">@documentFileError</div>
                     }
                 </div>
 
@@ -113,9 +152,26 @@ else
     private AppRFQ? project; 
     private List<AppClient>? customers; 
 
+    private string? designFileError;
+    private string? documentFileError;
+    private bool isUploadingDesignFile = false;
+    private bool isUploadingDocument = false;
+    private string? oldDesignFilePath;
+    private string? oldDocumentPath;
+    private string? newDesignFilePath; // Store newly uploaded design file path
+    private string? newDocumentPath; // Store newly uploaded document path
+
+    private readonly string[] allowedExtensions = new[] { ".pdf", ".docx", ".jpg", ".png", ".jpeg" };
+    private long maxFileSize = 100 * 1024 * 1024; // 100MB
+
+    private bool _isInitialized = false;
 
     protected override async Task OnInitializedAsync()
     {
+        if (_isInitialized) return; // Prevent re-initialization
+        
+        _isInitialized = true;
+        
         // Load project and customers concurrently
         var projectTask = SaleService.GetProjectRFQByIdAsync(Id);
         var customersTask = SaleService.GetClientsAsync();
@@ -127,33 +183,110 @@ else
 
         if (project == null)
         {
-            NavManager.NavigateTo("/sale/projectrfq", forceLoad: true); 
+            NavManager.NavigateTo("/projects", forceLoad: true); 
+        }
+        else
+        {
+            // Store original file paths for cleanup
+            oldDesignFilePath = project.DesignFilePath;
+            oldDocumentPath = project.DocumentPath;
+        }
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Only reload if the ID actually changed and we haven't initialized yet
+        if (!_isInitialized)
+        {
+            await OnInitializedAsync();
         }
     }
 
     private async Task HandleDesignFileSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file != null && project != null)
+        if (project == null) return;
+        
+        // Prevent multiple simultaneous uploads
+        if (isUploadingDesignFile) return;
+
+        isUploadingDesignFile = true;
+        designFileError = null;
+        await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
+
+        try
         {
-            // Example: var savedPath = await FileUploadService.SaveFileAsync(file, project.Id, "design");
-            // project.DesignFilePath = savedPath;
-            project.DesignFilePath = $"new_{file.Name}"; // Placeholder - MUST BE REPLACED
-            Console.WriteLine($"Selected NEW Design File: {file.Name}");
-            await Task.CompletedTask; // Fixes CS1998 by including an await
+            var file = e.File;
+            if (file == null)
+            {
+                designFileError = "Không có file được chọn.";
+                return;
+            }
+
+            Console.WriteLine($"Bắt đầu upload design file: {file.Name}, Size: {file.Size} bytes");
+            // Save the new file
+            var savedPath = await FileStorageService.SaveFileAsync(
+                file, "designs", allowedExtensions, maxFileSize);
+
+            Console.WriteLine($"Design file đã được lưu thành công: {savedPath}");
+            // Store the new file path (don't update project yet to prevent reverting)
+            newDesignFilePath = savedPath;
+            designFileError = null;
+        }
+        catch (Exception ex)
+        {
+            designFileError = ex.Message;
+            newDesignFilePath = null; // Clear on error
+            Console.WriteLine($"Error uploading design file: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            isUploadingDesignFile = false;
+            await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
         }
     }
 
     private async Task HandleDocumentSelected(InputFileChangeEventArgs e)
     {
-        var file = e.File;
-        if (file != null && project != null)
+        if (project == null) return;
+        
+        // Prevent multiple simultaneous uploads
+        if (isUploadingDocument) return;
+
+        isUploadingDocument = true;
+        documentFileError = null;
+        await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
+
+        try
         {
-            // Example: var savedPath = await FileUploadService.SaveFileAsync(file, project.Id, "document");
-            // project.DocumentPath = savedPath;
-            project.DocumentPath = $"new_{file.Name}";
-            Console.WriteLine($"Selected NEW Document File: {file.Name}");
-            await Task.CompletedTask; // Fixes CS1998 by including an await
+            var file = e.File;
+            if (file == null)
+            {
+                documentFileError = "Không có file được chọn.";
+                return;
+            }
+
+            Console.WriteLine($"Bắt đầu upload document file: {file.Name}, Size: {file.Size} bytes");
+            // Save the new file
+            var savedPath = await FileStorageService.SaveFileAsync(
+                file, "documents", allowedExtensions, maxFileSize);
+
+            Console.WriteLine($"Document file đã được lưu thành công: {savedPath}");
+            // Store the new file path (don't update project yet to prevent reverting)
+            newDocumentPath = savedPath;
+            documentFileError = null;
+        }
+        catch (Exception ex)
+        {
+            documentFileError = ex.Message;
+            newDocumentPath = null; // Clear on error
+            Console.WriteLine($"Error uploading document file: {ex.Message}");
+            Console.WriteLine($"Stack trace: {ex.StackTrace}");
+        }
+        finally
+        {
+            isUploadingDocument = false;
+            await InvokeAsync(StateHasChanged); // Use InvokeAsync for thread safety
         }
     }
 
@@ -167,8 +300,40 @@ else
              return;
         }
 
+        // Check for file upload errors
+        if (!string.IsNullOrEmpty(designFileError) || !string.IsNullOrEmpty(documentFileError))
+        {
+            Console.WriteLine("Vui lòng sửa lỗi tải file trước khi lưu.");
+            return;
+        }
+
         try
         {
+            // Update file paths if new files were uploaded
+            if (!string.IsNullOrEmpty(newDesignFilePath))
+            {
+                // Delete old file if it exists and is different
+                if (!string.IsNullOrEmpty(oldDesignFilePath) && 
+                    oldDesignFilePath != newDesignFilePath && 
+                    oldDesignFilePath.StartsWith("/uploads/"))
+                {
+                    await FileStorageService.DeleteFileAsync(oldDesignFilePath);
+                }
+                project.DesignFilePath = newDesignFilePath;
+            }
+
+            if (!string.IsNullOrEmpty(newDocumentPath))
+            {
+                // Delete old file if it exists and is different
+                if (!string.IsNullOrEmpty(oldDocumentPath) && 
+                    oldDocumentPath != newDocumentPath && 
+                    oldDocumentPath.StartsWith("/uploads/"))
+                {
+                    await FileStorageService.DeleteFileAsync(oldDocumentPath);
+                }
+                project.DocumentPath = newDocumentPath;
+            }
+
             // The UpdateProjectRFQAsync service method should only use project.ClientId
             await SaleService.UpdateProjectRFQAsync(project); 
             Console.WriteLine($"Đã cập nhật dự án: {project.ProjectRFQName}");
@@ -182,18 +347,31 @@ else
 
     private void GoBack()
     {
-        NavManager.NavigateTo("/sale/projectrfq");
+        NavManager.NavigateTo("/projects");
     }
     private string GetVietnameseStatus(ProjectRFQStatus status)
     {
         return status switch
         {
-            ProjectRFQStatus.Planning => "Lên kế hoạch",
+            ProjectRFQStatus.Planning => "Chờ phê duyệt",
             ProjectRFQStatus.Production => "Đang sản xuất",
             ProjectRFQStatus.Deploying => "Đang lắp đặt",
-            ProjectRFQStatus.Completed => "Đã xong",
-            ProjectRFQStatus.Cancelled => "Bị hủy",
+            ProjectRFQStatus.Completed => "Đã hoàn thành",
+            ProjectRFQStatus.Cancelled => "Đã hủy",
             _ => status.ToString()
+        };
+    }
+
+    private string GetStatusClass(ProjectRFQStatus status)
+    {
+        return status switch
+        {
+            ProjectRFQStatus.Planning => "bg-primary text-white",
+            ProjectRFQStatus.Production => "bg-warning text-dark",
+            ProjectRFQStatus.Deploying => "bg-info text-white",
+            ProjectRFQStatus.Completed => "bg-success text-white",
+            ProjectRFQStatus.Cancelled => "bg-danger text-white",
+            _ => "bg-secondary text-white"
         };
     }
 

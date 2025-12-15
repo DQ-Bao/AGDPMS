@@ -11,7 +11,11 @@ public interface ISaleServices
     Task<AppRFQ?> GetProjectRFQByIdAsync(int projectId);
     Task<AppRFQ> CreateProjectRFQAsync(AppRFQ project); 
     Task UpdateProjectRFQAsync(AppRFQ project);
-    Task UpdateProjectRFQStatusAsync(int projectId, ProjectRFQStatus newStatus);
+    // State machine methods - status transitions are controlled
+    Task ApproveProjectAsync(int projectId); // Planning -> Production (Admin only)
+    Task CancelProjectAsync(int projectId); // Any -> Cancelled (Admin only)
+    Task CompleteProductionAsync(int projectId); // Production -> Deploying (automatic)
+    Task CompleteDeployAsync(int projectId); // Deploying -> Completed (automatic)
     Task DeleteProjectRFQAsync(int projectId);
     Task<PagedResult<AppRFQ>> GetProjectsRFQWithClientAsync(string? searchTerm = null, int pageNumber = 1, int pageSize = 10);
 
