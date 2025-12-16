@@ -10,4 +10,5 @@ public interface IFileStorageService
         string[] allowedExtensions,
         long maxSizeBytes = 100 * 1024 * 1024);
 
+    Task<bool> DeleteFileAsync(string webPath);
 }
