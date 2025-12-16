@@ -5,6 +5,7 @@ using AGDPMS.Web.Data;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 using System.Linq;
+using System.Globalization;
 
 namespace AGDPMS.Web.Endpoints;
 
@@ -51,6 +52,7 @@ public static class ProductionOrdersEndpoints
             ProductionItemDataAccess itemAccess,
             ProductionItemStageDataAccess stageAccess,
             UserDataAccess userAccess,
+            ProjectDataAccess projectAccess,
             HttpContext httpContext) =>
         {
             int? pid = null;
@@ -130,6 +132,15 @@ public static class ProductionOrdersEndpoints
 
             var allUsers = (await userAccess.GetAllAsync()).ToDictionary(u => u.Id);
 
+            // Load project names for all referenced projects
+            var projectNameMap = new Dictionary<int, string?>();
+            var projectIds = orders.Select(o => o.ProjectId).Distinct().ToArray();
+            if (projectIds.Length > 0)
+            {
+                var projects = await projectAccess.GetByIdsAsync(projectIds);
+                projectNameMap = projects.ToDictionary(p => p.Id, p => p.Name);
+            }
+
             // compute hasPendingQa per order: any stage assigned and not completed
             var result = new List<object>();
             foreach (var o in orders)
@@ -146,11 +157,13 @@ public static class ProductionOrdersEndpoints
                     }
                 }
                 allUsers.TryGetValue(o.AssignedQaUserId ?? -1, out var qaUser);
+                projectNameMap.TryGetValue(o.ProjectId, out var projectName);
 
                 result.Add(new
                 {
                     o.Id,
                     o.ProjectId,
+                    ProjectName = projectName,
                     o.Code,
                     o.Status,
                     o.AssignedQaUserId,
@@ -344,6 +357,178 @@ public static class ProductionOrdersEndpoints
                 return Results.NotFound(new { message = ex.Message });
             }
         }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Director" });
+
+        // Dashboard summary for Production Manager and Director
+        group.MapGet("/summary", async (
+            string? from,
+            string? to,
+            string? projectId,
+            string? statuses,
+            ProductionOrderDataAccess orderAccess,
+            ProjectDataAccess projectAccess,
+            HttpContext httpContext) =>
+        {
+            // Check authorization - allow Production Manager, Director, and Admin
+            var userRole = httpContext.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
+            var allowedRoles = new[] { "Production Manager", "Director"};
+            if (userRole == null || !allowedRoles.Any(r => string.Equals(userRole, r, StringComparison.OrdinalIgnoreCase)))
+            {
+                return Results.Unauthorized();
+            }
+
+            DateTime dateTo = DateTime.UtcNow.Date;
+            DateTime dateFrom = dateTo.AddDays(-29); // default last 30 days
+            if (DateTime.TryParse(from, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedFrom))
+                dateFrom = parsedFrom.Date;
+            if (DateTime.TryParse(to, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedTo))
+                dateTo = parsedTo.Date;
+
+            int? pid = null;
+            if (!string.IsNullOrWhiteSpace(projectId) && int.TryParse(projectId, out var parsedPid))
+                pid = parsedPid;
+
+            var statusList = new List<int>();
+            if (!string.IsNullOrWhiteSpace(statuses))
+            {
+                statusList = statuses.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                                     .Select(s => int.TryParse(s, out var v) ? v : (int?)null)
+                                     .Where(v => v.HasValue)
+                                     .Select(v => v!.Value)
+                                     .ToList();
+            }
+
+            var allOrders = (await orderAccess.ListAsync(pid, null, "created_at", "desc")).ToList();
+
+            var filtered = allOrders
+                .Where(o => o.CreatedAt.HasValue && o.CreatedAt.Value.Date >= dateFrom && o.CreatedAt.Value.Date <= dateTo)
+                .ToList();
+
+            if (statusList.Any())
+            {
+                filtered = filtered.Where(o => statusList.Contains((int)o.Status)).ToList();
+            }
+
+            // Load project names
+            var projectNames = new Dictionary<int, string?>();
+            var pids = filtered.Select(o => o.ProjectId).Distinct().ToArray();
+            if (pids.Any())
+            {
+                var proj = await projectAccess.GetByIdsAsync(pids);
+                projectNames = proj.ToDictionary(p => p.Id, p => p.Name);
+            }
+
+            // Status counts (exclude DirectorRejected)
+            var statusCounts = filtered
+                .Where(o => o.Status != ProductionOrderStatus.DirectorRejected)
+                .GroupBy(o => o.Status)
+                .ToDictionary(g => g.Key.ToString(), g => g.Count());
+
+            var totalOrders = filtered.Count(o => o.Status != ProductionOrderStatus.DirectorRejected);
+            var inProduction = filtered.Count(o => o.Status == ProductionOrderStatus.InProduction);
+            var finished = filtered.Count(o => o.Status == ProductionOrderStatus.Finished);
+            var open = filtered.Count(o =>
+                o.Status == ProductionOrderStatus.Draft ||
+                o.Status == ProductionOrderStatus.PendingDirectorApproval ||
+                o.Status == ProductionOrderStatus.PendingQACheckMachines ||
+                o.Status == ProductionOrderStatus.PendingQACheckMaterial);
+
+            // On-time vs late (order-level)
+            int onTime = 0, late = 0;
+            foreach (var o in filtered)
+            {
+                if (!o.PlannedFinishDate.HasValue) continue;
+                var planned = o.PlannedFinishDate.Value;
+                if (o.Status == ProductionOrderStatus.Finished && o.FinishedAt.HasValue)
+                {
+                    if (o.FinishedAt.Value <= planned) onTime++; else late++;
+                }
+                else if (o.Status == ProductionOrderStatus.InProduction || o.Status == ProductionOrderStatus.PendingQACheckMachines || o.Status == ProductionOrderStatus.PendingQACheckMaterial)
+                {
+                    if (DateTime.UtcNow <= planned) onTime++; else late++;
+                }
+            }
+
+            // Timeline by week (ISO week) - label by week start date (dd/MM)
+            var timeline = new Dictionary<string, (int Started, int Finished)>();
+            foreach (var o in filtered)
+            {
+                if (o.StartedAt.HasValue)
+                {
+                    var week = ISOWeek.GetWeekOfYear(o.StartedAt.Value);
+                    var year = o.StartedAt.Value.Year;
+                    var monday = ISOWeek.ToDateTime(year, week, DayOfWeek.Monday);
+                    var key = monday.ToString("dd/MM");
+                    timeline.TryGetValue(key, out var entry);
+                    entry.Started++;
+                    timeline[key] = entry;
+                }
+                if (o.FinishedAt.HasValue)
+                {
+                    var week = ISOWeek.GetWeekOfYear(o.FinishedAt.Value);
+                    var year = o.FinishedAt.Value.Year;
+                    var monday = ISOWeek.ToDateTime(year, week, DayOfWeek.Monday);
+                    var key = monday.ToString("dd/MM");
+                    timeline.TryGetValue(key, out var entry);
+                    entry.Finished++;
+                    timeline[key] = entry;
+                }
+            }
+            var timelineList = timeline.OrderBy(k => k.Key).Select(k => new { Week = k.Key, Started = k.Value.Started, Finished = k.Value.Finished }).ToList();
+
+            // Avg cycle time (days) for finished
+            var finishedDurations = filtered
+                .Where(o => o.Status == ProductionOrderStatus.Finished && o.StartedAt.HasValue && o.FinishedAt.HasValue)
+                .Select(o => (o.FinishedAt.Value - o.StartedAt.Value).TotalDays);
+            double? avgCycleDays = finishedDurations.Any() ? finishedDurations.Average() : null;
+
+            // Recent orders
+            var recent = filtered
+                .Where(o => o.Status != ProductionOrderStatus.DirectorRejected)
+                .OrderByDescending(o => o.CreatedAt)
+                .Take(10)
+                .Select(o =>
+                {
+                    projectNames.TryGetValue(o.ProjectId, out var pname);
+                    var planned = o.PlannedFinishDate;
+                    bool? isLate = null;
+                    if (planned.HasValue)
+                    {
+                        if (o.Status == ProductionOrderStatus.Finished && o.FinishedAt.HasValue)
+                            isLate = o.FinishedAt.Value > planned.Value;
+                        else if (o.Status == ProductionOrderStatus.InProduction || o.Status == ProductionOrderStatus.PendingQACheckMachines || o.Status == ProductionOrderStatus.PendingQACheckMaterial)
+                            isLate = DateTime.UtcNow > planned.Value;
+                    }
+                    return new
+                    {
+                        o.Id,
+                        o.Code,
+                        o.ProjectId,
+                        ProjectName = pname,
+                        o.Status,
+                        o.PlannedFinishDate,
+                        o.StartedAt,
+                        o.FinishedAt,
+                        IsLate = isLate
+                    };
+                }).ToList();
+
+            var summary = new
+            {
+                DateFrom = dateFrom,
+                DateTo = dateTo,
+                TotalOrders = totalOrders,
+                OpenOrders = open,
+                InProduction = inProduction,
+                Finished = finished,
+                AvgCycleDays = avgCycleDays,
+                StatusCounts = statusCounts,
+                OnTimeLate = new { OnTime = onTime, Late = late },
+                Timeline = timelineList,
+                RecentOrders = recent
+            };
+
+            return Results.Ok(summary);
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
 
         group.MapPost("/{id:int}/submit", async (int id, ProductionOrderService svc) =>
         {

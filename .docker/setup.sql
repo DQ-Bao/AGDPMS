@@ -1,7 +1,7 @@
 set client_encoding to 'utf8';
 
-drop table if exists global_labor_cost_settings;
 drop table if exists global_stage_time_settings;
+drop table if exists global_labor_cost_settings;
 drop table if exists production_order_settings;
 drop table if exists stage_review_criteria_results;
 drop table if exists stage_reviews;
@@ -130,7 +130,7 @@ create table if not exists material_plannings (
     "id" serial primary key,
     "made_by" integer not null references users("id"),
     "project_id" integer not null references projects("id"),
-    "status" varchar(250) not null default 'Pending' check ("status" in ('Pending', 'Cancelled', 'Completed')),
+    "status" varchar(250) not null,
     "created_at" timestamp null default now()
 );
 
@@ -138,8 +138,6 @@ create table if not exists material_planning_details (
     "id" serial primary key,
     "planning_id" integer not null references material_plannings("id"),
     "material_id" varchar(250) not null references materials("id"),
-    "length" numeric(10,3) not null default 0,
-    "width" numeric(10,3) not null default 0,
     "quantity" integer not null,
     "unit" varchar(250),
     "note" text
@@ -392,12 +390,11 @@ insert into users ("fullname", "phone", "password_hash", "role_id", "need_change
 values 
 ('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1, false),
 ('Nguyễn Bảo Khánh', '0966699704', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 1, false),
+('Nguyễn Bảo Khánh', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3, false),
 ('QA Tester 0', '0900000000', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
 ('QA Tester 2', '0900000002', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
 ('QA Tester 3', '0900000003', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
-('Sale', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3, false),
-('Production Manager', '0900000001', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 6, false),
-('Inventory Manager', '0913992635', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1, false);
+('Production Manager', '0900000001', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 6, false);
 
 insert into material_type ("name")
 values ('Nhôm'), ('Kính'), ('Phụ kiện'), ('Roăng'), ('Vật tư phụ');
@@ -740,266 +737,40 @@ values
 
 insert into material_stock("material_id", "length", "base_price")
 values
---('F431', 6000, 88000),
---('C3208', 6000, 88000),
-('C3328', 6000, 88000),
-('C3328', 5800, 0),
-('C3303', 6000, 88000),
-('C18772', 6000, 88000),
-('C3332', 6000, 88000),
-('C18782', 6000, 88000),
-('C3322', 6000, 88000),
-('C22912', 6000, 88000),
-('C38032', 6000, 88000),
-('C3304', 6000, 88000),
-('C6614', 6000, 88000),
-('C3323', 6000, 88000),
-('C22903', 6000, 88000),
-('C22900', 6000, 88000),
-('C3329', 6000, 88000),
-('C3319', 6000, 88000),
-('C3291', 6000, 88000),
-('C3225', 6000, 88000),
-('C3296', 6000, 88000),
-('F347', 6000, 88000),
-('C3246', 6000, 88000),
-('C3286', 6000, 88000),
-('C3236', 6000, 88000),
-('C3206', 6000, 88000),
-('C3295', 6000, 88000),
-('C3318', 6000, 88000),
-('C8092', 6000, 88000),
-('C3202', 6000, 88000),
-('C18762', 6000, 88000),
-('C3312', 6000, 88000),
-('C22922', 6000, 88000),
-('C3033', 6000, 88000),
-('C3313', 6000, 88000),
 ('C3209', 6000, 88000),
+('C3295', 6000, 88000),
+('C3313', 6000, 88000),
+('C3328', 6000, 88000),
+('C22903', 6000, 88000),
+('C3303', 6000, 88000),
+('C3329', 6000, 88000),
+('C3296', 6000, 88000),
 ('C3203', 6000, 88000),
-('F077', 6000, 88000),
-('E1283', 6000, 88000),
-('E192', 6000, 88000),
-('B507', 6000, 88000),
+('C3318', 6000, 88000),
+('C3202', 6000, 88000),
 ('C3300', 6000, 88000),
-('C3310', 6000, 88000),
-('C3210', 6000, 88000),
-('C920', 6000, 88000),
-('C910', 6000, 88000),
-('C459', 6000, 88000),
-('C3317', 6000, 88000),
-('C3207', 6000, 88000),
-('C1687', 6000, 88000),
-('C4137', 6000, 88000),
-('C1697', 6000, 88000),
-('C38019', 6000, 88000),
-('C38038', 6000, 88000),
-('C38039', 6000, 88000),
-('C48949', 6000, 88000),
-('C48954', 6000, 88000),
-('C48953', 6000, 88000),
-('C38010', 6000, 88000),
-('C48980', 6000, 88000),
-('C48945', 6000, 88000),
-('CX283', 6000, 88000),
-('CX281', 6000, 88000),
-('CX282', 6000, 88000),
-('CX568', 6000, 88000),
-('CX309', 6000, 88000),
-('CX267', 6000, 88000),
-('CX264', 6000, 88000),
-('CX750', 6000, 88000),
-('CX266', 6000, 88000),
-('CX265', 6000, 88000),
-('C25899', 6000, 88000),
-('CX311', 6000, 88000),
-('CX310', 6000, 88000),
-('C1757', 6000, 88000),
-('C40988', 6000, 88000),
-('C48952', 6000, 88000),
-('C40912', 6000, 88000),
-('C48942', 6000, 88000),
-('C40902', 6000, 88000),
-('C40983', 6000, 88000),
-('C40984', 6000, 88000),
-('C44249', 6000, 88000),
-('C44234', 6000, 88000),
-('C40869', 6000, 88000),
-('C40973', 6000, 88000),
-('C40978', 6000, 88000),
-('E17523', 6000, 88000),
-('C44226', 6000, 88000),
-('C40979', 6000, 88000),
-('F605', 6000, 88000),
-('F606', 6000, 88000),
-('F4116', 6000, 88000),
-('F607', 6000, 88000),
-('F2435', 6000, 88000),
-('F523', 6000, 88000),
-('F4117', 6000, 88000),
-('F5017', 6000, 88000),
-('F522', 6000, 88000),
-('F560', 6000, 88000),
-('F520', 6000, 88000),
-('F519', 6000, 88000),
-('F6029', 6000, 88000),
-('F521', 6000, 88000),
-('F608', 6000, 88000),
-('F609', 6000, 88000),
-('F417', 6000, 88000),
-('D23151', 6000, 88000),
-('D45482', 6000, 88000),
-('D23156', 6000, 88000),
-('D23157', 6000, 88000),
-('D23158', 6000, 88000),
-('D23159', 6000, 88000),
-('D44329', 6000, 88000),
-('D44035', 6000, 88000),
-('D44327', 6000, 88000),
-('D44328', 6000, 88000),
-('D47713', 6000, 88000),
-('D45316', 6000, 88000),
-('D44564', 6000, 88000),
-('D47688', 6000, 88000),
-('D46070', 6000, 88000),
-('D47679', 6000, 88000),
-('D47678', 6000, 88000),
-('D45478', 6000, 88000),
-('D44569', 6000, 88000),
-('D1541A', 6000, 88000),
-('D1551A', 6000, 88000),
-('D17182', 6000, 88000),
-('D1942', 6000, 88000),
-('D1542A', 6000, 88000),
+('C3304', 6000, 88000),
+--('C3208', 6000, 88000),
 ('D1543A', 6000, 88000),
-('D3213', 6000, 88000),
-('D3211', 6000, 88000),
-('D3212', 6000, 88000),
+('D1555A', 6000, 88000),
 ('D1544A', 6000, 88000),
-('D1545A', 6000, 88000),
 ('D1546A', 6000, 88000),
 ('D1547A', 6000, 88000),
-('D28144', 6000, 88000),
-('D1555A', 6000, 88000),
-('D26146', 6000, 88000),
-('D28127', 6000, 88000),
-('D1559A', 6000, 88000),
-('D2618', 6000, 88000),
-('D1354', 6000, 88000),
-('D1548A', 6000, 88000),
-('D1549A', 6000, 88000),
-('D1578', 6000, 88000),
-('D2420', 6000, 88000),
-('D2490', 6000, 88000),
-('D34608', 6000, 88000),
-('D1779', 6000, 88000),
-('D1298', 6000, 88000),
-('D1168', 6000, 88000),
-('C101', 6000, 88000),
-('F631', 6000, 88000),
-('F632', 6000, 88000),
-('F633', 6000, 88000),
-('F2084', 6000, 88000),
-('F630', 6000, 88000),
-('F949', 6000, 88000),
-('D47680', 6000, 88000),
-('A1079', 6000, 88000),
-('A1080', 6000, 88000),
-('D47590', 6000, 88000),
-('GK461', 6000, 88000),
-('GK471', 6000, 88000),
-('GK481', 6000, 88000),
-('GK491', 6000, 88000),
-('GK501', 6000, 88000),
-('E21451', 6000, 88000),
-('GK581', 6000, 88000),
-('GK993', 6000, 88000),
-('GK2053', 6000, 88000),
-('GK2467', 6000, 88000),
-('GK858', 6000, 88000),
-('GK1073', 6000, 88000),
-('GK015', 6000, 88000),
-('GK066', 6000, 88000),
-('GK780', 6000, 88000),
-('GK1495', 6000, 88000),
-('GK806', 6000, 88000),
-('GK1035', 6000, 88000),
-('GK606', 6000, 88000),
-('GK294', 6000, 88000),
-('GK2464', 6000, 88000),
-('GK1255', 6000, 88000),
-('GK1325', 6000, 88000),
-('GK1295', 6000, 88000),
-('GK1365', 6000, 88000),
-('GK505', 6000, 88000),
-('GK1215', 6000, 88000),
-('GK001', 6000, 88000),
-('GK011', 6000, 88000),
-('GK021', 6000, 88000),
-('GK251', 6000, 88000),
-('GK261', 6000, 88000),
-('GK813', 6000, 88000),
-('GK853', 6000, 88000),
-('GK413', 6000, 88000),
-('GK1745', 6000, 88000),
-('GK228', 6000, 88000),
-('GK238', 6000, 88000),
-('GK218', 6000, 88000),
-('GK208', 6000, 88000),
-('GK255', 6000, 88000),
-('GK275', 6000, 88000),
-('GK1064', 6000, 88000),
-('GK534', 6000, 88000),
-('GK454', 6000, 88000),
-('E1214', 6000, 88000),
-('E1215', 6000, 88000),
-('E1216', 6000, 88000),
-('B1735', 6000, 88000),
-('E1217', 6000, 88000),
-('E1218', 6000, 88000),
-('B2831', 6000, 88000),
-('B2832', 6000, 88000),
-('B2846', 6000, 88000),
-('B2833', 6000, 88000),
-('B2834', 6000, 88000),
-('B2835', 6000, 88000),
-('B4425', 6000, 88000),
-('B4426', 6000, 88000),
-('B4429', 6000, 88000),
-('B4428', 6000, 88000),
-('B4430', 6000, 88000),
-('B4427', 6000, 88000),
-('B3730', 6000, 88000),
-('B3731', 6000, 88000),
-('B3732', 6000, 88000),
-('B3733', 6000, 88000);
-
-
-INSERT INTO stock_import ("material_id", "quantity_change", "quantity_after", "price", "date")
-VALUES
-('F2435', 50, 150, 1250000, '2025-01-10'),
-('F605', 30, 180, 1250000, '2025-01-15'),
-('D23157', 30, 180, 1250000, '2025-01-15'),
-('D23151', 20, 60, 890000, '2025-01-11'),
-('D23156', 40, 100, 885000, '2025-01-21'),
-('F605', 10, 25, 1500000, '2025-02-01'),
-('F521', 100, 100, 450000, '2025-01-05'),
-('C3296', 50, 150, 460000, '2025-02-03'),
-('C3328', 70, 70, 2150000, '2025-02-02'),
-('C3209', 25, 75, 900000, '2025-01-10'),
-('C3313', 40, 140, 910000, '2025-01-10'),
-('D1543A', 15, 45, 880000, '2025-01-10'),
-('C3329', 20, 120, 700000, '2025-01-15'),
-('F607', 50, 200, 760000, '2025-01-15'),
-('D1546A', 35, 85, 830000, '2025-01-15'),
-('C3303', 60, 160, 1200000, '2025-02-02'),
-('C3318', 10, 110, 1180000, '2025-02-02'),
-('D1547A', 25, 125, 1190000, '2025-02-02'),
-('F606', 40, 140, 450000, '2025-01-05'),
-('C3236', 30, 130, 440000, '2025-01-05'),
-('C3203', 55, 155, 480000, '2025-02-03'),
-('F523', 20, 120, 500000, '2025-02-03'),
-('D1541A', 35, 135, 530000, '2025-02-03');
+('D1942', 6000, 88000),
+('D1541A', 6000, 88000),
+('D23156', 6000, 88000),
+('D23157', 6000, 88000),
+('D23151', 6000, 88000),
+('C3236', 6000, 88000),
+('F606', 6000, 88000),
+('F605', 6000, 88000),
+('F523', 6000, 88000),
+('F560', 6000, 88000),
+('F607', 6000, 88000),
+('F2435', 6000, 88000),
+('F520', 6000, 88000),
+('F521', 6000, 88000);
+--('F431', 6000, 88000);
 
 insert into clients ("name", "address", "phone", "email", "sales_in_charge_id")
 values
@@ -1219,9 +990,9 @@ and not exists (
   select 1 from production_item_stages s where s.production_order_item_id = i.id and s.stage_type_id = st.id
 );
 
--- Update PO-ALPHA-001 to InProduction status with planned dates
+-- Update PO-ALPHA-001 to Finished status with planned & actual dates
 update production_orders
-set status = 5, -- InProduction
+set status = 6, -- Finished
   planned_start_date = '2025-11-01 08:00:00',
   planned_finish_date = '2025-11-15 17:00:00',
   submitted_at = '2025-10-25 09:00:00',
@@ -1229,6 +1000,7 @@ set status = 5, -- InProduction
   qa_machines_checked_at = '2025-10-27 11:00:00',
   qa_material_checked_at = '2025-10-28 12:00:00',
   started_at = '2025-11-01 08:00:00',
+  finished_at = '2025-11-16 10:00:00',
   updated_at = now()
 where code = 'PO-ALPHA-001';
 
@@ -1236,6 +1008,11 @@ where code = 'PO-ALPHA-001';
 update production_order_items
 set planned_start_date = '2025-11-01 08:00:00',
   planned_finish_date = '2025-11-15 17:00:00',
+  actual_start_date = '2025-11-01 08:30:00',
+  actual_finish_date = '2025-11-16 10:00:00',
+  is_completed = true,
+  completed_at = '2025-11-16 10:00:00',
+  is_stored = true,
   updated_at = now()
 where production_order_id = (select id from production_orders where code = 'PO-ALPHA-001');
 
@@ -1268,6 +1045,50 @@ SET
           ELSE interval '0 days'
       END
   ),
+  planned_finish_date = src.planned_start_date + (
+      CASE 
+          WHEN src.code = 'CUT_AL' THEN interval '0.5 days'
+          WHEN src.code = 'MILL_LOCK' THEN interval '0.5 days'
+          WHEN src.code = 'DOOR_CORNER_CUT' THEN interval '1 day'
+          WHEN src.code = 'ASSEMBLE_FRAME' THEN interval '1.5 days'
+          WHEN src.code = 'GLASS_INSTALL' THEN interval '1 day'
+          WHEN src.code = 'PRESS_GASKET' THEN interval '0.5 days'
+          WHEN src.code = 'INSTALL_ACCESSORIES' THEN interval '1 day'
+          WHEN src.code = 'CUT_FLUSH' THEN interval '0.5 days'
+          WHEN src.code = 'FINISH_SILICON' THEN interval '1 day'
+          ELSE interval '0.5 days'
+      END
+  ),
+  planned_time_hours = 
+      CASE 
+          WHEN src.code = 'CUT_AL' THEN 4.0
+          WHEN src.code = 'MILL_LOCK' THEN 3.0
+          WHEN src.code = 'DOOR_CORNER_CUT' THEN 2.0
+          WHEN src.code = 'ASSEMBLE_FRAME' THEN 5.0
+          WHEN src.code = 'GLASS_INSTALL' THEN 6.0
+          WHEN src.code = 'PRESS_GASKET' THEN 3.0
+          WHEN src.code = 'INSTALL_ACCESSORIES' THEN 4.0
+          WHEN src.code = 'CUT_FLUSH' THEN 2.0
+          WHEN src.code = 'FINISH_SILICON' THEN 3.0
+          ELSE 2.0
+      END,
+  actual_start_date = src.planned_start_date + interval '0.1 days',
+  actual_finish_date = src.planned_start_date + interval '5.5 days',
+  actual_time_hours = 
+      CASE 
+          WHEN src.code = 'CUT_AL' THEN 4.5
+          WHEN src.code = 'MILL_LOCK' THEN 3.5
+          WHEN src.code = 'DOOR_CORNER_CUT' THEN 2.5
+          WHEN src.code = 'ASSEMBLE_FRAME' THEN 5.5
+          WHEN src.code = 'GLASS_INSTALL' THEN 6.5
+          WHEN src.code = 'PRESS_GASKET' THEN 3.5
+          WHEN src.code = 'INSTALL_ACCESSORIES' THEN 4.5
+          WHEN src.code = 'CUT_FLUSH' THEN 2.5
+          WHEN src.code = 'FINISH_SILICON' THEN 3.5
+          ELSE 2.5
+      END,
+  is_completed = true,
+  completed_at = src.planned_start_date + interval '6 days',
   updated_at = now()
 FROM src
 WHERE pis.id = src.id;
@@ -1281,9 +1102,45 @@ VALUES
 INSERT INTO machines 
 ("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
 VALUES
-('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, NULL,'mm/phút', NULL),
 ('Máy Cắt Góc', 1, 'Operational', '2025-02-20', NULL, 5, 'mm', NULL),
-('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);
+('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL),
+('Máy cắt nhôm 01', 1, 'Operational', '2025-04-01', NULL, NULL, 'mm/phút', NULL),
+('Máy khoét khóa 01', 2, 'Operational', '2025-04-05', NULL, NULL, 'sản phẩm/giờ', NULL),
+('Máy khóa bản lề 01', 2, 'Operational', '2025-04-10', NULL, NULL, 'sản phẩm/giờ', NULL),
+('Máy phay đố 01', 1, 'Operational', '2025-04-15', NULL, NULL, 'mm/phút', NULL),
+('Máy ép góc 01', 1, 'Operational', '2025-04-20', NULL, NULL, 'mm/phút', NULL)
+ON CONFLICT DO NOTHING;
+
+-- Gán máy cho từng loại giai đoạn (stage_types.machine_id)
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'CUT_AL'
+  AND m.name = 'Máy cắt nhôm 01';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'MILL_LOCK'
+  AND m.name = 'Máy Phay Ổ Khóa';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'ASSEMBLE_FRAME'
+  AND m.name = 'Máy khóa bản lề 01';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'CUT_FLUSH'
+  AND m.name = 'Máy phay đố 01';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'DOOR_CORNER_CUT'
+  AND m.name = 'Máy Cắt Góc';
 
 -- Stage Criteria for QA Review
 -- =========================

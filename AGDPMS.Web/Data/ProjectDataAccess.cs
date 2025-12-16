@@ -10,6 +10,12 @@ public class ProjectDataAccess(IDbConnection conn)
         where @Q is null or @Q = '' or (name ilike '%'||@Q||'%')
         order by id desc",
         new { Q = q });
+
+    public Task<IEnumerable<(int Id, string? Name)>> GetByIdsAsync(IEnumerable<int> ids) => conn.QueryAsync<(int, string?)>(@"
+        select id, name 
+        from projects
+        where id = any(@Ids)",
+        new { Ids = ids.ToArray() });
 }
 
 

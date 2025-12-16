@@ -54,7 +54,7 @@
                     <i class="bx bx-plus me-1"></i> Thêm sản phẩm
                 </button>
             <button class="btn btn-primary" @onclick="GoToPreview" disabled="@(stampsToPrint.Count == 0)">
-                <i class="bx bx-show me-1"></i> XEM TRƯỚC BẢN IN (@stampsToPrint.Count tem)
+                <i class="bx bx-show me-1"></i> XEM TRƯỚC BẢN IN (@GetStampsForPreview().Count tem)
             </button>
             </div>
         }
@@ -143,7 +143,7 @@
 
     @if (isPreviewMode)
     {
-        <PrintWarrantyStamps Stamps="@stampsToPrint" />
+        <PrintWarrantyStamps Stamps="@GetStampsForPreview()" />
     }
 
     @if (showSelectModal)
@@ -434,6 +434,20 @@
         {
             isPreviewMode = true;
         }
+    }
+
+    private List<WarrantyStamp> GetStampsForPreview()
+    {
+        // If there are selected stamps, only preview those (in original order).
+        if (selectedStamps.Any())
+        {
+            return stampsToPrint
+                .Where(s => selectedStamps.Contains(s))
+                .ToList();
+        }
+
+        // Otherwise preview all stamps.
+        return stampsToPrint;
     }
 
     private void BackToEdit()

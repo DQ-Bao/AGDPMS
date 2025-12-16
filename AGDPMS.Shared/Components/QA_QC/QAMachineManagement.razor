@@ -7,6 +7,7 @@
 @using AGDPMS.Shared.Services
 @inject NavigationManager NavManager
 @inject IQAService QAService
+@inject HttpClient Http
 
 <PageTitle>Quản lý Máy móc</PageTitle>
 
@@ -53,9 +54,17 @@
                                 <span @onclick="() => RequestEditName(machine)"
                                       style="cursor: pointer;"
                                       title="Sửa tên máy"
-                                      class="d-inline-flex align-items-center">
-                                    <strong>@machine.Name</strong>
-                                    <i class="bx bx-pencil ms-1 text-muted small"></i>
+                                      class="d-inline-flex flex-column">
+                                    <span class="d-inline-flex align-items-center">
+                                        <strong>@machine.Name</strong>
+                                        <i class="bx bx-pencil ms-1 text-muted small"></i>
+                                    </span>
+                                    @if (machineStages.TryGetValue(machine.Id, out var stages) && stages.Any())
+                                    {
+                                        <span class="small text-muted mt-1">
+                                            Giai đoạn: @string.Join(", ", stages)
+                                        </span>
+                                    }
                                 </span>
                             </td>
                             <td>@machine.MachineType.Name</td>
@@ -208,7 +217,31 @@
     private MachineStatus newStatusForMachine;
     private string failureReason = string.Empty;
 
-    protected override async Task OnInitializedAsync() { await LoadData(); }
+    // machineId -> list of stage names
+    private Dictionary<int, List<string>> machineStages = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMachineStages();
+        await LoadData();
+    }
+
+    private async Task LoadMachineStages()
+    {
+        try
+        {
+            var dtos = await Http.GetFromJsonAsync<List<QaMachineStageDto>>("/api/lookup/qa-machine-stages");
+            machineStages = dtos?
+                .Where(d => d.MachineId > 0 && !string.IsNullOrWhiteSpace(d.StageName))
+                .GroupBy(d => d.MachineId)
+                .ToDictionary(g => g.Key, g => g.Select(x => x.StageName!).Distinct().ToList())
+                ?? new();
+        }
+        catch
+        {
+            machineStages = new();
+        }
+    }
     private async Task LoadData()
     {
         isLoading = true;
@@ -368,5 +401,12 @@
     public void Dispose()
     {
         searchTimer?.Dispose();
+    }
+
+    private class QaMachineStageDto
+    {
+        public int MachineId { get; set; }
+        public string? StageCode { get; set; }
+        public string? StageName { get; set; }
     }
 }

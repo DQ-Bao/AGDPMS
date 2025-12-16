@@ -91,7 +91,7 @@
                 }
                 @if (IsProductionManager() || IsDirector())
                 {
-                    <button class="btn btn-outline-dark btn-sm" @onclick="OpenCostModal">Quản lý chi phí</button>
+                    <button class="btn btn-outline-dark btn-sm" @onclick="OpenCostModal">Quản lý chi phí (EVM)</button>
                 }
                 @if (model?.items?.Any() == true)
                 {
@@ -244,7 +244,7 @@
                                                     <small class="text-muted">@qa.Phone</small>
                                                 </div>
                                                 <div class="text-end">
-                                                    <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
+                                                    <span class="badge bg-secondary">@GetQaWorkloadText(qa)</span>
                                                 </div>
                                             </div>
                                         </button>
@@ -316,7 +316,8 @@
                         var editingPlan = editingItemPlanId == it.Id;
                         var editingActual = editingItemActualId == it.Id;
                         var editingCode = editingItemCodeId == it.Id;
-                        <tr class="@rowClass">
+                        <tr class="@rowClass" style="cursor:pointer;"
+                            @onclick='@(() => Nav.NavigateTo($"/production/orders/{Id}/items/{it.Id}"))'>
                             <td>
                                 @if (CanEditItemCode() && editingCode)
                                 {
@@ -349,7 +350,9 @@
                                 }
                             </td>
                             <td>
-                                <a href="/production/orders/@Id/items/@it.Id" class="text-decoration-none">
+                                <a href="http://localhost:5273/cavities/@it.CavityId"
+                                   class="text-decoration-none"
+                                   @onclick:stopPropagation="true">
                                     @(string.IsNullOrWhiteSpace(it.CavityName) ? (it.CavityCode ?? $"Cavity {it.CavityId}") : it.CavityName)
                                 </a>
                                 @if (it.IsLate)
@@ -1122,6 +1125,40 @@
         public string? Name { get; set; }
         public string? Phone { get; set; }
         public int PendingItemsCount { get; set; }
+        public int PendingMachinesCount { get; set; }
+        public int PendingMaterialCount { get; set; }
+        public int PendingStagesCount { get; set; }
+    }
+
+    private string GetQaWorkloadText(QaUser qa)
+    {
+        var total = qa.PendingItemsCount;
+        if (total <= 0)
+        {
+            return "Rảnh";
+        }
+
+        var parts = new List<string>
+        {
+            $"Còn {total} việc"
+        };
+
+        if (qa.PendingMachinesCount > 0)
+        {
+            parts.Add($"KT máy: {qa.PendingMachinesCount}");
+        }
+
+        if (qa.PendingMaterialCount > 0)
+        {
+            parts.Add($"KT vật tư: {qa.PendingMaterialCount}");
+        }
+
+        if (qa.PendingStagesCount > 0)
+        {
+            parts.Add($"KT công đoạn: {qa.PendingStagesCount}");
+        }
+
+        return string.Join(" | ", parts);
     }
 
     private class StageDto

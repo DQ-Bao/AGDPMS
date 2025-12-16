@@ -35,6 +35,9 @@
                     <h6 class="mb-0">Thiết lập mặc định</h6>
                     <button class="btn btn-sm btn-primary" @onclick="SaveStageTimes" disabled="@savingTime">Lưu</button>
                 </div>
+                <p class="text-muted small mb-3">
+                    Những thiết lập này sẽ dùng để ước lượng thời gian thực hiện của các giai đoạn khi lên kế hoạch.
+                </p>
                 @if (loadingTime)
                 {
                     <div>Đang tải...</div>

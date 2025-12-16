@@ -107,11 +107,12 @@ public class ProductionOrderService(
         var qaIds = qaUsers.Select(u => u.Id).ToList();
         var workloads = await GetQaOrderWorkloadsAsync(qaIds);
 
+        // Find QA with least workload
         var qaWithLeast = qaUsers
             .OrderBy(u => workloads.GetValueOrDefault(u.Id, 0))
-            .ThenBy(u => u.FullName)
+            .ThenBy(u => u.Id) // Use ID instead of name for deterministic but fair distribution
             .FirstOrDefault();
-
+        
         return qaWithLeast?.Id;
     }
 
@@ -125,22 +126,20 @@ public class ProductionOrderService(
             dbConnection.Open();
         }
 
+        // Count ALL orders assigned to QA (including Draft) to get accurate workload
+        // This ensures we distribute new orders fairly even when QAs have orders in Draft status
         var rows = await dbConnection.QueryAsync<(int? QaUserId, int Count)>(@"
             select assigned_qa_user_id as QaUserId,
-                   sum(
-                       (case when qa_machines_checked_at is null then 1 else 0 end) +
-                       (case when qa_material_checked_at is null then 1 else 0 end)
-                   ) as Count
+                   count(*) as Count
             from production_orders
             where assigned_qa_user_id = any(@QaIds)
-              and status between @StatusStart and @StatusEnd
               and is_cancelled = false
+              and status <= @MaxStatus
             group by assigned_qa_user_id",
             new
             {
                 QaIds = qaIds,
-                StatusStart = (short)ProductionOrderStatus.PendingQACheckMachines,
-                StatusEnd = (short)ProductionOrderStatus.InProduction
+                MaxStatus = (short)ProductionOrderStatus.InProduction // Include Draft, PendingDirectorApproval, etc.
             });
 
         foreach (var row in rows)
@@ -177,6 +176,7 @@ public class ProductionOrderService(
             dbConnection.Open();
         }
 
+        // Count ALL pending stages assigned to QA (including from Draft orders) for accurate workload
         var counts = await dbConnection.QueryAsync<(int? QaUserId, int Count)>(@"
             select pis.assigned_qa_user_id as QaUserId, count(distinct pis.id) as Count
             from production_item_stages pis
@@ -184,7 +184,7 @@ public class ProductionOrderService(
             join production_orders po on po.id = poi.production_order_id
             where pis.assigned_qa_user_id = any(@QaIds)
               and pis.is_completed = false
-              and po.status between @StatusStart and @StatusEnd
+              and po.status <= @MaxStatus
               and po.is_cancelled = false
               and not exists (
                   select 1 from stage_reviews sr
@@ -195,8 +195,7 @@ public class ProductionOrderService(
             new
             {
                 QaIds = qaIds,
-                StatusStart = (short)ProductionOrderStatus.PendingQACheckMachines,
-                StatusEnd = (short)ProductionOrderStatus.InProduction
+                MaxStatus = (short)ProductionOrderStatus.InProduction // Include Draft, PendingDirectorApproval, etc.
             });
         
         foreach (var result in counts)
@@ -207,12 +206,13 @@ public class ProductionOrderService(
             }
         }
 
-        var qaWithLeastItems = qaUsers
+        // Find QA with least workload, use ID for deterministic distribution when workloads are equal
+        var qaWithLeast = qaUsers
             .OrderBy(qa => itemCounts.GetValueOrDefault(qa.Id, 0))
-            .ThenBy(qa => qa.FullName)
+            .ThenBy(qa => qa.Id) // Use ID instead of name for round-robin effect
             .First();
-
-        await stageService.BulkAssignQaToItemAsync(itemId, qaWithLeastItems.Id);
+        
+        await stageService.BulkAssignQaToItemAsync(itemId, qaWithLeast.Id);
     }
 
     public async Task SubmitAsync(int orderId)

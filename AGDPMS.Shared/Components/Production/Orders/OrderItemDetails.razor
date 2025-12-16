@@ -499,7 +499,7 @@
                                             <small class="text-muted">@qa.Phone</small>
                                         </div>
                                         <div class="text-end">
-                                            <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
+                                            <span class="badge bg-secondary">@GetQaWorkloadText(qa)</span>
                                         </div>
                                     </div>
                                 </button>
@@ -553,7 +553,7 @@
                                             <small class="text-muted">@qa.Phone</small>
                                         </div>
                                         <div class="text-end">
-                                            <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
+                                            <span class="badge bg-secondary">@GetQaWorkloadText(qa)</span>
                                         </div>
                                     </div>
                                 </button>
@@ -1764,6 +1764,40 @@
         public string? Name { get; set; }
         public string? Phone { get; set; }
         public int PendingItemsCount { get; set; }
+        public int PendingMachinesCount { get; set; }
+        public int PendingMaterialCount { get; set; }
+        public int PendingStagesCount { get; set; }
+    }
+
+    private string GetQaWorkloadText(QaUser qa)
+    {
+        var total = qa.PendingItemsCount;
+        if (total <= 0)
+        {
+            return "Rảnh";
+        }
+
+        var parts = new List<string>
+        {
+            $"Còn {total} việc"
+        };
+
+        if (qa.PendingMachinesCount > 0)
+        {
+            parts.Add($"KT máy: {qa.PendingMachinesCount}");
+        }
+
+        if (qa.PendingMaterialCount > 0)
+        {
+            parts.Add($"KT vật tư: {qa.PendingMaterialCount}");
+        }
+
+        if (qa.PendingStagesCount > 0)
+        {
+            parts.Add($"KT công đoạn: {qa.PendingStagesCount}");
+        }
+
+        return string.Join(" | ", parts);
     }
 
     private void OpenRequestReviewConfirm(int stageId)
