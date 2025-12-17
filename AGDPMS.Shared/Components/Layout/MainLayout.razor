@@ -3,13 +3,11 @@
 
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
-@using Microsoft.JSInterop
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
 
 @inject NavigationManager Nav
 @inject INotificationService NotificationService
-@inject IJSRuntime JS
 @inject AuthenticationStateProvider AuthStateProvider
 
 <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="offcanvasSidebar">
@@ -189,54 +187,39 @@
     <div class="container-fluid mt-4">
         @Body
     </div>
-
-    @* load SignalR + bridge (served from Web project wwwroot) *@
-    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@7/dist/browser/signalr.min.js"></script> 
-    <script src="/js/notifications.js"></script>
-    <script src="/js/print.js"></script>
 </div>
 
 @code {
     private bool sidebarCollapsed = false;
 
-    private int unreadCount = 0;
-    private List<Notification> notifications = new();
+    private int unreadCount { get; set; } = 0;
+    private List<Notification> notifications { get; set; } = [];
 
-    private DotNetObjectReference<MainLayout>? dotNetRef;
     private string? currentUserId;
 
     protected override async Task OnInitializedAsync()
     {
-        // keep server-side in-process event subscription for Blazor Server updates
-        NotificationService.OnNotificationReceived += HandleNotificationReceived;
-
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
         currentUserId = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
+        NotificationService.OnNotificationReceived += HandleNotificationReceived;
+        await NotificationService.StartAsync();
         await LoadNotifications();
-    }
-
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        if (firstRender)
-        {
-            dotNetRef = DotNetObjectReference.Create(this);
-            // start client-side hub (JS) so the browser receives hub pushes
-            await JS.InvokeVoidAsync("notificationClient.start", dotNetRef);
-        }
     }
 
     private async Task LoadNotifications()
     {
-        var all = await NotificationService.GetNotificationsAsync();
-        // filter: global notifications (RecipientUserId == null) OR notifications for current user
-        notifications = all.Where(n => n.RecipientUserId == null || n.RecipientUserId == currentUserId).ToList();
-        unreadCount = notifications.Count(n => !n.IsRead);
+        var result = await NotificationService.GetNotificationsAsync();
+        if (result.Success)
+        {
+            notifications = result.Notifications.OrderByDescending(n => n.Timestamp).ToList();
+            unreadCount = notifications.Count(n => !n.IsRead);
+        }
     }
 
-    private async Task HandleNotificationReceived()
+    private async Task HandleNotificationReceived(Notification notification)
     {
-        await LoadNotifications();
+        notifications.Add(notification);
+        if (!notification.IsRead) unreadCount++;
         await InvokeAsync(StateHasChanged);
     }
 
@@ -256,31 +239,10 @@
         }
     }
 
-    [JSInvokable("ReceiveNotificationFromJs")]
-    public async Task ReceiveNotificationFromJs(Notification notification)
-    {
-        if (string.IsNullOrEmpty(notification.RecipientUserId) || notification.RecipientUserId == currentUserId)
-        {
-            await LoadNotifications();
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
-    [JSInvokable("NotificationUpdatedFromJs")]
-    public async Task NotificationUpdatedFromJs(Notification notification)
-    {
-        if (string.IsNullOrEmpty(notification.RecipientUserId) || notification.RecipientUserId == currentUserId)
-        {
-            await LoadNotifications();
-            await InvokeAsync(StateHasChanged);
-        }
-    }
-
     public void Dispose()
     {
         NotificationService.OnNotificationReceived -= HandleNotificationReceived;
-        dotNetRef?.Dispose();
-        _ = JS.InvokeVoidAsync("notificationClient.stop");
+        NotificationService.DisposeAsync();
     }
 
     private string GetTitle()

@@ -42,6 +42,7 @@ public static class MauiProgram
         }); // NOTE: For development only - accept self-signed certificates
         builder.Services.AddScoped<IAuthService, MobileAuthService>();
         builder.Services.AddScoped<IUserService, MobileUserService>();
+        builder.Services.AddScoped<INotificationService, MobileNotificationService>();
 
         return builder.Build();
     }

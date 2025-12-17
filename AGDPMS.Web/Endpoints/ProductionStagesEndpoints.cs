@@ -4,8 +4,6 @@ using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
 using AGDPMS.Web.Services;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Components.Forms;
-using Microsoft.AspNetCore.Hosting;
 using System.Security.Claims;
 
 namespace AGDPMS.Web.Endpoints;
@@ -339,7 +337,7 @@ public static class ProductionStagesEndpoints
                             {
                                 Message = $"PM đã yêu cầu kiểm tra giai đoạn {stageType.Name} cho sản phẩm {item.Code}",
                                 Url = $"/production/orders/{order.Id}/items/{item.Id}",
-                                RecipientUserId = stage.AssignedQaUserId.Value.ToString()
+                                Target = NotificationTarget.User(stage.AssignedQaUserId.Value)
                             });
                         }
                     }
@@ -465,7 +463,7 @@ public static class ProductionStagesEndpoints
                             {
                                 Message = $"QA đã hoàn thành kiểm tra giai đoạn {stageType.Name} cho sản phẩm {item.Code}. Kết quả: {resultText}",
                                 Url = $"/production/orders/{order.Id}/items/{item.Id}",
-                                RecipientUserId = review.RequestedByUserId.ToString()
+                                Target = NotificationTarget.User(review.RequestedByUserId)
                             });
                         }
                     }

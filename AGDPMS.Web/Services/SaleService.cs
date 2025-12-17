@@ -366,7 +366,7 @@ public class SaleService(ProjectRFQDataAccess projectDataAccess, ClientDataAcces
                 {
                     Message = message,
                     Url = url,
-                    RecipientUserId = user.Id.ToString()
+                    Target = NotificationTarget.User(user.Id)
                 });
             }
         }
