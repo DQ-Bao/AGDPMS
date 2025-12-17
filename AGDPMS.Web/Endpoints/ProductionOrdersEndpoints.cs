@@ -368,14 +368,6 @@ public static class ProductionOrdersEndpoints
             ProjectDataAccess projectAccess,
             HttpContext httpContext) =>
         {
-            // Check authorization - allow Production Manager, Director, and Admin
-            var userRole = httpContext.User.Claims.FirstOrDefault(c => c.Type == System.Security.Claims.ClaimTypes.Role)?.Value;
-            var allowedRoles = new[] { "Production Manager", "Director"};
-            if (userRole == null || !allowedRoles.Any(r => string.Equals(userRole, r, StringComparison.OrdinalIgnoreCase)))
-            {
-                return Results.Unauthorized();
-            }
-
             DateTime dateTo = DateTime.UtcNow.Date;
             DateTime dateFrom = dateTo.AddDays(-29); // default last 30 days
             if (DateTime.TryParse(from, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsedFrom))
@@ -528,7 +520,7 @@ public static class ProductionOrdersEndpoints
             };
 
             return Results.Ok(summary);
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager" });
+        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,Director" });
 
         group.MapPost("/{id:int}/submit", async (int id, ProductionOrderService svc) =>
         {

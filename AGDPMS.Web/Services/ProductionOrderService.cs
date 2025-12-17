@@ -211,7 +211,7 @@ public class ProductionOrderService(
             .OrderBy(qa => itemCounts.GetValueOrDefault(qa.Id, 0))
             .ThenBy(qa => qa.Id) // Use ID instead of name for round-robin effect
             .First();
-        
+
         await stageService.BulkAssignQaToItemAsync(itemId, qaWithLeast.Id);
     }
 

@@ -4,10 +4,12 @@
 @using System.Net.Http
 @using System.Net.Http.Json
 @using System.Text.Json
+@using Microsoft.AspNetCore.Authorization
 @inject NavigationManager Navigation
 @inject HttpClient Http
 @inject IJSRuntime JS
 @rendermode InteractiveServer
+@attribute [Authorize(Roles = "Production Manager")]
 
 <PageTitle>Quản lý & In Tem Bảo Hành</PageTitle>
 

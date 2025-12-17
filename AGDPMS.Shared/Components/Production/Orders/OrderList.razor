@@ -5,9 +5,11 @@
 @using System.Net.Http
 @using System.Net.Http.Json
 @using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize(Roles = "Director,QA,Production Manager")]
 
 <div class="container py-3">
     <nav aria-label="breadcrumb" class="mb-3">
