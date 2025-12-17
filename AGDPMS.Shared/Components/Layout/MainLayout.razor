@@ -14,7 +14,10 @@
 
 <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="offcanvasSidebar">
     <div class="offcanvas-header">
-        <h5 class="offcanvas-title">💠 AGDPMS</h5>
+        <h5 class="offcanvas-title">
+            <img src="_content/AGDPMS.Shared/images/logo.png" alt="AGDPMS Icon" class="rounded-circle me-2" width="32" height="32">
+            <span class="fw-bold brand-text ms-2">AGDPMS</span>
+        </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
     </div>
     <div class="offcanvas-body p-2">
@@ -39,23 +42,25 @@
 
 <aside class="bg-dark text-white position-fixed d-none d-md-flex flex-column p-2 @(sidebarCollapsed ? "collapsed" : "")" id="sidebar">
     <div class="d-flex align-items-center mb-3">
-        <span class="fs-4 fw-bold ms-2">💠</span>
+        <img src="_content/AGDPMS.Shared/images/logo.png" alt="AGDPMS Icon" class="rounded-circle ms-2" width="32" height="32">
         <span class="fs-5 fw-bold ms-2 brand-text">AGDPMS</span>
     </div>
     <hr class="text-secondary" />
     <ul class="nav nav-pills flex-column mb-auto">
-        <li class="nav-item">
-            <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white">
-                <i class="bi bi-speedometer2 me-2"></i>
-                <span>Dashboard</span>
-            </NavLink>
-        </li>
-        <li class="nav-item">
-            <NavLink href="/accounts" Match="NavLinkMatch.All" class="nav-link text-white">
-                <i class="bi bi-speedometer2 me-2"></i>
-                <span>Tài khoản</span>
-            </NavLink>
-        </li>
+        <AuthorizeView Roles="Director">
+            <li class="nav-item">
+                <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white">
+                    <i class="bi bi-speedometer2 me-2"></i>
+                    <span>Dashboard</span>
+                </NavLink>
+            </li>
+            <li class="nav-item">
+                <NavLink href="/accounts" Match="NavLinkMatch.All" class="nav-link text-white">
+                    <i class="bi bi-speedometer2 me-2"></i>
+                    <span>Tài khoản</span>
+                </NavLink>
+            </li>
+        </AuthorizeView>
         <li class="nav-item">
             <NavLink href="/sale/customercontact" class="nav-link text-white">
                 <i class="bi bi-layers me-2"></i>
