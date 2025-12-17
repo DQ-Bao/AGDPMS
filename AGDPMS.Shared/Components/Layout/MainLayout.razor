@@ -19,9 +19,11 @@
     </div>
     <div class="offcanvas-body p-2">
         <ul class="nav nav-pills flex-column mb-auto">
-            <li class="nav-item">
-                <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i>Dashboard</NavLink>
-            </li>
+            <AuthorizeView Roles="Director,Production Manager">
+                <li class="nav-item">
+                    <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white"><i class="bi bi-speedometer2 me-2"></i>Báo cáo</NavLink>
+                </li>
+            </AuthorizeView>
             <li class="nav-item">
                 <NavLink href="/projects" class="nav-link text-white"><i class="bi bi-list-task me-2"></i>Projects</NavLink>
             </li>
@@ -46,12 +48,14 @@
     </div>
     <hr class="text-secondary" />
     <ul class="nav nav-pills flex-column mb-auto">
-        <li class="nav-item">
-            <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white">
-                <i class="bi bi-speedometer2 me-2"></i>
-                <span>Dashboard</span>
-            </NavLink>
-        </li>
+        <AuthorizeView Roles="Director,Production Manager">
+            <li class="nav-item">
+                <NavLink href="/" Match="NavLinkMatch.All" class="nav-link text-white">
+                    <i class="bi bi-speedometer2 me-2"></i>
+                    <span>Báo cáo</span>
+                </NavLink>
+            </li>
+        </AuthorizeView>
         <li class="nav-item">
             <NavLink href="/accounts" Match="NavLinkMatch.All" class="nav-link text-white">
                 <i class="bi bi-speedometer2 me-2"></i>

@@ -3,10 +3,13 @@
 @using System.Net.Http.Json
 @using Microsoft.AspNetCore.Components
 @using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @using AGDPMS.Shared.Models
 @inject HttpClient Http
 @inject NavigationManager Nav
 @inject IJSRuntime JS
+@inject AuthenticationStateProvider AuthStateProvider
 
 <div class="container-fluid py-3">
     <div class="d-flex flex-wrap gap-2 align-items-end mb-3">
@@ -310,10 +313,52 @@
 
     protected override async Task OnInitializedAsync()
     {
-        fromDateInput = fromDate.ToString("yyyy-MM-dd");
-        toDateInput = toDate.ToString("yyyy-MM-dd");
-        await LoadProjects();
-        await LoadSummary();
+        // Determine destination based on authentication and role
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user?.Identity == null || !user.Identity.IsAuthenticated)
+        {
+            // Not logged in -> go to login
+            Nav.NavigateTo("/login", true);
+            return;
+        }
+
+        var role = user.FindFirst(ClaimTypes.Role)?.Value;
+
+        if (string.Equals(role, "Production Manager", StringComparison.OrdinalIgnoreCase) ||
+            string.Equals(role, "Director", StringComparison.OrdinalIgnoreCase))
+        {
+            // Stay on dashboard
+            fromDateInput = fromDate.ToString("yyyy-MM-dd");
+            toDateInput = toDate.ToString("yyyy-MM-dd");
+            await LoadProjects();
+            await LoadSummary();
+            return;
+        }
+
+        // Redirect other roles to their home pages
+        if (string.Equals(role, "QA", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo("/qa/machines", true);
+        }
+        else if (string.Equals(role, "Sale", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo("/sale/customercontact", true);
+        }
+        else if (string.Equals(role, "Technician", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo("/projects", true);
+        }
+        else if (string.Equals(role, "InventoryManager", StringComparison.OrdinalIgnoreCase))
+        {
+            Nav.NavigateTo("/inventory/stocks", true);
+        }
+        else
+        {
+            // Fallback: send unknown roles to login
+            Nav.NavigateTo("/login", true);
+        }
     }
 
     private async Task LoadProjects()

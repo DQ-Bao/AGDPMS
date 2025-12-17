@@ -350,7 +350,7 @@
                                 }
                             </td>
                             <td>
-                                <a href="http://localhost:5273/cavities/@it.CavityId"
+                                <a href="/cavities/@it.CavityId"
                                    class="text-decoration-none"
                                    @onclick:stopPropagation="true">
                                     @(string.IsNullOrWhiteSpace(it.CavityName) ? (it.CavityCode ?? $"Cavity {it.CavityId}") : it.CavityName)
