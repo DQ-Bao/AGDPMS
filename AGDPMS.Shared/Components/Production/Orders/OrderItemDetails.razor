@@ -20,7 +20,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="/production/orders">Lệnh sản xuất</a></li>
             <li class="breadcrumb-item"><a href="/production/orders/@OrderId">@(model?.order?.Code ?? "Chi tiết")</a></li>
-            <li class="breadcrumb-item active">Item #@(model?.item?.LineNo ?? ItemId)</li>
+            <li class="breadcrumb-item active">@(model?.item?.Code ?? $"Item #{ItemId}")</li>
         </ol>
     </nav>
         @if (model is null)
@@ -38,7 +38,7 @@
     {
         <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
-                <h5 class="mb-1">Item #@model.item?.LineNo - @(model.item?.Code ?? "N/A") - @(model.item?.CavityName ?? model.item?.CavityCode ?? $"Cavity {model.item?.CavityId}")</h5>
+                <h5 class="mb-1">Item @(model.item?.Code ?? "N/A") - @(model.item?.CavityName ?? model.item?.CavityCode ?? $"Cavity {model.item?.CavityId}")</h5>
                 <div class="text-secondary">Lệnh sản xuất: @model.order?.Code | Trạng thái: @GetOrderStatusDisplay()</div>
                 <div class="text-secondary small mt-1">
                     @if (CanEditItemPlan())
@@ -499,7 +499,7 @@
                                             <small class="text-muted">@qa.Phone</small>
                                         </div>
                                         <div class="text-end">
-                                            <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
+                                            <span class="badge bg-secondary">@GetQaWorkloadText(qa)</span>
                                         </div>
                                     </div>
                                 </button>
@@ -553,7 +553,7 @@
                                             <small class="text-muted">@qa.Phone</small>
                                         </div>
                                         <div class="text-end">
-                                            <span class="badge bg-secondary">@qa.PendingItemsCount trạng thái QA chưa review</span>
+                                            <span class="badge bg-secondary">@GetQaWorkloadText(qa)</span>
                                         </div>
                                     </div>
                                 </button>
@@ -1764,6 +1764,40 @@
         public string? Name { get; set; }
         public string? Phone { get; set; }
         public int PendingItemsCount { get; set; }
+        public int PendingMachinesCount { get; set; }
+        public int PendingMaterialCount { get; set; }
+        public int PendingStagesCount { get; set; }
+    }
+
+    private string GetQaWorkloadText(QaUser qa)
+    {
+        var total = qa.PendingItemsCount;
+        if (total <= 0)
+        {
+            return "Rảnh";
+        }
+
+        var parts = new List<string>
+        {
+            $"Còn {total} việc"
+        };
+
+        if (qa.PendingMachinesCount > 0)
+        {
+            parts.Add($"KT máy: {qa.PendingMachinesCount}");
+        }
+
+        if (qa.PendingMaterialCount > 0)
+        {
+            parts.Add($"KT vật tư: {qa.PendingMaterialCount}");
+        }
+
+        if (qa.PendingStagesCount > 0)
+        {
+            parts.Add($"KT công đoạn: {qa.PendingStagesCount}");
+        }
+
+        return string.Join(" | ", parts);
     }
 
     private void OpenRequestReviewConfirm(int stageId)

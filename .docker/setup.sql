@@ -1,7 +1,7 @@
 set client_encoding to 'utf8';
 
-drop table if exists global_labor_cost_settings;
 drop table if exists global_stage_time_settings;
+drop table if exists global_labor_cost_settings;
 drop table if exists production_order_settings;
 drop table if exists stage_review_criteria_results;
 drop table if exists stage_reviews;
@@ -1229,9 +1229,9 @@ and not exists (
   select 1 from production_item_stages s where s.production_order_item_id = i.id and s.stage_type_id = st.id
 );
 
--- Update PO-ALPHA-001 to InProduction status with planned dates
+-- Update PO-ALPHA-001 to Finished status with planned & actual dates
 update production_orders
-set status = 5, -- InProduction
+set status = 6, -- Finished
   planned_start_date = '2025-11-01 08:00:00',
   planned_finish_date = '2025-11-15 17:00:00',
   submitted_at = '2025-10-25 09:00:00',
@@ -1239,6 +1239,7 @@ set status = 5, -- InProduction
   qa_machines_checked_at = '2025-10-27 11:00:00',
   qa_material_checked_at = '2025-10-28 12:00:00',
   started_at = '2025-11-01 08:00:00',
+  finished_at = '2025-11-16 10:00:00',
   updated_at = now()
 where code = 'PO-ALPHA-001';
 
@@ -1246,6 +1247,11 @@ where code = 'PO-ALPHA-001';
 update production_order_items
 set planned_start_date = '2025-11-01 08:00:00',
   planned_finish_date = '2025-11-15 17:00:00',
+  actual_start_date = '2025-11-01 08:30:00',
+  actual_finish_date = '2025-11-16 10:00:00',
+  is_completed = true,
+  completed_at = '2025-11-16 10:00:00',
+  is_stored = true,
   updated_at = now()
 where production_order_id = (select id from production_orders where code = 'PO-ALPHA-001');
 
@@ -1278,6 +1284,50 @@ SET
           ELSE interval '0 days'
       END
   ),
+  planned_finish_date = src.planned_start_date + (
+      CASE 
+          WHEN src.code = 'CUT_AL' THEN interval '0.5 days'
+          WHEN src.code = 'MILL_LOCK' THEN interval '0.5 days'
+          WHEN src.code = 'DOOR_CORNER_CUT' THEN interval '1 day'
+          WHEN src.code = 'ASSEMBLE_FRAME' THEN interval '1.5 days'
+          WHEN src.code = 'GLASS_INSTALL' THEN interval '1 day'
+          WHEN src.code = 'PRESS_GASKET' THEN interval '0.5 days'
+          WHEN src.code = 'INSTALL_ACCESSORIES' THEN interval '1 day'
+          WHEN src.code = 'CUT_FLUSH' THEN interval '0.5 days'
+          WHEN src.code = 'FINISH_SILICON' THEN interval '1 day'
+          ELSE interval '0.5 days'
+      END
+  ),
+  planned_time_hours = 
+      CASE 
+          WHEN src.code = 'CUT_AL' THEN 4.0
+          WHEN src.code = 'MILL_LOCK' THEN 3.0
+          WHEN src.code = 'DOOR_CORNER_CUT' THEN 2.0
+          WHEN src.code = 'ASSEMBLE_FRAME' THEN 5.0
+          WHEN src.code = 'GLASS_INSTALL' THEN 6.0
+          WHEN src.code = 'PRESS_GASKET' THEN 3.0
+          WHEN src.code = 'INSTALL_ACCESSORIES' THEN 4.0
+          WHEN src.code = 'CUT_FLUSH' THEN 2.0
+          WHEN src.code = 'FINISH_SILICON' THEN 3.0
+          ELSE 2.0
+      END,
+  actual_start_date = src.planned_start_date + interval '0.1 days',
+  actual_finish_date = src.planned_start_date + interval '5.5 days',
+  actual_time_hours = 
+      CASE 
+          WHEN src.code = 'CUT_AL' THEN 4.5
+          WHEN src.code = 'MILL_LOCK' THEN 3.5
+          WHEN src.code = 'DOOR_CORNER_CUT' THEN 2.5
+          WHEN src.code = 'ASSEMBLE_FRAME' THEN 5.5
+          WHEN src.code = 'GLASS_INSTALL' THEN 6.5
+          WHEN src.code = 'PRESS_GASKET' THEN 3.5
+          WHEN src.code = 'INSTALL_ACCESSORIES' THEN 4.5
+          WHEN src.code = 'CUT_FLUSH' THEN 2.5
+          WHEN src.code = 'FINISH_SILICON' THEN 3.5
+          ELSE 2.5
+      END,
+  is_completed = true,
+  completed_at = src.planned_start_date + interval '6 days',
   updated_at = now()
 FROM src
 WHERE pis.id = src.id;
@@ -1291,9 +1341,45 @@ VALUES
 INSERT INTO machines 
 ("name", "machine_type_id", "status", "entry_date", "last_maintenance_date", "capacity_value", "capacity_unit", "expected_completion_date")
 VALUES
-('Máy Cắt CNC 01', 1, 'Operational', '2025-01-15', NULL, NULL,'mm/phút', NULL),
 ('Máy Cắt Góc', 1, 'Operational', '2025-02-20', NULL, 5, 'mm', NULL),
-('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL);
+('Máy Phay Ổ Khóa', 2, 'Operational', '2025-03-10', NULL, 50, 'sản phẩm/giờ', NULL),
+('Máy cắt nhôm 01', 1, 'Operational', '2025-04-01', NULL, NULL, 'mm/phút', NULL),
+('Máy khoét khóa 01', 2, 'Operational', '2025-04-05', NULL, NULL, 'sản phẩm/giờ', NULL),
+('Máy khóa bản lề 01', 2, 'Operational', '2025-04-10', NULL, NULL, 'sản phẩm/giờ', NULL),
+('Máy phay đố 01', 1, 'Operational', '2025-04-15', NULL, NULL, 'mm/phút', NULL),
+('Máy ép góc 01', 1, 'Operational', '2025-04-20', NULL, NULL, 'mm/phút', NULL)
+ON CONFLICT DO NOTHING;
+
+-- Gán máy cho từng loại giai đoạn (stage_types.machine_id)
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'CUT_AL'
+  AND m.name = 'Máy cắt nhôm 01';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'MILL_LOCK'
+  AND m.name = 'Máy Phay Ổ Khóa';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'ASSEMBLE_FRAME'
+  AND m.name = 'Máy khóa bản lề 01';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'CUT_FLUSH'
+  AND m.name = 'Máy phay đố 01';
+
+UPDATE stage_types st
+SET machine_id = m.id
+FROM machines m
+WHERE st.code = 'DOOR_CORNER_CUT'
+  AND m.name = 'Máy Cắt Góc';
 
 -- Stage Criteria for QA Review
 -- =========================

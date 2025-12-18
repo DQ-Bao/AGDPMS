@@ -18,6 +18,33 @@ public static class LookupEndpoints
             return Results.Ok(list.Select(t => new { id = t.Id, name = t.Name }));
         });
 
+        // Machine ↔ stages mapping for QA dashboard
+        group.MapGet("/qa-machine-stages", async (IDbConnection conn) =>
+        {
+            if (conn.State != System.Data.ConnectionState.Open)
+            {
+                conn.Open();
+            }
+
+            var rows = await conn.QueryAsync<(int? MachineId, string StageCode, string StageName)>(@"
+                select
+                    st.machine_id as MachineId,
+                    st.code as StageCode,
+                    st.name as StageName
+                from stage_types st
+                where st.machine_id is not null
+                order by st.machine_id, st.id");
+
+            return Results.Ok(rows
+                .Where(r => r.MachineId.HasValue)
+                .Select(r => new
+                {
+                    machineId = r.MachineId!.Value,
+                    stageCode = r.StageCode,
+                    stageName = r.StageName
+                }));
+        });
+
         group.MapGet("/cavities", async (int projectId, string? q, CavityDataAccess access) =>
         {
             var cavities = await access.GetAllFromProjectAsync(projectId);
@@ -61,7 +88,9 @@ public static class LookupEndpoints
             var qaList = qa.ToList();
             var qaIds = qaList.Select(u => u.Id).ToList();
             
-            var itemCounts = new Dictionary<int, int>();
+            // key: QaUserId, value: (total, machines, materials, stages)
+            var workloads = new Dictionary<int, (int Total, int Machines, int Materials, int Stages)>();
+
             if (qaIds.Any())
             {
                 if (conn.State != System.Data.ConnectionState.Open)
@@ -69,13 +98,12 @@ public static class LookupEndpoints
                     conn.Open();
                 }
                 
-                var counts = useOrderScope
-                    ? await conn.QueryAsync<(int? QaUserId, int Count)>(@"
-                        select po.assigned_qa_user_id as QaUserId,
-                               sum(
-                                   (case when po.qa_machines_checked_at is null then 1 else 0 end) +
-                                   (case when po.qa_material_checked_at is null then 1 else 0 end)
-                               ) as Count
+                // Order-level QA workload: split into machines vs material checks
+                var orderCounts = await conn.QueryAsync<(int? QaUserId, int MachinesCount, int MaterialCount)>(@"
+                        select 
+                            po.assigned_qa_user_id as QaUserId,
+                            sum(case when po.qa_machines_checked_at is null then 1 else 0 end) as MachinesCount,
+                            sum(case when po.qa_material_checked_at is null then 1 else 0 end) as MaterialCount
                         from production_orders po
                         where po.assigned_qa_user_id = any(@QaIds)
                           and po.status between @StatusStart and @StatusEnd
@@ -86,9 +114,26 @@ public static class LookupEndpoints
                             QaIds = qaIds,
                             StatusStart = (short)ProductionOrderStatus.PendingQACheckMachines,
                             StatusEnd = (short)ProductionOrderStatus.InProduction
-                        })
-                    : await conn.QueryAsync<(int? QaUserId, int Count)>(@"
-                        select pis.assigned_qa_user_id as QaUserId, count(distinct pis.id) as Count
+                        });
+
+                foreach (var result in orderCounts)
+                {
+                    if (result.QaUserId.HasValue)
+                    {
+                        var existing = workloads.GetValueOrDefault(result.QaUserId.Value, (0, 0, 0, 0));
+                        var machines = existing.Item2 + result.MachinesCount;
+                        var materials = existing.Item3 + result.MaterialCount;
+                        var stages = existing.Item4;
+                        var total = machines + materials + stages;
+                        workloads[result.QaUserId.Value] = (total, machines, materials, stages);
+                    }
+                }
+
+                // Stage-level QA workload: number of pending stages
+                var stageCounts = await conn.QueryAsync<(int? QaUserId, int StagesCount)>(@"
+                        select 
+                            pis.assigned_qa_user_id as QaUserId, 
+                            count(distinct pis.id) as StagesCount
                         from production_item_stages pis
                         join production_order_items poi on poi.id = pis.production_order_item_id
                         join production_orders po on po.id = poi.production_order_id
@@ -110,21 +155,33 @@ public static class LookupEndpoints
                             StatusEnd = (short)ProductionOrderStatus.InProduction
                         });
                 
-                foreach (var result in counts)
+                foreach (var result in stageCounts)
                 {
                     if (result.QaUserId.HasValue)
                     {
-                        itemCounts[result.QaUserId.Value] = result.Count;
+                        var existing = workloads.GetValueOrDefault(result.QaUserId.Value, (0, 0, 0, 0));
+                        var machines = existing.Item2;
+                        var materials = existing.Item3;
+                        var stages = existing.Item4 + result.StagesCount;
+                        var total = machines + materials + stages;
+                        workloads[result.QaUserId.Value] = (total, machines, materials, stages);
                     }
                 }
             }
             
-            return Results.Ok(qaList.Select(u => new 
+            return Results.Ok(qaList.Select(u =>
+            {
+                var wl = workloads.GetValueOrDefault(u.Id, (0, 0, 0, 0));
+                return new
             { 
                 id = u.Id, 
                 name = u.FullName, 
                 phone = u.PhoneNumber,
-                pendingItemsCount = itemCounts.GetValueOrDefault(u.Id, 0)
+                    pendingItemsCount = wl.Item1,
+                    pendingMachinesCount = wl.Item2,
+                    pendingMaterialCount = wl.Item3,
+                    pendingStagesCount = wl.Item4
+                };
             }));
         });
 
