@@ -2,15 +2,37 @@
 
 namespace AGDPMS.Shared.Services;
 
-public interface INotificationService
+public interface INotificationService : IAsyncDisposable
 {
-    event Func<Task>? OnNotificationReceived;
+    event Func<Notification, Task>? OnNotificationReceived;
+    Task<StartStopNotificationServiceResult> StartAsync();
+    Task<StartStopNotificationServiceResult> StopAsync();
+    Task<GetNotificationsResult> GetNotificationsAsync();
+    Task<AddNotificationResult> AddNotificationAsync(Notification notification);
+    Task<MarkAsReadResult> MarkAsReadAsync(int notificationId);
+}
 
-    Task AddNotificationAsync(Notification notification);
+public sealed class StartStopNotificationServiceResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+}
 
-    Task<List<Notification>> GetNotificationsAsync();
+public sealed class GetNotificationsResult
+{
+    public required bool Success { get; set; }
+    public List<Notification> Notifications { get; set; } = [];
+    public string? ErrorMessage { get; set; }
+}
 
-    Task<int> GetUnreadCountAsync();
+public sealed class AddNotificationResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+}
 
-    Task MarkAsReadAsync(int notificationId);
+public sealed class MarkAsReadResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
 }

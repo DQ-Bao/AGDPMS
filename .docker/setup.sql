@@ -384,6 +384,16 @@ create index if not exists "ix_order_settings_order"
 create index if not exists "ix_order_settings_stage_type"
     on production_order_settings ("stage_type_id");
 
+create table if not exists notifications (
+    "id" serial primary key,
+    "message" varchar(512) not null,
+    "url" varchar(512) not null,
+    "created_at" timestamp default now(),
+    "is_read" boolean not null default false,
+    "user_id" int references users ("id"),
+    "role_id" int references roles ("id")
+);
+
 -- INSERT --
 insert into roles ("name")
 values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA'), ('Production Manager');

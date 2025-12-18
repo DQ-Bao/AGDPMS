@@ -4,7 +4,6 @@ using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
 using System.Data;
 using Dapper;
-using System.Linq;
 
 namespace AGDPMS.Web.Services;
 
@@ -340,7 +339,7 @@ public class ProductionOrderService(
                 {
                     Message = message,
                     Url = url,
-                    RecipientUserId = user.Id.ToString()
+                    Target = NotificationTarget.User(user.Id)
                 });
             }
         }
