@@ -14,6 +14,7 @@ public static class ConfigureServices
     public static IServiceCollection AddDataAccesses(this IServiceCollection services, string connectionString)
     {
         services.AddScoped<IDbConnection>(_ => new NpgsqlConnection(connectionString));
+        services.AddScoped<NotificationDataAccess>();
         services.AddScoped<UserDataAccess>();
         services.AddScoped<InventoryDataAccess>();
         services.AddScoped<RoleDataAccess>();

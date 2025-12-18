@@ -1,10 +1,9 @@
-using System.Net.Http;
-using AGDPMS.Shared.Hubs;
 using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web;
 using AGDPMS.Web.Components;
 using AGDPMS.Web.Endpoints;
+using AGDPMS.Web.Hubs;
 using AGDPMS.Web.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Identity;
@@ -53,7 +52,7 @@ builder.Services.AddScoped<ISaleServices, SaleService>();
 builder.Services.AddScoped<IInventoryService, InventoryService>();
 builder.Services.AddScoped<IQAService, QAService>();
 builder.Services.AddScoped<IFileStorageService, FileStorageService>();
-builder.Services.AddSingleton<INotificationService, NotificationService>();
+builder.Services.AddScoped<INotificationService, WebNotificationService>();
 builder.Services.AddScoped<IReportService, ReportSerivce>();
 
 
@@ -85,6 +84,7 @@ app.MapStageTypes();
 app.MapOrderSettings();
 app.MapQr();
 app.MapLookup();
+app.MapNotificationEndpoints();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.MapStaticAssets();

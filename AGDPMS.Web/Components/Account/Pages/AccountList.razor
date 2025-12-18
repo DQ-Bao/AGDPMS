@@ -29,7 +29,6 @@
     <div class="card mb-4">
         <h5 class="card-header">Thêm một tài khoản</h5>
         <div class="card-body">
-            @* Component AddAccountForm được gọi ở đây *@
             <AddAccountForm Roles="_roles" OnAccountAdded="HandleAccountAdded" OnCancel="() => _showAddForm = false" />
         </div>
     </div>
@@ -60,11 +59,11 @@
                         <td>
                             @if (user.NeedChangePassword)
                             {
-                                <span class="badge bg-label-warning me-1">Yêu cầu đổi</span>
+                                <span class="badge bg-warning">Chưa đổi mật khẩu</span>
                             }
                             else
                             {
-                                <span class="badge bg-label-success me-1">Đã đặt</span>
+                                <span class="badge bg-success">Đã đổi mật khẩu</span>
                             }
                         </td>
                         <td>

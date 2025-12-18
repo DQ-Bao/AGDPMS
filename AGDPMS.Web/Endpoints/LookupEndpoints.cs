@@ -2,7 +2,7 @@ using AGDPMS.Web.Data;
 using System.Data;
 using Dapper;
 using AGDPMS.Shared.Models;
-using System.Text;
+using System.Security.Claims;
 
 namespace AGDPMS.Web.Endpoints;
 
@@ -257,6 +257,29 @@ public static class LookupEndpoints
             return Results.Ok(ordersDict.Values.OrderBy(o => o.orderCode).ToList());
         });
 
+        return app;
+    }
+
+    public static IEndpointRouteBuilder MapNotificationEndpoints(this IEndpointRouteBuilder app)
+    {
+        ArgumentNullException.ThrowIfNull(app);
+        app.MapGet("/api/notifications", async (HttpContext context, NotificationDataAccess data) =>
+        {
+            var user = context.User;
+            var userIdClaim = user.FindFirstValue(ClaimTypes.NameIdentifier);
+            var roleName = user.FindFirstValue(ClaimTypes.Role);
+            if (string.IsNullOrWhiteSpace(userIdClaim) || string.IsNullOrWhiteSpace(roleName)) return Results.Unauthorized();
+            if (!int.TryParse(userIdClaim, out var userId)) return Results.Unauthorized();
+            try
+            {
+                var notifications = await data.GetUserNotificationsAsync(userId, roleName);
+                return Results.Ok(notifications);
+            }
+            catch(Exception ex)
+            {
+                return Results.Problem(ex.Message);
+            }
+        }).RequireAuthorization();
         return app;
     }
 
