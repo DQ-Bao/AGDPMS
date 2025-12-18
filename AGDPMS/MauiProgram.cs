@@ -2,6 +2,7 @@
 using AGDPMS.Shared.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.Extensions.Logging;
+using ZXing.Net.Maui.Controls;
 
 namespace AGDPMS;
 
@@ -15,7 +16,8 @@ public static class MauiProgram
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-            });
+            })
+            .UseBarcodeReader();
 
         builder.Services.AddMauiBlazorWebView();
 
@@ -29,10 +31,20 @@ public static class MauiProgram
 
         builder.Services.AddSingleton<IFormFactor, FormFactor>();
         builder.Services.AddTransient<AuthHeaderHandler>();
-        builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ApiClient"));
+        builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ApiClient2"));
+        builder.Services.AddHttpClient("ApiClient2", client =>
+        {
+            client.BaseAddress = new Uri("https://cole-bra-eden-lectures.trycloudflare.com");
+            client.Timeout = TimeSpan.FromSeconds(30);
+        })
+        .AddHttpMessageHandler<AuthHeaderHandler>()
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            ServerCertificateCustomValidationCallback = HttpClientHandler.DangerousAcceptAnyServerCertificateValidator
+        });
         builder.Services.AddHttpClient("ApiClient", client =>
         {
-            client.BaseAddress = new Uri("https://widespread-florist-april-checklist.trycloudflare.com/api/");
+            client.BaseAddress = new Uri("https://cole-bra-eden-lectures.trycloudflare.com/api/");
             client.Timeout = TimeSpan.FromSeconds(30);
         })
         .AddHttpMessageHandler<AuthHeaderHandler>()
@@ -43,6 +55,7 @@ public static class MauiProgram
         builder.Services.AddScoped<IAuthService, MobileAuthService>();
         builder.Services.AddScoped<IUserService, MobileUserService>();
         builder.Services.AddScoped<INotificationService, MobileNotificationService>();
+        builder.Services.AddSingleton<QrScanService>();
 
         return builder.Build();
     }

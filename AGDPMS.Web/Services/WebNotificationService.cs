@@ -9,56 +9,50 @@ using System.Security.Claims;
 
 namespace AGDPMS.Web.Services;
 
-public class WebNotificationService : INotificationService
+public class WebNotificationService(
+    NavigationManager nav,
+    NotificationDataAccess dataAccess,
+    IHttpContextAccessor httpContextAccessor) : INotificationService
 {
     public event Func<Notification, Task>? OnNotificationReceived;
-    private readonly HubConnection _connection;
-    private readonly NotificationDataAccess _dataAccess;
-    private readonly IHttpContextAccessor _httpContextAccessor;
-
-    public WebNotificationService(NavigationManager nav, NotificationDataAccess dataAccess, IHttpContextAccessor httpContextAccessor)
-    {
-        _dataAccess = dataAccess;
-        _httpContextAccessor = httpContextAccessor;
-        if (_connection is not null) return;
-        var cookies = new Dictionary<string, string>();
-        _httpContextAccessor.HttpContext?.Request.Cookies.ToList().ForEach(c => cookies.Add(c.Key, c.Value));
-        _connection = new HubConnectionBuilder()
-            .WithUrl(nav.ToAbsoluteUri("/hubs/notifications"), opts =>
-            {
-                opts.UseDefaultCredentials = true;
-                var cookieContainer = cookies.Count != 0 ? new CookieContainer(cookies.Count) : new CookieContainer();
-                foreach (var cookie in cookies)
-                    cookieContainer.Add(new Cookie(
-                        cookie.Key,
-                        WebUtility.UrlEncode(cookie.Value),
-                        path: "/",
-                        domain: nav.ToAbsoluteUri("/").Host));
-                opts.Cookies = cookieContainer;
-                opts.HttpMessageHandlerFactory = _ => new HttpClientHandler 
-                {
-                    PreAuthenticate = true,
-                    CookieContainer = cookieContainer,
-                    UseCookies = true,
-                    UseDefaultCredentials = true
-                };
-            })
-            .WithAutomaticReconnect()
-            .Build();
-        _connection.On<NotificationDto>(
-            nameof(INotificationClient.ReceiveNotification),
-            async notification =>
-            {
-                if (OnNotificationReceived is not null) await OnNotificationReceived.Invoke(notification.ToDomain());
-            });
-    }
+    private HubConnection? _connection;
 
     public async Task<StartStopNotificationServiceResult> StartAsync()
     {
-        if (_connection.State == HubConnectionState.Connected)
+        if (_connection is not null && _connection.State == HubConnectionState.Connected)
             return new StartStopNotificationServiceResult { Success = true };
         try
         {
+            var cookies = new Dictionary<string, string>();
+            httpContextAccessor.HttpContext?.Request.Cookies.ToList().ForEach(c => cookies.Add(c.Key, c.Value));
+            _connection = new HubConnectionBuilder()
+                .WithUrl(nav.ToAbsoluteUri("/hubs/notifications"), opts =>
+                {
+                    opts.UseDefaultCredentials = true;
+                    var cookieContainer = cookies.Count != 0 ? new CookieContainer(cookies.Count) : new CookieContainer();
+                    foreach (var cookie in cookies)
+                        cookieContainer.Add(new Cookie(
+                            cookie.Key,
+                            WebUtility.UrlEncode(cookie.Value),
+                            path: "/",
+                            domain: nav.ToAbsoluteUri("/").Host));
+                    opts.Cookies = cookieContainer;
+                    opts.HttpMessageHandlerFactory = _ => new HttpClientHandler
+                    {
+                        PreAuthenticate = true,
+                        CookieContainer = cookieContainer,
+                        UseCookies = true,
+                        UseDefaultCredentials = true
+                    };
+                })
+                .WithAutomaticReconnect()
+                .Build();
+            _connection.On<NotificationDto>(
+                nameof(INotificationClient.ReceiveNotification),
+                async notification =>
+                {
+                    if (OnNotificationReceived is not null) await OnNotificationReceived.Invoke(notification.ToDomain());
+                });
             await _connection.StartAsync();
             return new StartStopNotificationServiceResult { Success = true };
         }
@@ -70,7 +64,7 @@ public class WebNotificationService : INotificationService
 
     public async Task<StartStopNotificationServiceResult> StopAsync()
     {
-        if (_connection.State == HubConnectionState.Disconnected)
+        if (_connection is null)
             return new StartStopNotificationServiceResult { Success = true };
         try
         {
@@ -87,7 +81,7 @@ public class WebNotificationService : INotificationService
     {
         try
         {
-            var principal = _httpContextAccessor.HttpContext?.User;
+            var principal = httpContextAccessor.HttpContext?.User;
             if (principal is null || (!principal.Identity?.IsAuthenticated ?? true))
                 return new GetNotificationsResult { Success = false, ErrorMessage = "Chưa đăng nhập" };
             var userIdClaim = principal.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -96,7 +90,7 @@ public class WebNotificationService : INotificationService
             var roleClaim = principal.FindFirstValue(ClaimTypes.Role);
             if (string.IsNullOrWhiteSpace(roleClaim))
                 return new GetNotificationsResult { Success = false, ErrorMessage = "Chưa đăng nhập" };
-            var notifications = await _dataAccess.GetUserNotificationsAsync(userId, roleClaim);
+            var notifications = await dataAccess.GetUserNotificationsAsync(userId, roleClaim);
             return new GetNotificationsResult { Success = true, Notifications = [.. notifications] };
         }
         catch (Exception ex)
@@ -107,6 +101,8 @@ public class WebNotificationService : INotificationService
 
     public async Task<AddNotificationResult> AddNotificationAsync(Notification notification)
     {
+        if (_connection is null || _connection.State != HubConnectionState.Connected)
+            return new AddNotificationResult { Success = false, ErrorMessage = "Notification service is not connected." };
         try
         {
             await _connection.InvokeAsync("AddNotification", NotificationDto.FromDomain(notification));
@@ -120,6 +116,8 @@ public class WebNotificationService : INotificationService
 
     public async Task<MarkAsReadResult> MarkAsReadAsync(int notificationId)
     {
+        if (_connection is null || _connection.State != HubConnectionState.Connected)
+            return new MarkAsReadResult { Success = false, ErrorMessage = "Notification service is not connected." };
         try
         {
             await _connection.InvokeAsync("MarkAsRead", notificationId);
@@ -131,5 +129,5 @@ public class WebNotificationService : INotificationService
         }
     }
 
-    public ValueTask DisposeAsync() => _connection.DisposeAsync();
+    public ValueTask DisposeAsync() => _connection?.DisposeAsync() ?? ValueTask.CompletedTask;
 }

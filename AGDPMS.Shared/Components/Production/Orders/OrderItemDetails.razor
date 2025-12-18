@@ -1132,7 +1132,7 @@
     private async Task LoadUserRole()
     {
         var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        userRole = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+        userRole = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role || c.Type == "role")?.Value;
     }
 
     private async Task Load()
@@ -2223,7 +2223,7 @@
         if (!currentUserId.HasValue)
         {
             var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-            var userIdClaim = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            var userIdClaim = authState.User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "nameid")?.Value;
             if (!string.IsNullOrEmpty(userIdClaim) && int.TryParse(userIdClaim, out var userId))
             {
                 currentUserId = userId;
