@@ -3,6 +3,7 @@ using AGDPMS.Shared.Models.DTOs;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
 using AGDPMS.Web.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 
@@ -253,7 +254,11 @@ public static class ProductionStagesEndpoints
                 },
                 stages = stageDtos
             });
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute
+        {
+            AuthenticationSchemes = string.Join(",", Constants.AuthScheme, JwtBearerDefaults.AuthenticationScheme),
+            Roles = "Production Manager,QA,Director"
+        });
 
         itemGroup.MapPost("/{itemId:int}/assign-qa-bulk", async (int itemId, AssignItemQaDto dto, StageService svc) =>
         {
@@ -404,7 +409,11 @@ public static class ProductionStagesEndpoints
                     };
                 }).OrderBy(c => c.OrderIndex).ThenBy(c => c.Id)
             });
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute
+        {
+            AuthenticationSchemes = string.Join(",", Constants.AuthScheme, JwtBearerDefaults.AuthenticationScheme),
+            Roles = "Production Manager,QA,Director"
+        });
 
         group.MapPost("/{stageId:int}/submit-review", async (
             int stageId, 
@@ -476,7 +485,11 @@ public static class ProductionStagesEndpoints
             }
             
             return Results.Ok();
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "QA" });
+        }).RequireAuthorization(new AuthorizeAttribute
+        {
+            AuthenticationSchemes = string.Join(",", Constants.AuthScheme, JwtBearerDefaults.AuthenticationScheme),
+            Roles = "QA"
+        });
 
         group.MapGet("/{stageId:int}/latest-review", async (int stageId, StageReviewDataAccess reviewAccess, ProductionItemStageDataAccess stageAccess) =>
         {
@@ -559,7 +572,11 @@ public static class ProductionStagesEndpoints
                     };
                 }).OrderBy(c => c.OrderIndex).ThenBy(c => c.Id)
             });
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute
+        {
+            AuthenticationSchemes = string.Join(",", Constants.AuthScheme, JwtBearerDefaults.AuthenticationScheme),
+            Roles = "Production Manager,QA,Director"
+        });
 
         // File upload endpoint for review attachments
         group.MapPost("/upload-attachment", async (HttpRequest request) =>
@@ -628,7 +645,11 @@ public static class ProductionStagesEndpoints
             {
                 return Results.BadRequest(new { error = ex.Message });
             }
-        }).RequireAuthorization(new AuthorizeAttribute { Roles = "Production Manager,QA,Director" });
+        }).RequireAuthorization(new AuthorizeAttribute
+        {
+            AuthenticationSchemes = string.Join(",", Constants.AuthScheme, JwtBearerDefaults.AuthenticationScheme),
+            Roles = "Production Manager,QA,Director"
+        });
 
         return app;
     }

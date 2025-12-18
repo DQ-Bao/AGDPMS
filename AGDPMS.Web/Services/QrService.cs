@@ -22,7 +22,7 @@ public class QrService(IHttpContextAccessor httpContextAccessor)
         try
         {
             using var generator = new QRCodeGenerator();
-            using var data = generator.CreateQrCode(fullUrl, QRCodeGenerator.ECCLevel.Q);
+            using var data = generator.CreateQrCode(relativeUrl, QRCodeGenerator.ECCLevel.Q);
             var png = new PngByteQRCode(data).GetGraphic(10);
             return (fullUrl, png);
         }

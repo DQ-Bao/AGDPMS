@@ -12,9 +12,9 @@ public class MobileNotificationService : INotificationService
     private readonly HubConnection _connection;
     private readonly HttpClient _http;
 
-    public MobileNotificationService(HttpClient http)
+    public MobileNotificationService(IHttpClientFactory httpFactory)
     {
-        _http = http;
+        _http = httpFactory.CreateClient("ApiClient");
         if (_connection is not null) return;
         var hubUrl = _http.BaseAddress!.ToString().Replace("/api/", "/hubs/notifications");
         _connection = new HubConnectionBuilder()
