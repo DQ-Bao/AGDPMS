@@ -157,7 +157,7 @@
                                             <tr style="cursor:pointer;" @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))'>
                                                 <td class="fw-semibold">@o.Code</td>
                                                 <td>@(o.ProjectName ?? $"Dự án {o.ProjectId}")</td>
-                                                <td>@o.Status</td>
+                                                <td>@GetStatusLabel(o.Status)</td>
                                                 <td class="@lateClass">@FormatDate(o.PlannedFinishDate)</td>
                                                 <td>@FormatDate(o.StartedAt)</td>
                                                 <td>@FormatDate(o.FinishedAt)</td>
@@ -196,7 +196,7 @@
                                             <tr style="cursor:pointer;" @onclick='@(() => Nav.NavigateTo($"/production/orders/{o.Id}"))'>
                                                 <td class="fw-semibold text-danger">@o.Code</td>
                                                 <td>@(o.ProjectName ?? $"Dự án {o.ProjectId}")</td>
-                                                <td>@o.Status</td>
+                                                <td>@GetStatusLabel(o.Status)</td>
                                                 <td class="text-danger">@FormatDate(o.PlannedFinishDate)</td>
                                             </tr>
                                         }

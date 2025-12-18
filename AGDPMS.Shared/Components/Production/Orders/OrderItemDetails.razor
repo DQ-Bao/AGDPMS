@@ -20,7 +20,7 @@
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="/production/orders">Lệnh sản xuất</a></li>
             <li class="breadcrumb-item"><a href="/production/orders/@OrderId">@(model?.order?.Code ?? "Chi tiết")</a></li>
-            <li class="breadcrumb-item active">Item #@(model?.item?.LineNo ?? ItemId)</li>
+            <li class="breadcrumb-item active">@(model?.item?.Code ?? $"Item #{ItemId}")</li>
         </ol>
     </nav>
         @if (model is null)
@@ -38,7 +38,7 @@
     {
         <div class="d-flex align-items-center justify-content-between mb-3">
             <div>
-                <h5 class="mb-1">Item #@model.item?.LineNo - @(model.item?.Code ?? "N/A") - @(model.item?.CavityName ?? model.item?.CavityCode ?? $"Cavity {model.item?.CavityId}")</h5>
+                <h5 class="mb-1">Item @(model.item?.Code ?? "N/A") - @(model.item?.CavityName ?? model.item?.CavityCode ?? $"Cavity {model.item?.CavityId}")</h5>
                 <div class="text-secondary">Lệnh sản xuất: @model.order?.Code | Trạng thái: @GetOrderStatusDisplay()</div>
                 <div class="text-secondary small mt-1">
                     @if (CanEditItemPlan())
