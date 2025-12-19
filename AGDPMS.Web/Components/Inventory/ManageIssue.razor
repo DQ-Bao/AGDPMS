@@ -110,7 +110,7 @@
                 </div>
 
                 <!-- Pending Items Table -->
-                @if (pendingReceipts.Any())
+                @if (pendingIssues.Any())
                 {
                     <table class="table table-sm table-bordered">
                         <thead class="table-light">
@@ -122,7 +122,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var r in pendingReceipts)
+                            @foreach (var r in pendingIssues)
                             {
                                 <tr>
                                     <td>@materials.FirstOrDefault(m => m.Id == r.MaterialId)?.Name</td>
@@ -188,6 +188,7 @@
             <table class="table">
                 <thead>
                     <tr>
+                        <th>Mã phiếu</th>
                         <th>Mã vật tư</th>
                         <th>Tên vật tư</th>
                         <th>SL nhập</th>
@@ -195,7 +196,7 @@
                     </tr>
                 </thead>
                 <tbody class="table-border-bottom-0">
-                    @foreach (var group in stockReceipts
+                    @foreach (var group in stockIssues
                                     .OrderByDescending(r => r.Date)
                                     .GroupBy(r => r.Date))
                     {
@@ -212,6 +213,7 @@
                             var material = materials.FirstOrDefault(m => m.Id == r.MaterialId);
 
                             <tr>
+                                <td>@r.VoucherCode</td>
                                 <td>@r.MaterialId</td>
                                 <td>@material?.Name</td>
                                 <td>@r.QuantityChange</td>
@@ -228,10 +230,9 @@
 <hr />
 
 @code {
-    private StockReceipt newReceipt = new StockReceipt();
     private GetMaterialResult m_res = null;
     private GetMaterialTypeResult mt_res = null;
-    private GetStockReceiptResult sr_res = null;
+    private GetStockIssueResult si_res = null;
     private bool load_error = false;
     private bool is_loading = true;
     private bool is_adding = false;
@@ -242,14 +243,14 @@
 
     private IEnumerable<Material> materials = new List<Material> { };
     private IEnumerable<MaterialType> material_types = new List<MaterialType> { };
-    private IEnumerable<StockReceipt> stockReceipts = new List<StockReceipt> { };
-    private StockReceipt[] items = new StockReceipt[] { };
+    private IEnumerable<StockIssue> stockIssues = new List<StockIssue> { };
+    private StockIssue[] items = new StockIssue[] { };
     private System.Threading.Timer? searchTimer;
     private int current_page = 1;
     private int pageSize = Int32.MaxValue;
 
-    private StockReceipt tempReceipt = new StockReceipt();
-    private List<StockReceipt> pendingReceipts = new();
+    private StockIssue tempReceipt = new StockIssue();
+    private List<StockIssue> pendingIssues = new();
 
     private string materialSearch = "";
     private Material? selectedMaterial;
@@ -272,49 +273,54 @@
         if (tempReceipt.MaterialId == null || tempReceipt.QuantityChange == 0)
             return;
 
-        pendingReceipts.Add(new StockReceipt
+        pendingIssues.Add(new StockIssue
         {
             MaterialId = tempReceipt.MaterialId,
             QuantityChange = tempReceipt.QuantityChange,
+            VoucherCode = tempReceipt.VoucherCode,
             Price = tempReceipt.Price,
             Date = tempReceipt.Date == default ? DateTime.Today : tempReceipt.Date
         });
 
-        tempReceipt = new StockReceipt
+        tempReceipt = new StockIssue
         {
-            Date = DateTime.Today
+            Date = DateTime.Today,
+            VoucherCode = DateTime.Now.ToString("yyyyMMddHHmmss")
         };
         materialSearch = "";
     }
 
-    void RemoveItem(StockReceipt r)
+    void RemoveItem(StockIssue r)
     {
-        pendingReceipts.Remove(r);
+        pendingIssues.Remove(r);
     }
 
     async Task SaveAll()
     {
-        if (pendingReceipts.Count == 0)
+        if (pendingIssues.Count == 0){
+            Console.WriteLine("Nothing");
             return;
+        }
+            
 
-        foreach (var r in pendingReceipts)
+        foreach (var r in pendingIssues)
         {
-            await inventoryService.AddStockReceipt(r);
+            await inventoryService.AddStockIssue(r);
         }
 
-        pendingReceipts.Clear();
+        pendingIssues.Clear();
         is_adding = false;
 
         // reload list after save
-        sr_res = await inventoryService.GetStockReceipt();
-        stockReceipts = sr_res.StockReceipts;
-        items = stockReceipts.ToArray();
+        si_res = await inventoryService.GetStockIssue();
+        stockIssues = si_res.StockIssues;
+        items = stockIssues.ToArray();
     }
 
     protected override async Task OnInitializedAsync()
     {
         is_loading = true;
-
+        tempReceipt.VoucherCode = DateTime.Now.ToString("yyyyMMddHHmmss");
         mt_res = await inventoryService.GetMaterialType();
         if (mt_res.Success)
         {
@@ -325,11 +331,11 @@
         {
             materials = m_res.Materials;
         }
-        sr_res = await inventoryService.GetStockReceipt();
-        if (sr_res.Success)
+        si_res = await inventoryService.GetStockIssue();
+        if (si_res.Success)
         {
-            stockReceipts = sr_res.StockReceipts;
-            items = stockReceipts.ToArray();
+            stockIssues = si_res.StockIssues;
+            items = stockIssues.ToArray();
         }
         else
         {
@@ -377,7 +383,7 @@
         // .Take(pageSize)
         // .ToArray();
         // InvokeAsync(StateHasChanged);
-        items = stockReceipts.ToArray();
+        items = stockIssues.ToArray();
     }
 
     void ToggleAdding()

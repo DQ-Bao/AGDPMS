@@ -225,22 +225,44 @@ public class InventoryDataAccess(IDbConnection conn)
         return dic.Values;
     }
 
-    public Task<IEnumerable<StockReceipt>> GetStockImportAsync()
+    public Task<IEnumerable<StockReceipt>> GetStockReceiptAsync()
+    {
+        string query =
+            @"
+            select
+                id as Id,
+                material_id as MaterialId,
+                voucher_code as VoucherCode,
+                quantity_change as QuantityChange,
+                quantity_after as QuantityAfter,
+                price as Price,
+                date as Date
+            from stock_import
+            where quantity_change > 0
+            order by date desc, id desc;
+            ";
+
+        return conn.QueryAsync<StockReceipt>(query);
+    }
+
+    public Task<IEnumerable<StockIssue>> GetStockIssueAsync()
     {
         string query =
             @"
         select
             id as Id,
             material_id as MaterialId,
+            voucher_code as VoucherCode,
             quantity_change as QuantityChange,
             quantity_after as QuantityAfter,
             price as Price,
             date as Date
         from stock_import
+        where quantity_change < 0
         order by date desc, id desc;
         ";
 
-        return conn.QueryAsync<StockReceipt>(query);
+        return conn.QueryAsync<StockIssue>(query);
     }
 
     public async Task UpdateMaterial(List<Material> materials)
@@ -333,6 +355,7 @@ public class InventoryDataAccess(IDbConnection conn)
         insert into stock_import (
             material_id,
             quantity_change,
+            voucher_code
             quantity_after,
             price,
             date
@@ -340,23 +363,48 @@ public class InventoryDataAccess(IDbConnection conn)
         values (
             @MaterialId,
             @QuantityChange,
+            @VoucherCode,
             @QuantityAfter,
             @Price,
             @Date
-        )
-        returning
-            id as Id,
-            material_id as MaterialId,
-            quantity_change as QuantityChange,
-            quantity_after as QuantityAfter,
-            price as Price,
-            date as Date;
-    ";
+        )";
 
         return await conn.QuerySingleAsync<StockReceipt>(query, new
         {
             stock.MaterialId,
             stock.QuantityChange,
+            stock.VoucherCode,
+            stock.QuantityAfter,
+            stock.Price,
+            stock.Date
+        });
+    }
+
+    public async Task<StockReceipt> CreateStockImportAsync(StockIssue stock)
+    {
+        string query = @"
+        insert into stock_import (
+            material_id,
+            quantity_change,
+            voucher_code
+            quantity_after,
+            price,
+            date
+        )
+        values (
+            @MaterialId,
+            @QuantityChange,
+            @VoucherCode,
+            @QuantityAfter,
+            @Price,
+            @Date
+        )";
+
+        return await conn.QuerySingleAsync<StockReceipt>(query, new
+        {
+            stock.MaterialId,
+            QuantityChange = -stock.QuantityChange,
+            stock.VoucherCode,
             stock.QuantityAfter,
             stock.Price,
             stock.Date
