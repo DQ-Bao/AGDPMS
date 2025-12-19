@@ -486,7 +486,6 @@
                                 <th>Tên vật tư</th>
                                 <th>Số lượng thiếu</th>
                                 <th>Chiều dài yêu cầu (mm)</th>
-                                <th>Ghi chú</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -502,7 +501,6 @@
                                         }
                                         <td>@su.Need</td>
                                         <td>@su.StockLength</td>
-                                        <td></td>
                                     </tr>
                                 }
                             }
@@ -516,7 +514,6 @@
                                 <th>Tên kính</th>
                                 <th>Kích thước</th>
                                 <th>Số lượng</th>
-                                <th>Ghi chú</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -529,7 +526,6 @@
                                         <td>@g.Name</td>
                                         <td>@g.Cuts[i].Width x @g.Cuts[i].Length</td>
                                         <td>@g.Cuts[i].Quantity</td>
-                                        <td></td>
                                     </tr>
                                 }
                             }
@@ -543,7 +539,6 @@
                                 <th>Tên vật tư</th>
                                 <th>Số lượng thiếu</th>
                                 <th>Đơn vị</th>
-                                <th>Ghi chú</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -554,7 +549,6 @@
                                     <td>@m.Name</td>
                                     <td>@(m.GasketLength is null ? m.Need : m.NeedGasketLength)</td>
                                     <td>@m.Unit</td>
-                                    <td></td>
                                 </tr>
                             }
                         </tbody>

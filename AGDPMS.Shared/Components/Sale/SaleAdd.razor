@@ -13,7 +13,7 @@
 
 <h4 class="fw-bold py-3 mb-4"><span class="text-muted fw-light">Quản lý / Khách hàng /</span> Tạo mới</h4>
 
-<EditForm Model="@client" OnValidSubmit="HandleSubmit">
+<EditForm Model="@Input" OnValidSubmit="HandleSubmit" FormName="add-client">
     <DataAnnotationsValidator />
     <ValidationSummary /> 
 
@@ -23,26 +23,26 @@
 
             <div class="mb-3">
                 <label for="clientName" class="form-label">Tên khách hàng</label>
-                <InputText id="clientName" class="form-control" @bind-Value="client.Name" />
-                <ValidationMessage For="@(() => client.Name)" />
+                <InputText id="clientName" class="form-control" @bind-Value="Input.Name" />
+                <ValidationMessage For="@(() => Input.Name)" />
             </div>
 
             <div class="mb-3">
                 <label for="clientEmail" class="form-label">Email</label>
-                <InputText id="clientEmail" type="email" class="form-control" @bind-Value="client.Email" />
-                 <ValidationMessage For="@(() => client.Email)" />
+                <InputText id="clientEmail" type="email" class="form-control" @bind-Value="Input.Email" />
+                <ValidationMessage For="@(() => Input.Email)" />
             </div>
 
             <div class="mb-3">
                 <label for="clientPhone" class="form-label">Số điện thoại</label>
-                <InputText id="clientPhone" class="form-control" @bind-Value="client.Phone" />
-                <ValidationMessage For="@(() => client.Phone)" />
+                <InputText id="clientPhone" class="form-control" @bind-Value="Input.Phone" />
+                <ValidationMessage For="@(() => Input.Phone)" />
             </div>
 
             <div class="mb-3">
                 <label for="clientAddress" class="form-label">Địa chỉ</label>
-                <InputTextArea id="clientAddress" class="form-control" @bind-Value="client.Address" rows="3" />
-                <ValidationMessage For="@(() => client.Address)" />
+                <InputTextArea id="clientAddress" class="form-control" @bind-Value="Input.Address" rows="3" />
+                <ValidationMessage For="@(() => Input.Address)" />
             </div>
 
         </div>
@@ -55,25 +55,34 @@
 
 
 @code {
-    private AppClient client = new(); 
+    private AddClientModel Input { get; set; } = new();
 
     private async Task HandleSubmit()
     {
-        try
+        await SaleService.CreateClientAsync(new AppClient
         {
-            await SaleService.CreateClientAsync(client);
-            Console.WriteLine($"Đã lưu khách hàng mới: {client.Name}");
-            GoBack();
-        }
-        catch (Exception ex)
-        {
-            
-            Console.WriteLine($"Error saving client: {ex.Message}");
-        }
+            Phone = Input.Phone,
+            Name = Input.Name,
+            Email = Input.Email,
+            Address = Input.Address
+        });
+        GoBack();
     }
 
     private void GoBack()
     {
         NavManager.NavigateTo("/sale/customercontact");
+    }
+
+    private sealed class AddClientModel
+    {
+        [Required(ErrorMessage = "Số điện thoại không được trống")]
+        [Phone(ErrorMessage = "Số điện thoại không hợp lệ")]
+        public string Phone { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Tên không được để trống")]
+        public string Name { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public string? Email { get; set; }
     }
 }

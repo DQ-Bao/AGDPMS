@@ -1,6 +1,5 @@
-﻿using System;
+﻿namespace AGDPMS.Shared.Models;
 
-namespace AGDPMS.Shared.Models;
 public class AppClient
 {
     public int Id { get; set; }
