@@ -10,7 +10,6 @@
 @using System.Globalization
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
-@inject AuthenticationStateProvider AuthStateProvider 
 
 <PageTitle>Chi tiết dự án</PageTitle>
 
@@ -263,31 +262,35 @@ else
     <div class="card shadow-sm mt-4">
         <div class="card-body">
             <div class="d-flex gap-2">
-                @if (isAdmin && project.Status == ProjectRFQStatus.Planning)
-                {
-                    <button class="btn btn-success" @onclick="HandleApprove" disabled="@isProcessing">
-                        @if (isProcessing)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
-                        }
-                        else
-                        {
-                            <i class="bi bi-check-circle me-1"></i>
-                        }
-                        Phê duyệt dự án
-                    </button>
-                }
-                @if (isAdmin && project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
-                {
-                    <button class="btn btn-danger" @onclick="() => showCancelModal = true" disabled="@isProcessing">
-                        <i class="bi bi-x-circle"></i>
-                        Hủy dự án
-                    </button>
-                }
-                @if (project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
-                {
-                    <button class="btn btn-primary" @onclick="GoToEdit">Chỉnh sửa</button>
-                }
+                <AuthorizeView Roles="Director">
+                    @if (project.Status == ProjectRFQStatus.Planning)
+                    {
+                        <button class="btn btn-success" @onclick="HandleApprove" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-1"></i>
+                            }
+                            Phê duyệt dự án
+                        </button>
+                    }
+                    @if (project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
+                    {
+                        <button class="btn btn-danger" @onclick="() => showCancelModal = true" disabled="@isProcessing">
+                            <i class="bi bi-x-circle"></i>
+                            Hủy dự án
+                        </button>
+                    }
+                </AuthorizeView>
+                <AuthorizeView Roles="Sale">
+                    @if (project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
+                    {
+                        <button class="btn btn-primary" @onclick="GoToEdit">Chỉnh sửa</button>
+                    }
+                </AuthorizeView>
                 <button class="btn btn-outline-secondary" @onclick="GoBack">Quay lại</button>
             </div>
             @if (!string.IsNullOrEmpty(errorMessage))
@@ -349,7 +352,6 @@ else
     public int Id { get; set; }
     private AppRFQ? project;
     private Quotation? quotation;
-    private bool isAdmin = false; // Actually checks for Director role - variable name kept for consistency
     private bool isProcessing = false;
     private string? errorMessage;
     private string? successMessage;
@@ -357,17 +359,6 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        // Check if user is Director (who can approve projects) - try multiple claim types
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-
-        // Try to get role from claims
-        var userRole = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value 
-            ?? user.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
-
-        // Check if user is Director (who can approve projects) using role claim or IsInRole method
-        isAdmin = userRole == "Director" || user.IsInRole("Director");
-
         project = await SaleService.GetProjectRFQByIdAsync(Id);
         quotation = new Quotation
         {

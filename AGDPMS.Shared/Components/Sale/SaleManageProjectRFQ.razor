@@ -3,6 +3,7 @@
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
@@ -15,9 +16,11 @@
         <button class="btn btn-secondary me-2" @onclick="GoToCustomerPage">
             <i class="bx bx-user me-1"></i> Quản lý Khách hàng
         </button>
-        <button class="btn btn-primary" @onclick="GoToCreatePage">
-            <i class="bx bx-plus me-1"></i> Tạo yêu cầu công trình
-        </button>
+        <AuthorizeView Roles="Sale">
+            <button class="btn btn-primary" @onclick="GoToCreatePage">
+                <i class="bx bx-plus me-1"></i> Tạo yêu cầu công trình
+            </button>
+        </AuthorizeView>
     </div>
 </div>
 
@@ -74,13 +77,15 @@
                                 </span>
                             </td>
                             <td>
-                                @if (project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
-                                {
-                                    <button class="btn btn-outline-primary me-1" @onclick="() => GoToEditPage(project.Id)">Sửa</button>
-                                    <button class="btn btn-outline-danger" @onclick="() => RequestDeleteConfirmation(project)">
-                                        <i class="bi bi-trash me-1"></i>Xóa
-                                    </button>
-                                }
+                                <AuthorizeView Roles="Sale">
+                                    @if (project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
+                                    {
+                                        <button class="btn btn-outline-primary me-1" @onclick="() => GoToEditPage(project.Id)">Sửa</button>
+                                        <button class="btn btn-outline-danger" @onclick="() => RequestDeleteConfirmation(project)">
+                                            <i class="bi bi-trash me-1"></i>Xóa
+                                        </button>
+                                    }
+                                </AuthorizeView>
                             </td>
                         </tr>
                     }

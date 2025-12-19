@@ -5,7 +5,8 @@
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
 @using Microsoft.AspNetCore.Authorization
-@attribute [Authorize(Roles = "Sale")]
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Sale,Director")]
 
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
@@ -15,10 +16,11 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Khách hàng</h4>
     <div>
-        
-        <button class="btn btn-primary" @onclick="GoToCreateCustomerPage">
-            <i class="bx bx-plus me"></i> Thêm Khách hàng
-        </button>
+        <AuthorizeView Roles="Sale">
+            <button class="btn btn-primary" @onclick="GoToCreateCustomerPage">
+                <i class="bx bx-plus me"></i> Thêm Khách hàng
+            </button>
+        </AuthorizeView>
     </div>
 </div>
 
@@ -88,19 +90,21 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <button class="btn btn-outline-primary me"
-                                            @onclick="() => GoToEditCustomerPage(client.Id)"
-                                            title="Sửa khách hàng">
-                                        <i class="bx bx-edit-alt me"></i> Sửa
-                                    </button>
-                                    <button class="btn btn-outline-danger me"
-                                            @onclick="() => RequestDeleteConfirmation(client)"
-                                            title="Xóa khách hàng">
-                                        <i class="bx bx-trash me"></i> Xóa
-                                    </button>
-                                    <button class="btn btn-success me-1" @onclick="() => GoToCreateRFQPage(client.Id)">
-                                        <i class="bx bx-plus me"></i> Tạo RFQ
-                                    </button>
+                                    <AuthorizeView Roles="Sale">
+                                        <button class="btn btn-outline-primary me"
+                                                @onclick="() => GoToEditCustomerPage(client.Id)"
+                                                title="Sửa khách hàng">
+                                            <i class="bx bx-edit-alt me"></i> Sửa
+                                        </button>
+                                        <button class="btn btn-outline-danger me"
+                                                @onclick="() => RequestDeleteConfirmation(client)"
+                                                title="Xóa khách hàng">
+                                            <i class="bx bx-trash me"></i> Xóa
+                                        </button>
+                                        <button class="btn btn-success me-1" @onclick="() => GoToCreateRFQPage(client.Id)">
+                                            <i class="bx bx-plus me"></i> Tạo RFQ
+                                        </button>
+                                    </AuthorizeView>
                                 </td>
                             </tr>
                         }
@@ -183,9 +187,11 @@ else
                                     </span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-outline-primary" @onclick="() => GoToEditProjectPage(project.Id)">
-                                        <i class="bx bx-edit-alt me"></i> Sửa Dự án
-                                    </button>
+                                    <AuthorizeView Roles="Sale">
+                                        <button class="btn btn-outline-primary" @onclick="() => GoToEditProjectPage(project.Id)">
+                                            <i class="bx bx-edit-alt me"></i> Sửa Dự án
+                                        </button>
+                                    </AuthorizeView>
                                 </td>
                             </tr>
                         }
