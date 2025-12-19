@@ -163,7 +163,7 @@ internal class WebProductService(
                     {
                         cutSolutions.Add(new CavityProfileSummary.CutSolution
                         {
-                            StockLength = opt.stock_len,
+                            StockLength = opt.pattern_stock_lens[i],
                             Quantity = quantity,
                             Pattern = patternCuts
                         });
