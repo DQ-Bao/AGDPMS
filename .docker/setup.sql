@@ -395,6 +395,16 @@ create table if not exists notifications (
     "role_id" int references roles ("id")
 );
 
+create table if not exists quotation_settings (
+    "id" serial primary key,
+    "project_id" int not null unique references projects ("id"),
+    "labor_cost" int not null default 0,
+    "profit_percentage" numeric(10,3) not null default 0,
+    "tax_percentage" numeric(10,3) not null default 0,
+    "transport_cost" int not null default 0,
+    "contingency" int not null default 0
+);
+
 -- INSERT --
 insert into roles ("name")
 values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA'), ('Production Manager');

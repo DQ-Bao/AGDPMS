@@ -450,7 +450,7 @@
         </div>
     </div>
 </div>
-<AuthorizeView Roles="Technician">
+<AuthorizeView Roles="Technician" Context="auth">
     <SelectWStarCavitiesModal @ref="SelectModal" ModalId="projModal" Projects="WStarProjects" OnConfirm="AddSelectedCavities" />
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -615,41 +615,50 @@
                     }
                     else
                     {
-                        <div class="mb-3">
-                            <label class="form-label">Phí nhân công/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="LaborCost" />
-                                <span class="input-group-text">VND</span>
+                        <EditForm Model="QInput" @ref="UpdateQuotForm" FormName="update-qst">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+                            <div class="mb-3">
+                                <label class="form-label">Phí nhân công/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber class="form-control" @bind-Value="QInput.LaborCost" />
+                                    <span class="input-group-text">VND</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.LaborCost" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">% lợi nhuận/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="ProfitPercentage" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">% lợi nhuận/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber @bind-Value="QInput.ProfitPercentage" class="form-control" step="0.001" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.ProfitPercentage" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">% thuế/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="TaxPercentage" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">% thuế/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber @bind-Value="QInput.TaxPercentage" class="form-control" step="0.001" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.TaxPercentage" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Phí vận chuyển/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="TransportCost" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">Phí vận chuyển/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber class="form-control" @bind-Value="QInput.TransportCost" />
+                                    <span class="input-group-text">VND</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.TransportCost" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Dự trù</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="Contingency" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">Dự trù</label>
+                                <div class="input-group">
+                                    <InputNumber class="form-control" @bind-Value="QInput.Contingency" />
+                                    <span class="input-group-text">VND</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.Contingency" />
                             </div>
-                        </div>
+                        </EditForm>
                     }
                 </div>
                 <div class="modal-footer">
@@ -766,6 +775,10 @@
     [SupplyParameterFromForm]
     private SummarizeAluminumModel Input { get; set; } = new();
 
+    [SupplyParameterFromForm]
+    private UpdateQuotationSettingsModel QInput { get; set; } = new();
+    private EditForm? UpdateQuotForm;
+
     private StatusMessage? StatusMessage { get; set; }
     private string? UploadedFilePath;
     private IEnumerable<WStarProject> WStarProjects = [];
@@ -797,18 +810,25 @@
     private string? EditingOtherMaterialStockPriceRow { get; set; }
     private decimal EditingOtherMaterialStockPrice { get; set; }
 
-    private decimal LaborCost { get; set; }
-    private decimal ProfitPercentage { get; set; }
-    private decimal TaxPercentage { get; set; }
-    private decimal TransportCost { get; set; }
-    private decimal Contingency { get; set; }
-
     private Quotation? Quotation { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
         var auth = await AuthStateProvider.GetAuthenticationStateAsync();
         CanEditCavity = auth.User.IsInRole("Technician");
+        var result = await ProductService.GetQuotationSettingsAsync(ProjectId);
+        if (result.Success && result.Settings is not null)
+        {
+            QInput = new UpdateQuotationSettingsModel
+            {
+                LaborCost = (int)result.Settings.LaborCost,
+                ProfitPercentage = result.Settings.ProfitPercentage,
+                TaxPercentage = result.Settings.TaxPercentage,
+                TransportCost = (int)result.Settings.TransportCost,
+                Contingency = (int)result.Settings.Contingency
+            };
+        }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
         await LoadProjectCavities();
     }
 
@@ -1087,7 +1107,22 @@
 
     private async Task HandleCalculateQuotation()
     {
-        var result = await ProductService.CalculateQuotationAsync(ProjectId, LaborCost, ProfitPercentage, TaxPercentage, TransportCost, Contingency);
+        if (UpdateQuotForm is null || UpdateQuotForm.EditContext is null) return;
+        if (!UpdateQuotForm.EditContext.Validate()) return;
+        var res = await ProductService.UpdateQuotationSettingsAsync(ProjectId, new QuotationSettings
+        {
+            LaborCost = QInput.LaborCost,
+            ProfitPercentage = QInput.ProfitPercentage,
+            TaxPercentage = QInput.TaxPercentage,
+            TransportCost = QInput.TransportCost,
+            Contingency = QInput.Contingency
+        });
+        if (!res.Success)
+        {
+            StatusMessage = StatusMessage.Error(res.ErrorMessage);
+            return;
+        }
+        var result = await ProductService.CalculateQuotationAsync(ProjectId);
         if (result.Success) Quotation = result.Quotation;
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
@@ -1107,5 +1142,23 @@
         public string? Description { get; set; }
 
         public string? Location { get; set; }
+    }
+
+    private sealed class UpdateQuotationSettingsModel
+    {
+        [Required, Range(0, int.MaxValue)]
+        public int LaborCost { get; set; } = 0;
+        
+        [Required, Range(0, double.MaxValue)]
+        public decimal ProfitPercentage { get; set; } = 0;
+        
+        [Required, Range(0, double.MaxValue)]
+        public decimal TaxPercentage { get; set; } = 0;
+        
+        [Required, Range(0, int.MaxValue)]
+        public int TransportCost { get; set; } = 0;
+        
+        [Required, Range(0, int.MaxValue)]
+        public int Contingency { get; set; } = 0;
     }
 }

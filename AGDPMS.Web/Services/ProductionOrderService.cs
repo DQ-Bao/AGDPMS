@@ -2,8 +2,10 @@ using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Models.DTOs;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
-using System.Data;
+using AGDPMS.Web.Hubs;
 using Dapper;
+using Microsoft.AspNetCore.SignalR;
+using System.Data;
 
 namespace AGDPMS.Web.Services;
 
@@ -17,7 +19,8 @@ public class ProductionOrderService(
     ProductionOrderSettingDataAccess orderSettingAccess,
     UserDataAccess userAccess,
     IDbConnection dbConnection,
-    INotificationService notificationService)
+    NotificationDataAccess notificationDataAccess,
+    IHubContext<NotificationHub, INotificationClient> hubContext)
 {
     public async Task<int> CreateOrderAsync(ProductionOrderCreateSpec spec, int createdBy)
     {
@@ -335,12 +338,14 @@ public class ProductionOrderService(
             var recipients = allUsers.Where(u => roleSet.Contains(u.Role.Name ?? string.Empty)).ToList();
             foreach (var user in recipients)
             {
-                await notificationService.AddNotificationAsync(new Notification
+                var notification = new Notification
                 {
                     Message = message,
                     Url = url,
                     Target = NotificationTarget.User(user.Id)
-                });
+                };
+                var saved = await notificationDataAccess.CreateAsync(notification);
+                await hubContext.Clients.Group($"user:{user.Id}").ReceiveNotification(NotificationDto.FromDomain(notification));
             }
         }
         catch (Exception ex)

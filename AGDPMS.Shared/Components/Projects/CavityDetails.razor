@@ -3,6 +3,9 @@
 @using System.ComponentModel.DataAnnotations
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@attribute [Authorize(Roles = "Technician,QA,Production Manager")]
 
 @inject IProductService ProductService
 
@@ -16,18 +19,6 @@
 <ul class="nav nav-tabs" id="cavTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link active"
-                id="tab-general"
-                data-bs-toggle="tab"
-                data-bs-target="#pane-general"
-                type="button"
-                role="tab"
-                aria-controls="pane-general"
-                aria-selected="true">
-            Thông tin cơ bản
-        </button>
-    </li>
-    <li class="nav-item" role="presentation">
-        <button class="nav-link"
                 id="tab-mats"
                 data-bs-toggle="tab"
                 data-bs-target="#pane-mats"
@@ -38,69 +29,23 @@
             Số liệu sản xuất
         </button>
     </li>
+    <AuthorizeView Roles="Technician">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link"
+                    id="tab-general"
+                    data-bs-toggle="tab"
+                    data-bs-target="#pane-general"
+                    type="button"
+                    role="tab"
+                    aria-controls="pane-general"
+                    aria-selected="true">
+                Thông tin cơ bản
+            </button>
+        </li>
+    </AuthorizeView>
 </ul>
 <div class="tab-content" id="cavTabsContent">
-    <div class="tab-pane fade show active" id="pane-general" role="tabpanel" aria-labelledby="tab-general">
-        <div class="card shadow-sm border rounded-3 mb-4">
-            <div class="card-body">
-                @if (Cavity is not null)
-                {
-                    <EditForm Model="@Input" method="post" OnValidSubmit="SaveChange" FormName="edit-cavity">
-                        <DataAnnotationsValidator />
-                        <ValidationSummary />
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <label class="form-label fw-semibold">Mã cửa</label>
-                                <InputText @bind-Value="Input.Code" class="form-control" />
-                                <ValidationMessage For="@(() => Input.Code)" />
-                            </div>
-                            <div class="col-md-8">
-                                <label class="form-label fw-semibold">Mô tả</label>
-                                <InputText @bind-Value="Input.Description" class="form-control" />
-                                <ValidationMessage For="@(() => Input.Description)" />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Vị trí</label>
-                                <InputText @bind-Value="Input.Location" class="form-control" />
-                                <ValidationMessage For="@(() => Input.Location)" />
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Số lượng</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" value="@Cavity.Quantity" disabled />
-                                    <span class="input-group-text">bộ</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Kích thước</label>
-                                <div class="input-group">
-                                    <input type="number" class="form-control" value="@Cavity.Width" disabled />
-                                    <span class="input-group-text">×</span>
-                                    <input type="number" class="form-control" value="@Cavity.Height" disabled />
-                                    <span class="input-group-text">mm</span>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <label class="form-label fw-semibold">Kiểu cách</label>
-                                <input type="text" class="form-control" value="@Cavity.WindowType" disabled />
-                            </div>
-                        </div>
-                        <div class="mt-4 text-end">
-                            <button type="submit" class="btn btn-success" disabled="@IsLoading">Lưu thay đổi</button>
-                        </div>
-                    </EditForm>
-                }
-                @if (!string.IsNullOrEmpty(StatusMessage))
-                {
-                    <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
-                        @StatusMessage
-                        <button type="button" class="btn-close" @onclick="() => StatusMessage = null"></button>
-                    </div>
-                }
-            </div>
-        </div>
-    </div>
-    <div class="tab-pane fade" id="pane-mats" role="tabpanel" aria-labelledby="tab-mats">
+    <div class="tab-pane fade show active" id="pane-mats" role="tabpanel" aria-labelledby="tab-mats">
         @if (Cavity is not null)
         {
             <!-- PROFILE -->
@@ -293,6 +238,68 @@
             </div>
         }
     </div>
+    <AuthorizeView Roles="Technician" Context="auth">
+        <div class="tab-pane fade" id="pane-general" role="tabpanel" aria-labelledby="tab-general">
+            <div class="card shadow-sm border rounded-3 mb-4">
+                <div class="card-body">
+                    @if (Cavity is not null)
+                    {
+                        <EditForm Model="@Input" method="post" OnValidSubmit="SaveChange" FormName="edit-cavity">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+                            <div class="row g-3">
+                                <div class="col-md-4">
+                                    <label class="form-label fw-semibold">Mã cửa</label>
+                                    <InputText @bind-Value="Input.Code" class="form-control" />
+                                    <ValidationMessage For="@(() => Input.Code)" />
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-semibold">Mô tả</label>
+                                    <InputText @bind-Value="Input.Description" class="form-control" />
+                                    <ValidationMessage For="@(() => Input.Description)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Vị trí</label>
+                                    <InputText @bind-Value="Input.Location" class="form-control" />
+                                    <ValidationMessage For="@(() => Input.Location)" />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Số lượng</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" value="@Cavity.Quantity" disabled />
+                                        <span class="input-group-text">bộ</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Kích thước</label>
+                                    <div class="input-group">
+                                        <input type="number" class="form-control" value="@Cavity.Width" disabled />
+                                        <span class="input-group-text">×</span>
+                                        <input type="number" class="form-control" value="@Cavity.Height" disabled />
+                                        <span class="input-group-text">mm</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-semibold">Kiểu cách</label>
+                                    <input type="text" class="form-control" value="@Cavity.WindowType" disabled />
+                                </div>
+                            </div>
+                            <div class="mt-4 text-end">
+                                <button type="submit" class="btn btn-success" disabled="@IsLoading">Lưu thay đổi</button>
+                            </div>
+                        </EditForm>
+                    }
+                    @if (!string.IsNullOrEmpty(StatusMessage))
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show mt-3" role="alert">
+                            @StatusMessage
+                            <button type="button" class="btn-close" @onclick="() => StatusMessage = null"></button>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </AuthorizeView>
 </div>
 
 @code {

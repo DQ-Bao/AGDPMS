@@ -17,13 +17,9 @@ public interface IProductService
     Task<AddOrUpdateGlassMaterialBasePriceResult> AddOrUpdateGlassMaterialBasePriceAsync(string materialId, double stockWidth, double stockLength, int stockId, decimal price);
     Task<AddOrUpdateOtherMaterialBasePriceResult> AddOrUpdateOtherMaterialBasePriceAsync(string materialId, int stockId, decimal price);
     Task<CreateMaterialPlanningResult> CreateMaterialPlanningAsync(MaterialPlanning planning);
-    Task<CalculateQuotationResult> CalculateQuotationAsync(
-        int projectId,
-        decimal laborCost,
-        decimal profitPercentage,
-        decimal taxPercentage,
-        decimal transportCost,
-        decimal contingency);
+    Task<CalculateQuotationResult> CalculateQuotationAsync(int projectId);
+    Task<GetQuotationSettingsResult> GetQuotationSettingsAsync(int projectId);
+    Task<UpdateQuotationSettingsResult> UpdateQuotationSettingsAsync(int projectId, QuotationSettings settings);
 }
 
 public sealed class GetAllProjectsResult
@@ -115,4 +111,17 @@ public sealed class CalculateQuotationResult
     public required bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public Quotation? Quotation { get; set; }
+}
+
+public sealed class GetQuotationSettingsResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+    public QuotationSettings? Settings { get; set; }
+}
+
+public sealed class UpdateQuotationSettingsResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
 }

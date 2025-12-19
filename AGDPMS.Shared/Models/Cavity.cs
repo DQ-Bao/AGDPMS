@@ -148,21 +148,26 @@ public class Quotation
         public required int Quantity { get; set; }
         public required double Weight { get; set; }
         public required decimal MaterialPrice { get; set; }
-        public required decimal LaborCost { get; set; }
-        public required decimal ProfitPercentage { get; set; }
-        public required decimal TaxPercentage { get; set; }
-        public required decimal TransportCost { get; set; }
-        public required decimal Contingency { get; set; }
+        public required QuotationSettings Settings { get; set; }
         public decimal UnitPrice =>
             MaterialPrice +
-            LaborCost +
-            (MaterialPrice * ProfitPercentage * 0.01M) +
-            (MaterialPrice * TaxPercentage * 0.01M) +
-            TransportCost +
-            Contingency;
+            Settings.LaborCost +
+            (MaterialPrice * Settings.ProfitPercentage * 0.01M) +
+            (MaterialPrice * Settings.TaxPercentage * 0.01M) +
+            Settings.TransportCost +
+            Settings.Contingency;
         public decimal TotalPrice => UnitPrice * Quantity;
     }
     public List<QuotationDetails> Details { get; set; } = [];
     public double TotalWeight => Details.Sum(d => d.Weight);
     public decimal TotalPrice => Details.Sum(d => d.TotalPrice);
+}
+
+public sealed class QuotationSettings
+{
+    public decimal LaborCost { get; set; }
+    public decimal ProfitPercentage { get; set; }
+    public decimal TaxPercentage { get; set; }
+    public decimal TransportCost { get; set; }
+    public decimal Contingency { get; set; }
 }
