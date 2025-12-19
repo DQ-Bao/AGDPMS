@@ -10,6 +10,7 @@
 @using System.Globalization
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
+@inject IProductService ProductService
 
 <PageTitle>Chi tiết dự án</PageTitle>
 
@@ -360,57 +361,9 @@ else
     protected override async Task OnInitializedAsync()
     {
         project = await SaleService.GetProjectRFQByIdAsync(Id);
-        quotation = new Quotation
-        {
-            Details = new List<Quotation.QuotationDetails>
-            {
-                new()
-                {
-                    Code = "A-01",
-                    Description = "Khung nhôm mặt dựng",
-                    Width = 1200,
-                    Height = 2400,
-                    Quantity = 10,
-                    Weight = 35.5,
-                    MaterialPrice = 2_500_000,
-                    LaborCost = 500_000,
-                    ProfitPercentage = 15,
-                    TaxPercentage = 8,
-                    TransportCost = 200_000,
-                    Contingency = 100_000
-                },
-                new()
-                {
-                    Code = "B-02",
-                    Description = "Kính cường lực 10mm",
-                    Width = 1000,
-                    Height = 2200,
-                    Quantity = 8,
-                    Weight = 42.3,
-                    MaterialPrice = 3_200_000,
-                    LaborCost = 500_000,
-                    ProfitPercentage = 15,
-                    TaxPercentage = 8,
-                    TransportCost = 200_000,
-                    Contingency = 100_000
-                },
-                new()
-                {
-                    Code = "C-03",
-                    Description = "Phụ kiện & lắp đặt",
-                    Width = 0,
-                    Height = 0,
-                    Quantity = 1,
-                    Weight = 12.0,
-                    MaterialPrice = 1_800_000,
-                    LaborCost = 500_000,
-                    ProfitPercentage = 15,
-                    TaxPercentage = 8,
-                    TransportCost = 200_000,
-                    Contingency = 100_000
-                }
-            }
-        };
+        var result = await ProductService.CalculateQuotationAsync(Id);
+        if (result.Success) quotation = result.Quotation;
+        else errorMessage = result.ErrorMessage;
     }
 
     private async Task HandleApprove()

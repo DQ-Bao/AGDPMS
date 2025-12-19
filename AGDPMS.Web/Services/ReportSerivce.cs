@@ -270,9 +270,9 @@ public class ReportSerivce : IReportService
             ws.Cell(currentRow, 6).Value = d.Quantity;
             ws.Cell(currentRow, 7).Value = d.Weight;
             ws.Cell(currentRow, 8).Value = d.MaterialPrice;
-            ws.Cell(currentRow, 9).Value = d.LaborCost;
-            ws.Cell(currentRow, 10).Value = d.ProfitPercentage;
-            ws.Cell(currentRow, 11).Value = d.TaxPercentage;
+            ws.Cell(currentRow, 9).Value = d.Settings.LaborCost;
+            ws.Cell(currentRow, 10).Value = d.Settings.ProfitPercentage;
+            ws.Cell(currentRow, 11).Value = d.Settings.TaxPercentage;
             ws.Cell(currentRow, 12).Value = d.UnitPrice;
             ws.Cell(currentRow, 13).Value = d.TotalPrice;
 

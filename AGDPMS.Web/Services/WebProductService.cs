@@ -328,18 +328,59 @@ internal class WebProductService(
         }
     }
 
-    public async Task<CalculateQuotationResult> CalculateQuotationAsync(int projectId, decimal laborCost, decimal profitPercentage, decimal taxPercentage, decimal transportCost, decimal contingency)
+    public async Task<CalculateQuotationResult> CalculateQuotationAsync(int projectId)
     {
         try
         {
-            if (laborCost < 0 || profitPercentage < 0 || taxPercentage < 0 || transportCost < 0 || contingency < 0)
+            var settings = await cavityDataAccess.GetQuotationSettingsAsync(projectId);
+            if (settings.LaborCost < 0 ||
+                settings.ProfitPercentage < 0 ||
+                settings.TaxPercentage < 0 ||
+                settings.TransportCost < 0 ||
+                settings.Contingency < 0)
+            {
                 return new CalculateQuotationResult { Success = false, ErrorMessage = "Các tham số không hợp lệ" };
-            var quotation = await cavityDataAccess.GetQuotationAsync(projectId, laborCost, profitPercentage, taxPercentage, transportCost, contingency);
+            }
+            var quotation = await cavityDataAccess.GetQuotationAsync(projectId, settings);
             return new CalculateQuotationResult { Success = true, Quotation = quotation };
         }
         catch (Exception e)
         {
             return new CalculateQuotationResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<GetQuotationSettingsResult> GetQuotationSettingsAsync(int projectId)
+    {
+        try
+        {
+            var settings = await cavityDataAccess.GetQuotationSettingsAsync(projectId);
+            return new GetQuotationSettingsResult { Success = true, Settings = settings };
+        }
+        catch (Exception e)
+        {
+            return new GetQuotationSettingsResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<UpdateQuotationSettingsResult> UpdateQuotationSettingsAsync(int projectId, QuotationSettings settings)
+    {
+        try
+        {
+            if (settings.LaborCost < 0 ||
+                settings.ProfitPercentage < 0 ||
+                settings.TaxPercentage < 0 ||
+                settings.TransportCost < 0 ||
+                settings.Contingency < 0)
+            {
+                return new UpdateQuotationSettingsResult { Success = false, ErrorMessage = "Các tham số không hợp lệ" };
+            }
+            await cavityDataAccess.AddOrUpdateQuotationSettingsAsync(projectId, settings);
+            return new UpdateQuotationSettingsResult { Success = true };
+        }
+        catch (Exception e)
+        {
+            return new UpdateQuotationSettingsResult { Success = false, ErrorMessage = e.Message };
         }
     }
 }
