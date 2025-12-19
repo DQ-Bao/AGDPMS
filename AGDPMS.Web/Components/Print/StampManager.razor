@@ -126,10 +126,12 @@
                                             }
                                         </td>
                                         <td class="text-center" @onclick:stopPropagation="true">
-                                            <button class="btn btn-sm btn-link text-danger p-0" @onclick='@(async () => await RemoveStamp(item))' title="Xóa tem này">
-                                                <i class="bx bx-trash"></i>
-                                                                   </button>
-                                                               </td>
+                                            <button class="btn btn-sm btn-outline-danger d-inline-flex align-items-center gap-1"
+                                                    @onclick='@(async () => await RemoveStamp(item))'
+                                                    title="Xóa tem này">
+                                                <i class="bx bx-trash"></i><span>Xóa</span>
+                                            </button>
+                                        </td>
                                                            </tr>
                                         }
                                     }

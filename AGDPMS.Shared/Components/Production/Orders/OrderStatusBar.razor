@@ -13,7 +13,7 @@
         {
             <div class="d-flex align-items-center gap-2 flex-wrap">
                 @{
-                    var statuses = new[]
+                    var allStatuses = new[]
                     {
                         (ProductionOrderStatus.Draft, "Nháp"),
                         (ProductionOrderStatus.PendingDirectorApproval, "Chờ giám đốc duyệt"),
@@ -24,6 +24,11 @@
                         (ProductionOrderStatus.Cancelled, "Đã hủy"),
                         (ProductionOrderStatus.DirectorRejected, "Giám đốc từ chối")
                     };
+
+                    // Ẩn trạng thái "Giám đốc từ chối" khỏi thanh nếu nó không phải là trạng thái hiện tại
+                    var statuses = allStatuses
+                        .Where(s => s.Item1 != ProductionOrderStatus.DirectorRejected || orderStatus == ProductionOrderStatus.DirectorRejected)
+                        .ToArray();
                 }
                 @foreach (var (status, label) in statuses)
                 {
