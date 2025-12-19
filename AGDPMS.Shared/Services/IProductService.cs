@@ -10,20 +10,16 @@ public interface IProductService
     Task<UpdateCavityResult> UpdateCavityAsync(Cavity cavity);
     Task<DeleteCavityResult> DeleteCavityAsync(int cavityId);
     Task<AddCavitiesFromWStarDesignResult> AddCavitiesFromWStarDesignAsync(int projectId, IEnumerable<WStarCavity> cavities);
-    Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId, double stockLengthForOptimize);
+    Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId/*, double stockLengthForOptimize*/);
     Task<GetCavityGlassAndOtherMaterialSummariesResult> GetCavityGlassAndOtherMaterialSummariesAsync(int projectId);
     Task<UpdateProfileMaterialWeightResult> UpdateProfileMaterialWeightAsync(string materialId, double weight);
     Task<AddOrUpdateProfileMaterialBasePriceResult> AddOrUpdateProfileMaterialBasePriceAsync(string materialId, double stockLength, int stockId, decimal price);
     Task<AddOrUpdateGlassMaterialBasePriceResult> AddOrUpdateGlassMaterialBasePriceAsync(string materialId, double stockWidth, double stockLength, int stockId, decimal price);
     Task<AddOrUpdateOtherMaterialBasePriceResult> AddOrUpdateOtherMaterialBasePriceAsync(string materialId, int stockId, decimal price);
     Task<CreateMaterialPlanningResult> CreateMaterialPlanningAsync(MaterialPlanning planning);
-    Task<CalculateQuotationResult> CalculateQuotationAsync(
-        int projectId,
-        decimal laborCost,
-        decimal profitPercentage,
-        decimal taxPercentage,
-        decimal transportCost,
-        decimal contingency);
+    Task<CalculateQuotationResult> CalculateQuotationAsync(int projectId);
+    Task<GetQuotationSettingsResult> GetQuotationSettingsAsync(int projectId);
+    Task<UpdateQuotationSettingsResult> UpdateQuotationSettingsAsync(int projectId, QuotationSettings settings);
 }
 
 public sealed class GetAllProjectsResult
@@ -115,4 +111,17 @@ public sealed class CalculateQuotationResult
     public required bool Success { get; set; }
     public string? ErrorMessage { get; set; }
     public Quotation? Quotation { get; set; }
+}
+
+public sealed class GetQuotationSettingsResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
+    public QuotationSettings? Settings { get; set; }
+}
+
+public sealed class UpdateQuotationSettingsResult
+{
+    public required bool Success { get; set; }
+    public string? ErrorMessage { get; set; }
 }

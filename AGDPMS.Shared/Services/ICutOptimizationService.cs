@@ -257,6 +257,15 @@ public interface ICutOptimizationService
     {
         List<RawMaterial> raws = new List<RawMaterial>();
         List<DemandItem> dmd = new List<DemandItem>();
+        for (int i = 0; i < stock_lens.Length; i++)
+        {
+            raws.Add(new RawMaterial() { Length = stock_lens[i], MaxCount = stock_limits[i] });
+        }
+
+        for (int i = 0; i < lengths.Length; i++)
+        {
+            dmd.Add(new DemandItem() { Length = lengths[i], Quantity = (int)demands[i] });
+        }
         var limited = raws.Where(r => r.MaxCount < int.MaxValue).ToList();
         var unlimited = raws.Where(r => r.MaxCount == int.MaxValue).ToList();
 
@@ -281,6 +290,8 @@ public interface ICutOptimizationService
         var final = new CuttingStockSolution();
         final.Patterns.AddRange(phase1.Patterns);
         final.Patterns.AddRange(phase2.Patterns);
+        final.DemandItems.AddRange(dmd);
+        final.RawMaterials.AddRange(raws);
 
         return Convert(final);
     }
@@ -645,6 +656,7 @@ public interface ICutOptimizationService
         sol.used = new double[patternCount];
         sol.wastes = new double[patternCount];
         sol.pattern_quantity = new double[patternCount];
+        sol.pattern_stock_lens = new double[patternCount];
 
         for (int i = 0; i < patternCount; i++)
         {
@@ -659,6 +671,7 @@ public interface ICutOptimizationService
 
             sol.patterns_cnt.Add(p.TimesUsed);
             sol.pattern_quantity[i] = p.TimesUsed;
+            sol.pattern_stock_lens[i] = p.RawLength;
 
             // compute used length
             double used = 0.0;
@@ -688,6 +701,7 @@ public class Solution
     public double[] demands = [];
     public double[] lengths = [];
     public List<double[]> patterns = [];
+    public double[] pattern_stock_lens = [];
     public List<double> patterns_cnt = [];
     public double[] wastes = [];
     public double[] used = [];

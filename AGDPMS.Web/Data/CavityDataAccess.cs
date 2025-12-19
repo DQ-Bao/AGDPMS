@@ -258,6 +258,7 @@ public class CavityDataAccess(IDbConnection conn)
                 }, tran);
         }
     }
+
     private class QuotationRow
     {
         public int CavityId { get; set; }
@@ -271,11 +272,7 @@ public class CavityDataAccess(IDbConnection conn)
     }
     public async Task<Quotation> GetQuotationAsync(
         int projectId,
-        decimal laborCost,
-        decimal profitPercentage,
-        decimal taxPercentage,
-        decimal transportCost,
-        decimal contingency)
+        QuotationSettings settings)
     {
         const string sql = @"
         SELECT 
@@ -306,14 +303,44 @@ public class CavityDataAccess(IDbConnection conn)
                 Quantity = row.Quantity,
                 Weight = row.Weight,
                 MaterialPrice = row.MaterialPrice,
-                LaborCost = laborCost,
-                ProfitPercentage = profitPercentage,
-                TaxPercentage = taxPercentage,
-                TransportCost = transportCost,
-                Contingency = contingency
+                Settings = settings,
             });
         }
         return quotation;
+    }
+
+    public async Task<QuotationSettings> GetQuotationSettingsAsync(int projectId, IDbTransaction? tran = null)
+    {
+        var settings = await conn.QueryFirstOrDefaultAsync<QuotationSettings>(@"
+            select labor_cost as LaborCost, profit_percentage as ProfitPercentage, tax_percentage as TaxPercentage,
+                   transport_cost as TransportCost, contingency as Contingency
+            from quotation_settings
+            where project_id = @ProjectId",
+            new { ProjectId = projectId }, tran);
+        return settings ?? new QuotationSettings();
+    }
+
+    public async Task AddOrUpdateQuotationSettingsAsync(int projectId, QuotationSettings settings, IDbTransaction? tran = null)
+    {
+        await conn.ExecuteAsync(@"
+            insert into quotation_settings (project_id, labor_cost, profit_percentage, tax_percentage, transport_cost, contingency)
+            values (@ProjectId, @LaborCost, @ProfitPercentage, @TaxPercentage, @TransportCost, @Contingency)
+            on conflict (project_id)
+            do update set 
+                labor_cost        = excluded.labor_cost,
+                profit_percentage = excluded.profit_percentage,
+                tax_percentage    = excluded.tax_percentage,
+                transport_cost    = excluded.transport_cost,
+                contingency       = excluded.contingency",
+            new
+            {
+                ProjectId = projectId,
+                settings.LaborCost,
+                settings.ProfitPercentage,
+                settings.TaxPercentage,
+                settings.TransportCost,
+                settings.Contingency
+            }, tran);
     }
 
     public async Task<string?> AddOrUpdateBatchAsync(IEnumerable<Cavity> cavities)

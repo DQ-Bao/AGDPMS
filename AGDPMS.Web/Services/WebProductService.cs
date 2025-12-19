@@ -120,7 +120,7 @@ internal class WebProductService(
         }
     }
 
-    public async Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId, double stockLengthForOptimize)
+    public async Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId/*, double stockLengthForOptimize*/)
     {
         try
         {
@@ -135,11 +135,19 @@ internal class WebProductService(
                     ))
                     .OrderBy(cut => cut.CutLength)
                     .ToList();
-                double[] stockLengths = [.. g.Key.Stocks.Select(s => s.Length)];
-                int[] stockLengthQuantities = [.. g.Key.Stocks.Select(s => s.Stock)];
+                double[] stockLengths = g.Key.Stocks.Count != 0
+                    ? [.. g.Key.Stocks.Select(s => s.Length)]
+                    : [6000d, 5800d];
+                int[] stockLengthQuantities = g.Key.Stocks.Count != 0
+                    ? [.. g.Key.Stocks.Select(s => s.Stock <= 0 ? int.MaxValue : s.Stock)]
+                    : [int.MaxValue, int.MaxValue];
                 double[] cutLengths = [.. cuts.Select(c => c.CutLength)];
                 double[] cutLengthDemands = [.. cuts.Select(c => (double)c.Quantity)];
-                var opt = ICutOptimizationService.Solve(stockLengthForOptimize, cutLengths, cutLengthDemands); // optimization from stock is not implemented yet.
+                var opt = ICutOptimizationService.SolveMultipleStockSize(
+                    stockLengths,
+                    stockLengthQuantities,
+                    cutLengths,
+                    cutLengthDemands);
                 List<CavityProfileSummary.CutSolution> cutSolutions = [];
                 for (int i = 0; i < opt.patterns.Count; i++)
                 {
@@ -162,8 +170,8 @@ internal class WebProductService(
                     }
                 }
 
-                if (!g.Key.Stocks.Any(s => s.Length == stockLengthForOptimize))
-                    g.Key.Stocks.Add(new MaterialStock { Length = stockLengthForOptimize });
+                //if (!g.Key.Stocks.Any(s => s.Length == stockLengthForOptimize))
+                //    g.Key.Stocks.Add(new MaterialStock { Length = stockLengthForOptimize });
                 
                 return new CavityProfileSummary(g.Key)
                 {
@@ -309,6 +317,8 @@ internal class WebProductService(
     {
         try
         {
+            if (planning is null || planning.Details.Count == 0) 
+                return new CreateMaterialPlanningResult { Success = false, ErrorMessage = "Bảng dự trù vật tư trống" };
             await cavityDataAccess.CreateMaterialPlanningAsync(planning);
             return new CreateMaterialPlanningResult { Success = true };
         }
@@ -318,16 +328,59 @@ internal class WebProductService(
         }
     }
 
-    public async Task<CalculateQuotationResult> CalculateQuotationAsync(int projectId, decimal laborCost, decimal profitPercentage, decimal taxPercentage, decimal transportCost, decimal contingency)
+    public async Task<CalculateQuotationResult> CalculateQuotationAsync(int projectId)
     {
         try
         {
-            var quotation = await cavityDataAccess.GetQuotationAsync(projectId, laborCost, profitPercentage, taxPercentage, transportCost, contingency);
+            var settings = await cavityDataAccess.GetQuotationSettingsAsync(projectId);
+            if (settings.LaborCost < 0 ||
+                settings.ProfitPercentage < 0 ||
+                settings.TaxPercentage < 0 ||
+                settings.TransportCost < 0 ||
+                settings.Contingency < 0)
+            {
+                return new CalculateQuotationResult { Success = false, ErrorMessage = "Các tham số không hợp lệ" };
+            }
+            var quotation = await cavityDataAccess.GetQuotationAsync(projectId, settings);
             return new CalculateQuotationResult { Success = true, Quotation = quotation };
         }
         catch (Exception e)
         {
             return new CalculateQuotationResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<GetQuotationSettingsResult> GetQuotationSettingsAsync(int projectId)
+    {
+        try
+        {
+            var settings = await cavityDataAccess.GetQuotationSettingsAsync(projectId);
+            return new GetQuotationSettingsResult { Success = true, Settings = settings };
+        }
+        catch (Exception e)
+        {
+            return new GetQuotationSettingsResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<UpdateQuotationSettingsResult> UpdateQuotationSettingsAsync(int projectId, QuotationSettings settings)
+    {
+        try
+        {
+            if (settings.LaborCost < 0 ||
+                settings.ProfitPercentage < 0 ||
+                settings.TaxPercentage < 0 ||
+                settings.TransportCost < 0 ||
+                settings.Contingency < 0)
+            {
+                return new UpdateQuotationSettingsResult { Success = false, ErrorMessage = "Các tham số không hợp lệ" };
+            }
+            await cavityDataAccess.AddOrUpdateQuotationSettingsAsync(projectId, settings);
+            return new UpdateQuotationSettingsResult { Success = true };
+        }
+        catch (Exception e)
+        {
+            return new UpdateQuotationSettingsResult { Success = false, ErrorMessage = e.Message };
         }
     }
 }

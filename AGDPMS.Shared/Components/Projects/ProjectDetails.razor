@@ -55,42 +55,44 @@
     <div class="tab-pane fade show active" id="pane-cavity" role="tabpanel" aria-labelledby="tab-cavity">
         <div class="mt-3">
             <StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
-            <div class="mb-3 d-flex align-items-center">
-                <div class="input-group w-auto me-2">
-                    <label class="input-group-text fw-semibold">Nhập thiết kế Wstar</label>
-                    <InputFile OnChange="OnInputFileChange" accept=".mdb" class="form-control" />
-                    @if (!IsWStarFileLoading && !IsAddingCavitiesFromWStar && UploadedFilePath is not null)
+            <AuthorizeView Roles="Technician">
+                <div class="mb-3 d-flex align-items-center">
+                    <div class="input-group w-auto me-2">
+                        <label class="input-group-text fw-semibold">Nhập thiết kế Wstar</label>
+                        <InputFile OnChange="OnInputFileChange" accept=".mdb" class="form-control" />
+                        @if (!IsWStarFileLoading && !IsAddingCavitiesFromWStar && UploadedFilePath is not null)
+                        {
+                            <button type="button" @onclick="LoadWStarProjects" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#projModal">
+                                Chọn dự án
+                            </button>
+                        }
+                    </div>
+                    @if (IsWStarFileLoading)
                     {
-                        <button type="button" @onclick="LoadWStarProjects" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#projModal">
-                            Chọn dự án
-                        </button>
+                        <div class="progress mx-2 w-25">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated"
+                                    role="progressbar"
+                                    style="width:@(WStarFileUploadProgress)%;"
+                                    aria-valuenow="@WStarFileUploadProgress"
+                                    aria-valuemin="0"
+                                    aria-valuemax="100">@WStarFileUploadProgress%</div>
+                        </div>
+                    }
+                    @if (IsAddingCavitiesFromWStar)
+                    {
+                        <div class="d-flex align-items-center mx-2 text-primary">
+                            <div class="spinner-border spinner-border-sm me-2" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span>Đang thêm cửa...</span>
+                        </div>
                     }
                 </div>
-                @if (IsWStarFileLoading)
-                {
-                    <div class="progress mx-2 w-25">
-                        <div class="progress-bar progress-bar-striped progress-bar-animated"
-                                role="progressbar"
-                                style="width:@(WStarFileUploadProgress)%;"
-                                aria-valuenow="@WStarFileUploadProgress"
-                                aria-valuemin="0"
-                                aria-valuemax="100">@WStarFileUploadProgress%</div>
-                    </div>
-                }
-                @if (IsAddingCavitiesFromWStar)
-                {
-                    <div class="d-flex align-items-center mx-2 text-primary">
-                        <div class="spinner-border spinner-border-sm me-2" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                        <span>Đang thêm cửa...</span>
-                    </div>
-                }
-            </div>
+            </AuthorizeView>
             <DataTable TItem="Cavity" TEdit="UpdateCavityModel" Items="Cavities" SearchBy="@(c => c.Description)"
-                       EnableEditing="true"
-                       EditModelFactory="@(c => new UpdateCavityModel { Code = c.Code, Description = c.Description, Location = c.Location })"
-                       OnItemSaved="SaveCavityChange">
+                        EnableEditing="@CanEditCavity"
+                        EditModelFactory="@(c => new UpdateCavityModel { Code = c.Code, Description = c.Description, Location = c.Location })"
+                        OnItemSaved="SaveCavityChange">
                 <DataTemplate>
                     <Column Header="Mã cửa">
                         <CellTemplate><td>@context.Code</td></CellTemplate>
@@ -131,10 +133,12 @@
                 </DataTemplate>
                 <ActionTemplate>
                     <a href="/cavities/@context.Id" class="btn btn-primary">Chi tiết</a>
-                    <button @onclick="() => CavityToDelete = context" type="button" class="btn btn-danger"
-                            data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
-                        Xóa cửa
-                    </button>
+                    <AuthorizeView Roles="Technician" Context="auth">
+                        <button @onclick="() => CavityToDelete = context" type="button" class="btn btn-danger"
+                                data-bs-toggle="modal" data-bs-target="#confirmDeleteModal">
+                            Xóa cửa
+                        </button>
+                    </AuthorizeView>
                 </ActionTemplate>
             </DataTable>
         </div>
@@ -142,10 +146,12 @@
     <div class="tab-pane fade" id="pane-materials" role="tabpanel" aria-labelledby="tab-materials">
         <div class="mt-3">
             <StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
-            <div class="mb-3 d-flex align-items-center">
-                <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#materialRequestModal">Tạo yêu cầu nhập vật tư</button>
-                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#quotationModal">Báo giá</button>
-            </div>
+            <AuthorizeView Roles="Technician">
+                <div class="mb-3 d-flex align-items-center">
+                    <button type="button" class="btn btn-primary me-2" data-bs-toggle="modal" data-bs-target="#materialRequestModal">Tạo yêu cầu nhập vật tư</button>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#quotationModal">Báo giá</button>
+                </div>
+            </AuthorizeView>
             <div class="accordion-item">
                 <h2 class="accordion-header" id="headingProfile">
                     <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseProfile"
@@ -155,23 +161,25 @@
                 </h2>
                 <div id="collapseProfile" class="accordion-collapse collapse show" data-bs-parent="#materialsAccordion">
                     <div class="accordion-body">
-                        <div class="mb-3 d-flex align-items-center">
-                            <EditForm Model="Input" OnValidSubmit="LoadProfileSummaries" FormName="summarize-profile-form">
-                                <DataAnnotationsValidator />
-                                <div class="input-group w-auto me-2">
-                                    <label class="input-group-text fw-semibold">Chiều dài cây (mm)</label>
-                                    <InputNumber @bind-Value="Input.StockLength" class="form-control" />
-                                    <button type="submit" class="btn btn-primary" disabled="@IsLoadingProfileSummaries">Tổng hợp nhôm</button>
-                                </div>
-                            </EditForm>
-                            @if (IsLoadingProfileSummaries)
-                            {
-                                <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
-                                    <span class="visually-hidden">Loading...</span>
-                                </div>
-                            }
-                            <button type="button" class="btn btn-success" disabled="@(!Profiles.Any())">Xuất Excel</button>
-                        </div>
+                        <AuthorizeView Roles="Technician">
+                            <div class="mb-3 d-flex align-items-center">
+                                @* <EditForm Model="Input" OnValidSubmit="LoadProfileSummaries" FormName="summarize-profile-form">
+                                    <DataAnnotationsValidator />
+                                    <div class="input-group w-auto me-2">
+                                        <label class="input-group-text fw-semibold">Chiều dài cây (mm)</label>
+                                        <InputNumber @bind-Value="Input.StockLength" class="form-control" />
+                                        <button type="submit" class="btn btn-primary" disabled="@IsLoadingProfileSummaries">Tổng hợp nhôm</button>
+                                    </div>
+                                </EditForm>
+                                @if (IsLoadingProfileSummaries)
+                                {
+                                    <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
+                                        <span class="visually-hidden">Loading...</span>
+                                    </div>
+                                } *@
+                                <button type="button" class="btn btn-success" disabled="@(!Profiles.Any())">Xuất Excel</button>
+                            </div>
+                        </AuthorizeView>
                         <div class="fixed-table-wrapper">
                             <table class="table table-bordered table-striped table-hover align-middle">
                                 <thead class="table-light">
@@ -442,7 +450,7 @@
         </div>
     </div>
 </div>
-<AuthorizeView Roles="Technician">
+<AuthorizeView Roles="Technician" Context="auth">
     <SelectWStarCavitiesModal @ref="SelectModal" ModalId="projModal" Projects="WStarProjects" OnConfirm="AddSelectedCavities" />
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -607,41 +615,50 @@
                     }
                     else
                     {
-                        <div class="mb-3">
-                            <label class="form-label">Phí nhân công/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="LaborCost" />
-                                <span class="input-group-text">VND</span>
+                        <EditForm Model="QInput" @ref="UpdateQuotForm" FormName="update-qst">
+                            <DataAnnotationsValidator />
+                            <ValidationSummary />
+                            <div class="mb-3">
+                                <label class="form-label">Phí nhân công/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber class="form-control" @bind-Value="QInput.LaborCost" />
+                                    <span class="input-group-text">VND</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.LaborCost" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">% lợi nhuận/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="ProfitPercentage" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">% lợi nhuận/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber @bind-Value="QInput.ProfitPercentage" class="form-control" step="0.001" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.ProfitPercentage" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">% thuế/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="TaxPercentage" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">% thuế/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber @bind-Value="QInput.TaxPercentage" class="form-control" step="0.001" />
+                                    <span class="input-group-text">%</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.TaxPercentage" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Phí vận chuyển/cửa</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="TransportCost" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">Phí vận chuyển/cửa</label>
+                                <div class="input-group">
+                                    <InputNumber class="form-control" @bind-Value="QInput.TransportCost" />
+                                    <span class="input-group-text">VND</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.TransportCost" />
                             </div>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label">Dự trù</label>
-                            <div class="input-group">
-                                <input type="number" class="form-control" @bind="Contingency" />
-                                <span class="input-group-text">VND</span>
+                            <div class="mb-3">
+                                <label class="form-label">Dự trù</label>
+                                <div class="input-group">
+                                    <InputNumber class="form-control" @bind-Value="QInput.Contingency" />
+                                    <span class="input-group-text">VND</span>
+                                </div>
+                                <ValidationMessage For="() => QInput.Contingency" />
                             </div>
-                        </div>
+                        </EditForm>
                     }
                 </div>
                 <div class="modal-footer">
@@ -758,6 +775,10 @@
     [SupplyParameterFromForm]
     private SummarizeAluminumModel Input { get; set; } = new();
 
+    [SupplyParameterFromForm]
+    private UpdateQuotationSettingsModel QInput { get; set; } = new();
+    private EditForm? UpdateQuotForm;
+
     private StatusMessage? StatusMessage { get; set; }
     private string? UploadedFilePath;
     private IEnumerable<WStarProject> WStarProjects = [];
@@ -771,6 +792,8 @@
 
     private SelectWStarCavitiesModal? SelectModal;
     private Cavity? CavityToDelete;
+
+    private bool CanEditCavity { get; set; } = false;
 
     private bool IsWStarFileLoading { get; set; } = false;
     private int WStarFileUploadProgress { get; set; } = 0;
@@ -787,16 +810,25 @@
     private string? EditingOtherMaterialStockPriceRow { get; set; }
     private decimal EditingOtherMaterialStockPrice { get; set; }
 
-    private decimal LaborCost { get; set; }
-    private decimal ProfitPercentage { get; set; }
-    private decimal TaxPercentage { get; set; }
-    private decimal TransportCost { get; set; }
-    private decimal Contingency { get; set; }
-
     private Quotation? Quotation { get; set; }
 
     protected override async Task OnInitializedAsync()
     {
+        var auth = await AuthStateProvider.GetAuthenticationStateAsync();
+        CanEditCavity = auth.User.IsInRole("Technician");
+        var result = await ProductService.GetQuotationSettingsAsync(ProjectId);
+        if (result.Success && result.Settings is not null)
+        {
+            QInput = new UpdateQuotationSettingsModel
+            {
+                LaborCost = (int)result.Settings.LaborCost,
+                ProfitPercentage = result.Settings.ProfitPercentage,
+                TaxPercentage = result.Settings.TaxPercentage,
+                TransportCost = (int)result.Settings.TransportCost,
+                Contingency = (int)result.Settings.Contingency
+            };
+        }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
         await LoadProjectCavities();
     }
 
@@ -806,7 +838,7 @@
         if (result.Success)
         {
             Cavities = result.Cavities;
-            // await LoadProfileSummaries();
+            await LoadProfileSummaries();
             await LoadGlassAndOtherMaterialSummaries();
         }
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
@@ -815,7 +847,7 @@
     private async Task LoadProfileSummaries()
     {
         IsLoadingProfileSummaries = true;
-        var result = await ProductService.GetCavityProfileSummariesAsync(ProjectId, Input.StockLength);
+        var result = await ProductService.GetCavityProfileSummariesAsync(ProjectId/* , Input.StockLength */);
         IsLoadingProfileSummaries = false;
         if (result.Success) Profiles = result.Summaries;
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
@@ -1075,7 +1107,22 @@
 
     private async Task HandleCalculateQuotation()
     {
-        var result = await ProductService.CalculateQuotationAsync(ProjectId, LaborCost, ProfitPercentage, TaxPercentage, TransportCost, Contingency);
+        if (UpdateQuotForm is null || UpdateQuotForm.EditContext is null) return;
+        if (!UpdateQuotForm.EditContext.Validate()) return;
+        var res = await ProductService.UpdateQuotationSettingsAsync(ProjectId, new QuotationSettings
+        {
+            LaborCost = QInput.LaborCost,
+            ProfitPercentage = QInput.ProfitPercentage,
+            TaxPercentage = QInput.TaxPercentage,
+            TransportCost = QInput.TransportCost,
+            Contingency = QInput.Contingency
+        });
+        if (!res.Success)
+        {
+            StatusMessage = StatusMessage.Error(res.ErrorMessage);
+            return;
+        }
+        var result = await ProductService.CalculateQuotationAsync(ProjectId);
         if (result.Success) Quotation = result.Quotation;
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
     }
@@ -1095,5 +1142,23 @@
         public string? Description { get; set; }
 
         public string? Location { get; set; }
+    }
+
+    private sealed class UpdateQuotationSettingsModel
+    {
+        [Required, Range(0, int.MaxValue)]
+        public int LaborCost { get; set; } = 0;
+        
+        [Required, Range(0, double.MaxValue)]
+        public decimal ProfitPercentage { get; set; } = 0;
+        
+        [Required, Range(0, double.MaxValue)]
+        public decimal TaxPercentage { get; set; } = 0;
+        
+        [Required, Range(0, int.MaxValue)]
+        public int TransportCost { get; set; } = 0;
+        
+        [Required, Range(0, int.MaxValue)]
+        public int Contingency { get; set; } = 0;
     }
 }
