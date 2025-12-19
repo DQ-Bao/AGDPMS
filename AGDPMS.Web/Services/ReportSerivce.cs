@@ -70,7 +70,7 @@ public class ReportSerivce : IReportService
             grandTotal += rowTotal;
 
             ws.Cell(currentRow, 1).Value = index++;
-            ws.Cell(currentRow, 2).Value = t.MaterialId;
+            ws.Cell(currentRow, 2).Value = t.MaterialStock.MaterialId; 
             ws.Cell(currentRow, 3).Value = t.QuantityChange;
             ws.Cell(currentRow, 4).Value = t.QuantityAfter;
             ws.Cell(currentRow, 5).Value = t.Price;
@@ -166,7 +166,7 @@ public class ReportSerivce : IReportService
             grandTotal += rowTotal;
 
             ws.Cell(currentRow, 1).Value = index++;
-            ws.Cell(currentRow, 2).Value = t.MaterialId;
+            ws.Cell(currentRow, 2).Value = t.MaterialStock.MaterialId;
             ws.Cell(currentRow, 3).Value = t.QuantityChange;
             ws.Cell(currentRow, 4).Value = t.QuantityAfter;
             ws.Cell(currentRow, 5).Value = t.Price;

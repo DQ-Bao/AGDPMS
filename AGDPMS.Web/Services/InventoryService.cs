@@ -107,6 +107,7 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
         catch (Exception e)
         {
             Console.WriteLine(e.Message);
+            Console.WriteLine(e.StackTrace);
             return new GetStockReceiptResult { Success = false, ErrorMessage = e.Message };
         }
     }
@@ -125,6 +126,7 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
         catch (Exception e)
         {
             Console.WriteLine(e.Message);
+            Console.WriteLine(e.StackTrace);
             return new GetStockIssueResult { Success = false, ErrorMessage = e.Message };
         }
     }
@@ -151,6 +153,8 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
         }
         catch (Exception e)
         {
+            Console.WriteLine(e.Message);
+            Console.WriteLine(e.StackTrace);
             return new BaseResult { Success = false, ErrorMessage = e.Message };
         }
     }
