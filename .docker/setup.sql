@@ -986,7 +986,7 @@ values
 ('B3733', 6000, 88000);
 
 
-INSERT INTO stock_import ("material_id", "voucher","quantity_change", "quantity_after", "price", "date")
+INSERT INTO stock_import ("material_id", "voucher_code","quantity_change", "quantity_after", "price", "date")
 VALUES
 ('F2435', 50, 150, 1250000, '2025-01-10'),
 ('F605', 30, 180, 1250000, '2025-01-15'),
