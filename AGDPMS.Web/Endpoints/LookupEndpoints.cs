@@ -14,7 +14,7 @@ public static class LookupEndpoints
 
         group.MapGet("/projects", async (string? q, ProjectDataAccess access) =>
         {
-            var list = await access.SearchAsync(q);
+            var list = await access.SearchAsync(q, ProjectRFQStatus.Production);
             return Results.Ok(list.Select(t => new { id = t.Id, name = t.Name }));
         });
 
