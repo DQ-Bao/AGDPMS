@@ -2,9 +2,11 @@ using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Models.DTOs;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
+using AGDPMS.Web.Hubs;
 using AGDPMS.Web.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
 
 namespace AGDPMS.Web.Endpoints;
@@ -313,7 +315,8 @@ public static class ProductionStagesEndpoints
             ProductionItemDataAccess itemAccess,
             ProductionOrderDataAccess orderAccess,
             StageTypeDataAccess stageTypeAccess,
-            INotificationService notificationService,
+            NotificationDataAccess notificationDataAccess,
+            IHubContext <NotificationHub, INotificationClient> hubContext,
             HttpContext httpContext) =>
         {
             var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -338,12 +341,14 @@ public static class ProductionStagesEndpoints
                         
                         if (order != null && stageType != null)
                         {
-                            await notificationService.AddNotificationAsync(new Notification
+                            var notification = new Notification
                             {
                                 Message = $"PM đã yêu cầu kiểm tra giai đoạn {stageType.Name} cho sản phẩm {item.Code}",
                                 Url = $"/production/orders/{order.Id}/items/{item.Id}",
                                 Target = NotificationTarget.User(stage.AssignedQaUserId.Value)
-                            });
+                            };
+                            var saved = await notificationDataAccess.CreateAsync(notification);
+                            await hubContext.Clients.Group($"user:{stage.AssignedQaUserId.Value}").ReceiveNotification(NotificationDto.FromDomain(notification));
                         }
                     }
                 }
@@ -423,7 +428,8 @@ public static class ProductionStagesEndpoints
             ProductionItemDataAccess itemAccess,
             ProductionOrderDataAccess orderAccess,
             StageTypeDataAccess stageTypeAccess,
-            INotificationService notificationService,
+            NotificationDataAccess notificationDataAccess,
+            IHubContext<NotificationHub, INotificationClient> hubContext,
             HttpContext httpContext) =>
         {
             var userIdClaim = httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -468,12 +474,14 @@ public static class ProductionStagesEndpoints
                         if (order != null && stageType != null)
                         {
                             var resultText = allPassed ? "Đạt" : "Không đạt";
-                            await notificationService.AddNotificationAsync(new Notification
+                            var notification = new Notification
                             {
                                 Message = $"QA đã hoàn thành kiểm tra giai đoạn {stageType.Name} cho sản phẩm {item.Code}. Kết quả: {resultText}",
                                 Url = $"/production/orders/{order.Id}/items/{item.Id}",
                                 Target = NotificationTarget.User(review.RequestedByUserId)
-                            });
+                            };
+                            var saved = await notificationDataAccess.CreateAsync(notification);
+                            await hubContext.Clients.Group($"user:{review.RequestedByUserId}").ReceiveNotification(NotificationDto.FromDomain(notification));
                         }
                     }
                 }
