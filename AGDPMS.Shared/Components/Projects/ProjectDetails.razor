@@ -9,18 +9,22 @@
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.Security.Claims
 
-@attribute [Authorize(Roles = "Director,Technician")]
+@attribute [Authorize(Roles = "Technician,QA,Production Manager")]
 
 @inject WStarService WStarService
 @inject IProductService ProductService
 @inject AuthenticationStateProvider AuthStateProvider
 
-<div class="mb-3">
-    <a href="/projects" class="text-decoration-none d-inline-flex align-items-center text-primary">
-        <i class="bi bi-arrow-left me-2 fs-5"></i>
-        <span class="fw-semibold">Quay lại</span>
-    </a>
-</div>
+<AuthorizeView Roles="Technician">
+    <Authorized>
+        <div class="mb-3">
+            <a href="/projects" class="text-decoration-none d-inline-flex align-items-center text-primary">
+                <i class="bi bi-arrow-left me-2 fs-5"></i>
+                <span class="fw-semibold">Quay lại</span>
+            </a>
+        </div>
+    </Authorized>
+</AuthorizeView>
 <ul class="nav nav-tabs" id="dtlTabs" role="tablist">
     <li class="nav-item" role="presentation">
         <button class="nav-link active"
@@ -438,26 +442,224 @@
         </div>
     </div>
 </div>
-<SelectWStarCavitiesModal @ref="SelectModal" ModalId="projModal" Projects="WStarProjects" OnConfirm="AddSelectedCavities" />
-<!-- Confirm Delete Modal -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="confirmDeleteLabel">Xác nhận xóa</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-            </div>
-            <div class="modal-body">
-                Bạn có chắc chắn muốn xóa cửa <strong>@CavityToDelete?.Code</strong> không?<br />
-                Hành động này không thể hoàn tác.
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" data-bs-dismiss="modal">Xóa</button>
+<AuthorizeView Roles="Technician">
+    <SelectWStarCavitiesModal @ref="SelectModal" ModalId="projModal" Projects="WStarProjects" OnConfirm="AddSelectedCavities" />
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmDeleteLabel">Xác nhận xóa</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    Bạn có chắc chắn muốn xóa cửa <strong>@CavityToDelete?.Code</strong> không?<br />
+                    Hành động này không thể hoàn tác.
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-danger" @onclick="ConfirmDeleteAsync" data-bs-dismiss="modal">Xóa</button>
+                </div>
             </div>
         </div>
     </div>
-</div>
+    <div class="modal fade" id="materialRequestModal" tabindex="-1" aria-labelledby="materialRequestModal" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="missingMaterialsLabel">Danh sách vật tư thiếu</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    <h5 class="mt-3">Profile</h5>
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Mã</th>
+                                <th>Tên vật tư</th>
+                                <th>Số lượng thiếu</th>
+                                <th>Chiều dài yêu cầu (mm)</th>
+                                <th>Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var p in Profiles)
+                            {
+                                foreach (var (su, i) in p.StockUsages.Select((v, i) => (v, i)))
+                                {
+                                    <tr>
+                                        @if (i == 0)
+                                        {
+                                            <td rowspan="@p.StockUsages.Count">@p.Id</td>
+                                            <td rowspan="@p.StockUsages.Count">@p.Name</td>
+                                        }
+                                        <td>@su.Need</td>
+                                        <td>@su.StockLength</td>
+                                        <td></td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                    <h5 class="mt-4">Kính</h5>
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Mã</th>
+                                <th>Tên kính</th>
+                                <th>Kích thước</th>
+                                <th>Số lượng</th>
+                                <th>Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var g in Glasses)
+                            {
+                                for (var i = 0; i < g.Cuts.Count; i++)
+                                {
+                                    <tr>
+                                        <td>@g.Id</td>
+                                        <td>@g.Name</td>
+                                        <td>@g.Cuts[i].Width x @g.Cuts[i].Length</td>
+                                        <td>@g.Cuts[i].Quantity</td>
+                                        <td></td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                    <h5 class="mt-4">Vật tư khác</h5>
+                    <table class="table table-bordered table-striped align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Id</th>
+                                <th>Tên vật tư</th>
+                                <th>Số lượng thiếu</th>
+                                <th>Đơn vị</th>
+                                <th>Ghi chú</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var m in OtherMaterials)
+                            {
+                                <tr>
+                                    <td>@m.Id</td>
+                                    <td>@m.Name</td>
+                                    <td>@(m.GasketLength is null ? m.Need : m.NeedGasketLength)</td>
+                                    <td>@m.Unit</td>
+                                    <td></td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" @onclick="HandleSendMaterialRequest" class="btn btn-primary" data-bs-dismiss="modal">Gửi</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="modal fade" id="quotationModal" tabindex="-1" aria-labelledby="quotationModal" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="quotationModalLabel">Tạo báo giá</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
+                </div>
+                <div class="modal-body">
+                    @if (Quotation is not null)
+                    {
+                       <table class="table table-bordered table-striped align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ký hiệu</th>
+                                    <th>Nội dung</th>
+                                    <th>Rộng x Cao (mm)</th>
+                                    <th>Số lượng</th>
+                                    <th>Khối lượng (kg)</th>
+                                    <th>Đơn giá (VND)</th>
+                                    <th>Thành tiền</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in Quotation.Details)
+                                {
+                                    <tr>
+                                        <td>@item.Code</td>
+                                        <td>@item.Description</td>
+                                        <td>@item.Width x @item.Height</td>
+                                        <td>@item.Quantity</td>
+                                        <td>@((item.Weight * item.Quantity).ToString("N3"))</td>
+                                        <td>@item.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                        <td>@item.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-light fw-bold">
+                                <tr>
+                                    <td colspan="4"></td>
+                                    <td>@Quotation.TotalWeight.ToString("N3")</td>
+                                    <td></td>
+                                    <td>@Quotation.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                </tr>
+                            </tfoot>
+                       </table>
+                    }
+                    else
+                    {
+                        <div class="mb-3">
+                            <label class="form-label">Phí nhân công/cửa</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" @bind="LaborCost" />
+                                <span class="input-group-text">VND</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">% lợi nhuận/cửa</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" @bind="ProfitPercentage" />
+                                <span class="input-group-text">VND</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">% thuế/cửa</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" @bind="TaxPercentage" />
+                                <span class="input-group-text">VND</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Phí vận chuyển/cửa</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" @bind="TransportCost" />
+                                <span class="input-group-text">VND</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Dự trù</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" @bind="Contingency" />
+                                <span class="input-group-text">VND</span>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
+                    @if (Quotation is not null)
+                    {
+                        <button type="button" @onclick="() => Quotation = null" class="btn btn-primary">Xóa</button>
+                        <button type="button" class="btn btn-success">Xuất Excel</button>
+                    }
+                    else
+                    {
+                        <button type="button" @onclick="HandleCalculateQuotation" class="btn btn-primary">Tính báo giá</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</AuthorizeView>
 <div class="modal fade" id="profileCutsModal" tabindex="-1" aria-labelledby="profileCutsModal" aria-hidden="true">
     <div class="modal-dialog modal-dialog-scrollable modal-dialog-centered">
         <div class="modal-content">
@@ -545,203 +747,6 @@
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" data-bs-dismiss="modal" @onclick="CloseModals">Đóng</button>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="modal fade" id="materialRequestModal" tabindex="-1" aria-labelledby="materialRequestModal" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="missingMaterialsLabel">Danh sách vật tư thiếu</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-            </div>
-            <div class="modal-body">
-                <h5 class="mt-3">Profile</h5>
-                <table class="table table-bordered table-striped align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Mã</th>
-                            <th>Tên vật tư</th>
-                            <th>Số lượng thiếu</th>
-                            <th>Chiều dài yêu cầu (mm)</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var p in Profiles)
-                        {
-                            foreach (var (su, i) in p.StockUsages.Select((v, i) => (v, i)))
-                            {
-                                <tr>
-                                    @if (i == 0)
-                                    {
-                                        <td rowspan="@p.StockUsages.Count">@p.Id</td>
-                                        <td rowspan="@p.StockUsages.Count">@p.Name</td>
-                                    }
-                                    <td>@su.Need</td>
-                                    <td>@su.StockLength</td>
-                                    <td></td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-                <h5 class="mt-4">Kính</h5>
-                <table class="table table-bordered table-striped align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Mã</th>
-                            <th>Tên kính</th>
-                            <th>Kích thước</th>
-                            <th>Số lượng</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var g in Glasses)
-                        {
-                            for (var i = 0; i < g.Cuts.Count; i++)
-                            {
-                                <tr>
-                                    <td>@g.Id</td>
-                                    <td>@g.Name</td>
-                                    <td>@g.Cuts[i].Width x @g.Cuts[i].Length</td>
-                                    <td>@g.Cuts[i].Quantity</td>
-                                    <td></td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-                <h5 class="mt-4">Vật tư khác</h5>
-                <table class="table table-bordered table-striped align-middle">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Id</th>
-                            <th>Tên vật tư</th>
-                            <th>Số lượng thiếu</th>
-                            <th>Đơn vị</th>
-                            <th>Ghi chú</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var m in OtherMaterials)
-                        {
-                            <tr>
-                                <td>@m.Id</td>
-                                <td>@m.Name</td>
-                                <td>@(m.GasketLength is null ? m.Need : m.NeedGasketLength)</td>
-                                <td>@m.Unit</td>
-                                <td></td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                <button type="button" @onclick="HandleSendMaterialRequest" class="btn btn-primary" data-bs-dismiss="modal">Gửi</button>
-            </div>
-        </div>
-    </div>
-</div>
-<div class="modal fade" id="quotationModal" tabindex="-1" aria-labelledby="quotationModal" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-scrollable">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="quotationModalLabel">Tạo báo giá</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Đóng"></button>
-            </div>
-            <div class="modal-body">
-                @if (Quotation is not null)
-                {
-                   <table class="table table-bordered table-striped align-middle">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Ký hiệu</th>
-                                <th>Nội dung</th>
-                                <th>Rộng x Cao (mm)</th>
-                                <th>Số lượng</th>
-                                <th>Khối lượng (kg)</th>
-                                <th>Đơn giá (VND)</th>
-                                <th>Thành tiền</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var item in Quotation.Details)
-                            {
-                                <tr>
-                                    <td>@item.Code</td>
-                                    <td>@item.Description</td>
-                                    <td>@item.Width x @item.Height</td>
-                                    <td>@item.Quantity</td>
-                                    <td>@((item.Weight * item.Quantity).ToString("N3"))</td>
-                                    <td>@item.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
-                                    <td>@item.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
-                                </tr>
-                            }
-                        </tbody>
-                        <tfoot class="table-light fw-bold">
-                            <tr>
-                                <td colspan="4"></td>
-                                <td>@Quotation.TotalWeight.ToString("N3")</td>
-                                <td></td>
-                                <td>@Quotation.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
-                            </tr>
-                        </tfoot>
-                   </table>
-                }
-                else
-                {
-                    <div class="mb-3">
-                        <label class="form-label">Phí nhân công/cửa</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" @bind="LaborCost" />
-                            <span class="input-group-text">VND</span>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">% lợi nhuận/cửa</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" @bind="ProfitPercentage" />
-                            <span class="input-group-text">VND</span>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">% thuế/cửa</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" @bind="TaxPercentage" />
-                            <span class="input-group-text">VND</span>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Phí vận chuyển/cửa</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" @bind="TransportCost" />
-                            <span class="input-group-text">VND</span>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label class="form-label">Dự trù</label>
-                        <div class="input-group">
-                            <input type="number" class="form-control" @bind="Contingency" />
-                            <span class="input-group-text">VND</span>
-                        </div>
-                    </div>
-                }
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Hủy</button>
-                @if (Quotation is not null)
-                {
-                    <button type="button" @onclick="() => Quotation = null" class="btn btn-primary">Xóa</button>
-                    <button type="button" class="btn btn-success">Xuất Excel</button>
-                }
-                else
-                {
-                    <button type="button" @onclick="HandleCalculateQuotation" class="btn btn-primary">Tính báo giá</button>
-                }
             </div>
         </div>
     </div>

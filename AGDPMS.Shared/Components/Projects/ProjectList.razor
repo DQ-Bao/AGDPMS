@@ -2,12 +2,12 @@
 @using AGDPMS.Shared.Components.Sale
 @using Microsoft.AspNetCore.Components.Authorization
 
-<AuthorizeView Roles="Director,Technician">
+<AuthorizeView Roles="Technician,QA,Production Manager">
     <Authorized>
         <ProjectTechList />
     </Authorized>
 </AuthorizeView>
-<AuthorizeView Roles="Sale">
+<AuthorizeView Roles="Director,Sale">
     <Authorized>
         <SaleManageProjectRFQ />
     </Authorized>

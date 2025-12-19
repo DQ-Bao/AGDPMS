@@ -156,8 +156,8 @@ public class Quotation
         public decimal UnitPrice =>
             MaterialPrice +
             LaborCost +
-            (MaterialPrice * ProfitPercentage) +
-            (MaterialPrice * TaxPercentage) +
+            (MaterialPrice * ProfitPercentage * 0.01M) +
+            (MaterialPrice * TaxPercentage * 0.01M) +
             TransportCost +
             Contingency;
         public decimal TotalPrice => UnitPrice * Quantity;

@@ -10,7 +10,7 @@
            FilterBy="@(p => p.Status.ToString())"
            FilterOptions="@(Enum.GetValues<ProjectRFQStatus>().Select(s => (s.ToString(), GetStatusLabel(s))))">
     <DataTemplate>
-        <Column Header="Tên dự án">
+        <Column Header="Tên công trình">
             <CellTemplate><td>@context.ProjectRFQName</td></CellTemplate>
         </Column>
         <Column Header="Địa điểm">

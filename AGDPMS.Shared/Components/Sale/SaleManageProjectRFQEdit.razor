@@ -172,14 +172,8 @@ else
         
         _isInitialized = true;
         
-        // Load project and customers concurrently
-        var projectTask = SaleService.GetProjectRFQByIdAsync(Id);
-        var customersTask = SaleService.GetClientsAsync();
-
-        await Task.WhenAll(projectTask, customersTask);
-
-        project = await projectTask;
-        customers = (await customersTask)?.ToList();
+        project = await SaleService.GetProjectRFQByIdAsync(Id);
+        customers = (await SaleService.GetClientsAsync()).ToList();
 
         if (project == null)
         {

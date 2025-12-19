@@ -7,9 +7,9 @@
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services 
 @using System.Security.Claims
+@using System.Globalization
 @inject NavigationManager NavManager
 @inject ISaleServices SaleService
-@inject AuthenticationStateProvider AuthStateProvider 
 
 <PageTitle>Chi tiết dự án</PageTitle>
 
@@ -31,7 +31,7 @@ else
             <div class="card shadow-sm">
                 <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">
-                        <i class="bx bx-building me-2"></i>@project.ProjectRFQName
+                        <i class="bi bi-building me-2"></i>@project.ProjectRFQName
                     </h5>
                     <span class="badge bg-light text-dark fs-6">
                         @GetVietnameseStatus(project.Status)
@@ -42,7 +42,7 @@ else
                         <div class="col-md-6">
                             <div class="d-flex align-items-start mb-3">
                                 <div class="flex-shrink-0">
-                                    <i class="bx bx-map text-primary fs-4"></i>
+                                    <i class="bi bi-map text-primary fs-4"></i>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
                                     <h6 class="text-muted mb-1">Địa điểm</h6>
@@ -53,7 +53,7 @@ else
                         <div class="col-md-6">
                             <div class="d-flex align-items-start mb-3">
                                 <div class="flex-shrink-0">
-                                    <i class="bx bx-calendar-check text-success fs-4"></i>
+                                    <i class="bi bi-calendar-check text-success fs-4"></i>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
                                     <h6 class="text-muted mb-1">Ngày hoàn thành</h6>
@@ -64,7 +64,7 @@ else
                         <div class="col-md-6">
                             <div class="d-flex align-items-start mb-3">
                                 <div class="flex-shrink-0">
-                                    <i class="bx bx-buildings text-info fs-4"></i>
+                                    <i class="bi bi-rulers text-info fs-4"></i>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
                                     <h6 class="text-muted mb-1">Công ty thiết kế</h6>
@@ -75,7 +75,7 @@ else
                         <div class="col-md-6">
                             <div class="d-flex align-items-start mb-3">
                                 <div class="flex-shrink-0">
-                                    <i class="bx bx-time text-warning fs-4"></i>
+                                    <i class="bi bi-clock text-warning fs-4"></i>
                                 </div>
                                 <div class="flex-grow-1 ms-3">
                                     <h6 class="text-muted mb-1">Ngày tạo</h6>
@@ -91,7 +91,7 @@ else
             <div class="card shadow-sm mt-4">
                 <div class="card-header bg-light">
                     <h6 class="mb-0">
-                        <i class="bx bx-file me-2"></i>Tài liệu & File
+                        <i class="bi bi-file me-2"></i>Tài liệu & File
                     </h6>
                 </div>
                 <div class="card-body">
@@ -101,12 +101,12 @@ else
                             <div class="col-md-6">
                                 <div class="border rounded p-3">
                                     <div class="d-flex align-items-center">
-                                        <i class="bx bx-file-blank text-primary fs-3 me-3"></i>
+                                        <i class="bi bi-file-pdf text-primary fs-3 me-3"></i>
                                         <div class="flex-grow-1">
                                             <h6 class="mb-1">File thiết kế</h6>
                                             <a href="@project.DesignFilePath" target="_blank" class="text-decoration-none">
                                                 <small>@Path.GetFileName(project.DesignFilePath)</small>
-                                                <i class="bx bx-link-external ms-1"></i>
+                                                <i class="bi bi-download ms-1"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -118,12 +118,12 @@ else
                             <div class="col-md-6">
                                 <div class="border rounded p-3">
                                     <div class="d-flex align-items-center">
-                                        <i class="bx bx-file text-success fs-3 me-3"></i>
+                                        <i class="bi bi-file text-success fs-3 me-3"></i>
                                         <div class="flex-grow-1">
                                             <h6 class="mb-1">Tài liệu</h6>
                                             <a href="@project.DocumentPath" target="_blank" class="text-decoration-none">
                                                 <small>@Path.GetFileName(project.DocumentPath)</small>
-                                                <i class="bx bx-link-external ms-1"></i>
+                                                <i class="bi bi-download ms-1"></i>
                                             </a>
                                         </div>
                                     </div>
@@ -134,7 +134,7 @@ else
                         {
                             <div class="col-12">
                                 <p class="text-muted text-center mb-0">
-                                    <i class="bx bx-info-circle me-1"></i>Chưa có file nào được tải lên
+                                    <i class="bi bi-info-circle me-1"></i>Chưa có file nào được tải lên
                                 </p>
                             </div>
                         }
@@ -148,7 +148,7 @@ else
             <div class="card shadow-sm">
                 <div class="card-header bg-info text-white">
                     <h6 class="mb-0">
-                        <i class="bx bx-user me-2"></i>Thông tin Khách hàng
+                        <i class="bi bi-person me-2"></i>Thông tin Khách hàng
                     </h6>
                 </div>
                 <div class="card-body">
@@ -162,7 +162,7 @@ else
                             <h6 class="text-muted mb-2">Email</h6>
                             <p class="mb-0">
                                 <a href="mailto:@project.Client.Email" class="text-decoration-none">
-                                    <i class="bx bx-envelope me-1"></i>@project.Client.Email
+                                    <i class="bi bi-envelope me-1"></i>@project.Client.Email
                                 </a>
                             </p>
                         </div>
@@ -173,7 +173,7 @@ else
                             <h6 class="text-muted mb-2">Số điện thoại</h6>
                             <p class="mb-0">
                                 <a href="tel:@project.Client.Phone" class="text-decoration-none">
-                                    <i class="bx bx-phone me-1"></i>@project.Client.Phone
+                                    <i class="bi bi-phone me-1"></i>@project.Client.Phone
                                 </a>
                             </p>
                         </div>
@@ -185,7 +185,7 @@ else
             <div class="card shadow-sm mt-3">
                 <div class="card-header bg-light">
                     <h6 class="mb-0">
-                        <i class="bx bx-info-circle me-2"></i>Trạng thái
+                        <i class="bi bi-info-circle me-2"></i>Trạng thái
                     </h6>
                 </div>
                 <div class="card-body text-center">
@@ -195,76 +195,222 @@ else
                 </div>
             </div>
         </div>
+
+        <!-- Quotation Card -->
+        <div class="col-lg-12 mb-4 card shadow-sm">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="bi bi-table me-2"></i>Báo giá
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                @if (quotation is null || !quotation.Details.Any())
+                {
+                    <div class="p-4 text-center text-muted">Chưa có dữ liệu báo giá</div>
+                }
+                else
+                {
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0 align-middle">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th>Ký hiệu</th>
+                                    <th>Nội dung</th>
+                                    <th>Rộng x Cao (mm)</th>
+                                    <th>Số lượng</th>
+                                    <th>Khối lượng (kg)</th>
+                                    <th>Đơn giá (VND)</th>
+                                    <th>Thành tiền (VND)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var item in quotation.Details)
+                                {
+                                    <tr>
+                                        <td class="text-center fw-semibold">@item.Code</td>
+                                        <td>@item.Description</td>
+                                        <td class="text-center">@item.Width × @item.Height</td>
+                                        <td class="text-center">@item.Quantity</td>
+                                        <td class="text-end">@((item.Weight * item.Quantity).ToString("N3"))</td>
+                                        <td class="text-end">@item.UnitPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))</td>
+                                        <td class="text-end fw-semibold text-primary">
+                                            @item.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                            <tfoot class="table-secondary fw-bold">
+                                <tr>
+                                    <td colspan="4" class="text-end">Tổng cộng</td>
+                                    <td class="text-end">
+                                        @quotation.TotalWeight.ToString("N3")
+                                    </td>
+                                    <td></td>
+                                    <td class="text-end text-danger">
+                                        @quotation.TotalPrice.ToString("C", CultureInfo.CreateSpecificCulture("vi-vn"))
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                }
+            </div>
+        </div>
     </div>
 
     <!-- Action Buttons -->
     <div class="card shadow-sm mt-4">
         <div class="card-body">
             <div class="d-flex gap-2">
-                @if (isAdmin && project.Status == ProjectRFQStatus.Planning)
-                {
-                    <button class="btn btn-success" @onclick="HandleApprove" disabled="@isProcessing">
-                        @if (isProcessing)
-                        {
-                            <span class="spinner-border spinner-border-sm me-1"></span>
-                        }
-                        else
-                        {
-                            <i class="bx bx-check-circle me-1"></i>
-                        }
-                        Phê duyệt dự án
-                    </button>
-                }
-                @if (!isAdmin)
-                {
-                    <button class="btn btn-primary" @onclick="GoToEdit">
-                        <i class="bx bx-edit-alt me-1"></i> Chỉnh sửa
-                    </button>
-                }
-                <button class="btn btn-outline-secondary" @onclick="GoBack">
-                    <i class="bx bx-arrow-back me-1"></i> Quay lại
-                </button>
+                <AuthorizeView Roles="Director">
+                    @if (project.Status == ProjectRFQStatus.Planning)
+                    {
+                        <button class="btn btn-success" @onclick="HandleApprove" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            else
+                            {
+                                <i class="bi bi-check-circle me-1"></i>
+                            }
+                            Phê duyệt dự án
+                        </button>
+                    }
+                    @if (project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
+                    {
+                        <button class="btn btn-danger" @onclick="() => showCancelModal = true" disabled="@isProcessing">
+                            <i class="bi bi-x-circle"></i>
+                            Hủy dự án
+                        </button>
+                    }
+                </AuthorizeView>
+                <AuthorizeView Roles="Sale">
+                    @if (project.Status != ProjectRFQStatus.Cancelled && project.Status != ProjectRFQStatus.Completed)
+                    {
+                        <button class="btn btn-primary" @onclick="GoToEdit">Chỉnh sửa</button>
+                    }
+                </AuthorizeView>
+                <button class="btn btn-outline-secondary" @onclick="GoBack">Quay lại</button>
             </div>
             @if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="alert alert-danger mt-3 mb-0" role="alert">
-                    <i class="bx bx-error-circle me-1"></i>@errorMessage
+                    <i class="bi bi-x-circle me-1"></i>@errorMessage
                 </div>
             }
             @if (!string.IsNullOrEmpty(successMessage))
             {
                 <div class="alert alert-success mt-3 mb-0" role="alert">
-                    <i class="bx bx-check-circle me-1"></i>@successMessage
+                    <i class="bi bi-check-circle me-1"></i>@successMessage
                 </div>
             }
         </div>
     </div>
+    @if (showCancelModal)
+    {
+        <div class="modal fade show d-block" tabindex="-1" role="dialog">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content shadow">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            Xác nhận hủy dự án
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" @onclick="() => showCancelModal = false"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <p class="mb-0">
+                            Bạn có chắc chắn muốn <strong>hủy dự án</strong> này không?
+                            <br />
+                            <span class="text-danger">Hành động này không thể hoàn tác.</span>
+                        </p>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" @onclick="() => showCancelModal = false" disabled="@isProcessing">
+                            Đóng
+                        </button>
+                        <button class="btn btn-danger" @onclick="HandleCancel" disabled="@isProcessing">
+                            @if (isProcessing)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1"></span>
+                            }
+                            <i class="bi bi-x-circle me-1"></i>
+                            Xác nhận hủy
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
 }
 
 @code {
     [Parameter]
     public int Id { get; set; }
-    private AppRFQ? project; 
-    private bool isAdmin = false; // Actually checks for Director role - variable name kept for consistency
+    private AppRFQ? project;
+    private Quotation? quotation;
     private bool isProcessing = false;
     private string? errorMessage;
     private string? successMessage;
-   
+    private bool showCancelModal = false;
+
     protected override async Task OnInitializedAsync()
     {
-        // Check if user is Director (who can approve projects) - try multiple claim types
-        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
-        var user = authState.User;
-        
-        // Try to get role from claims
-        var userRole = user.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value 
-            ?? user.Claims.FirstOrDefault(c => c.Type == "role")?.Value;
-        
-        // Check if user is Director (who can approve projects) using role claim or IsInRole method
-        isAdmin = userRole == "Director" || user.IsInRole("Director");
-        
-        project = await SaleService.GetProjectRFQByIdAsync(Id); 
-        
+        project = await SaleService.GetProjectRFQByIdAsync(Id);
+        quotation = new Quotation
+        {
+            Details = new List<Quotation.QuotationDetails>
+            {
+                new()
+                {
+                    Code = "A-01",
+                    Description = "Khung nhôm mặt dựng",
+                    Width = 1200,
+                    Height = 2400,
+                    Quantity = 10,
+                    Weight = 35.5,
+                    MaterialPrice = 2_500_000,
+                    LaborCost = 500_000,
+                    ProfitPercentage = 15,
+                    TaxPercentage = 8,
+                    TransportCost = 200_000,
+                    Contingency = 100_000
+                },
+                new()
+                {
+                    Code = "B-02",
+                    Description = "Kính cường lực 10mm",
+                    Width = 1000,
+                    Height = 2200,
+                    Quantity = 8,
+                    Weight = 42.3,
+                    MaterialPrice = 3_200_000,
+                    LaborCost = 500_000,
+                    ProfitPercentage = 15,
+                    TaxPercentage = 8,
+                    TransportCost = 200_000,
+                    Contingency = 100_000
+                },
+                new()
+                {
+                    Code = "C-03",
+                    Description = "Phụ kiện & lắp đặt",
+                    Width = 0,
+                    Height = 0,
+                    Quantity = 1,
+                    Weight = 12.0,
+                    MaterialPrice = 1_800_000,
+                    LaborCost = 500_000,
+                    ProfitPercentage = 15,
+                    TaxPercentage = 8,
+                    TransportCost = 200_000,
+                    Contingency = 100_000
+                }
+            }
+        };
     }
 
     private async Task HandleApprove()
@@ -283,7 +429,7 @@ else
         try
         {
             await SaleService.ApproveProjectAsync(Id);
-            
+
             // Reload project to get updated status
             project = await SaleService.GetProjectRFQByIdAsync(Id);
             successMessage = "Dự án đã được phê duyệt thành công!";
@@ -295,6 +441,36 @@ else
         finally
         {
             isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleCancel()
+    {
+        if (project is null || project.Status == ProjectRFQStatus.Cancelled || project.Status == ProjectRFQStatus.Completed)
+        {
+            errorMessage = "Dự án không ở trạng thái chờ phê duyệt.";
+            return;
+        }
+        isProcessing = true;
+        errorMessage = null;
+        successMessage = null;
+        StateHasChanged();
+        try
+        {
+            await SaleService.CancelProjectAsync(Id);
+            project = await SaleService.GetProjectRFQByIdAsync(Id);
+            successMessage = "Dự án đã được hủy thành công.";
+
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Lỗi khi hủy dự án: {ex.Message}";
+        }
+        finally
+        {
+            isProcessing = false;
+            showCancelModal = false;
             StateHasChanged();
         }
     }
