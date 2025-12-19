@@ -17,6 +17,8 @@ public interface IInventoryService
     Task<BaseResult> AddMaterial(Material material);
     Task<GetStockReceiptResult> GetStockReceipt();
     Task<BaseResult> AddStockReceipt(StockReceipt stockReceipt);
+    Task<GetStockIssueResult> GetStockIssue();
+    Task<BaseResult> AddStockIssue(StockIssue stockReceipt);
 }
 
 public class GetMaterialTypeResult : BaseResult
@@ -27,6 +29,11 @@ public class GetMaterialTypeResult : BaseResult
 public class GetStockReceiptResult : BaseResult
 {
     public IEnumerable<StockReceipt> StockReceipts { get; set; } = [];
+}
+
+public class GetStockIssueResult : BaseResult
+{
+    public IEnumerable<StockIssue> StockIssues { get; set; } = [];
 }
 public class GetMaterialResult : BaseResult
 {

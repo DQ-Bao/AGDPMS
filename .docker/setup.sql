@@ -148,6 +148,7 @@ create table if not exists material_planning_details (
 create table if not exists stock_import (
     "id" serial primary key,
     "material_id" varchar(250) not null references materials("id"),
+	"voucher_code" varchar(250) not null,
     "quantity_change" int not null,
     "quantity_after" int not null,
     "price" numeric(20,0) not null,
@@ -985,7 +986,7 @@ values
 ('B3733', 6000, 88000);
 
 
-INSERT INTO stock_import ("material_id", "quantity_change", "quantity_after", "price", "date")
+INSERT INTO stock_import ("material_id", "voucher","quantity_change", "quantity_after", "price", "date")
 VALUES
 ('F2435', 50, 150, 1250000, '2025-01-10'),
 ('F605', 30, 180, 1250000, '2025-01-15'),

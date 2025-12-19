@@ -60,6 +60,13 @@
 
             <div class="p-3">
 
+                <div class="row mb-3">
+                    <label class="col-4 col-form-label">Mã phiếu</label>
+                    <div class="col-8">
+                        <input class="form-control" type="number" @bind="tempReceipt.VoucherCode" />
+                    </div>
+                </div>
+
                 <!-- Input Fields -->
                 <div class="row mb-3">
                     <label class="col-4 col-form-label">Vật tư</label>
@@ -313,11 +320,17 @@
         sr_res = await inventoryService.GetStockReceipt();
         stockReceipts = sr_res.StockReceipts;
         items = stockReceipts.ToArray();
+
+        Console.WriteLine("");
+
+        StateHasChanged();
     }
 
     protected override async Task OnInitializedAsync()
     {
         is_loading = true;
+        tempReceipt.VoucherCode = DateTime.Now.ToString("yyyyMMddHHmmss");
+        tempReceipt.Date = DateTime.Now;
 
         mt_res = await inventoryService.GetMaterialType();
         if (mt_res.Success)

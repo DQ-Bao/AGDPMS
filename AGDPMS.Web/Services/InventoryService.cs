@@ -100,7 +100,7 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
             return new GetStockReceiptResult
             {
                 Success = true,
-                StockReceipts = await inventoryDataAccess.GetStockImportAsync()
+                StockReceipts = await inventoryDataAccess.GetStockReceiptAsync()
             };
 
         }
@@ -108,6 +108,24 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
         {
             Console.WriteLine(e.Message);
             return new GetStockReceiptResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<GetStockIssueResult> GetStockIssue()
+    {
+        try
+        {
+            return new GetStockIssueResult
+            {
+                Success = true,
+                StockIssues = await inventoryDataAccess.GetStockIssueAsync()
+            };
+
+        }
+        catch (Exception e)
+        {
+            Console.WriteLine(e.Message);
+            return new GetStockIssueResult { Success = false, ErrorMessage = e.Message };
         }
     }
 
@@ -126,6 +144,20 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
 
     public async Task<BaseResult> AddStockReceipt(StockReceipt stockReceipt)
     {
+        try
+        {
+            await inventoryDataAccess.CreateStockImportAsync(stockReceipt);
+            return new BaseResult { Success = true };
+        }
+        catch (Exception e)
+        {
+            return new BaseResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<BaseResult> AddStockIssue(StockIssue stockReceipt)
+    {
+
         try
         {
             await inventoryDataAccess.CreateStockImportAsync(stockReceipt);

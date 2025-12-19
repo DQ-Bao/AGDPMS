@@ -34,7 +34,7 @@ public static class MauiProgram
         builder.Services.AddScoped(sp => sp.GetRequiredService<IHttpClientFactory>().CreateClient("ApiClient2"));
         builder.Services.AddHttpClient("ApiClient2", client =>
         {
-            client.BaseAddress = new Uri("https://cole-bra-eden-lectures.trycloudflare.com");
+            client.BaseAddress = new Uri("https://vampire-hydrocodone-observed-rather.trycloudflare.com ");
             client.Timeout = TimeSpan.FromSeconds(30);
         })
         .AddHttpMessageHandler<AuthHeaderHandler>()
@@ -44,7 +44,7 @@ public static class MauiProgram
         });
         builder.Services.AddHttpClient("ApiClient", client =>
         {
-            client.BaseAddress = new Uri("https://cole-bra-eden-lectures.trycloudflare.com/api/");
+            client.BaseAddress = new Uri("https://vampire-hydrocodone-observed-rather.trycloudflare.com/api/");
             client.Timeout = TimeSpan.FromSeconds(30);
         })
         .AddHttpMessageHandler<AuthHeaderHandler>()
