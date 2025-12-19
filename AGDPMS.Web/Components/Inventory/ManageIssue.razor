@@ -8,6 +8,8 @@
 @* @attribute [Authorize(Roles = "Admin")] *@
 
 @inject IInventoryService inventoryService
+@inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <PageTitle>Quản lý xuất kho</PageTitle>
 
@@ -39,6 +41,21 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     @* <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Kho </h4> *@
     <div>
+        <button class="btn btn-success me-2" @onclick="ExportToExcel" disabled="@(isExporting || exportCooldownRemaining > 0)">
+            <i class="bi bi-file-earmark-excel me-1"></i> 
+            @if (isExporting)
+            {
+                <text>Đang xuất...</text>
+            }
+            else if (exportCooldownRemaining > 0)
+            {
+                <text>Xuất Excel (@exportCooldownRemaining giây)</text>
+            }
+            else
+            {
+                <text>Xuất Excel</text>
+            }
+        </button>
         <button class="btn btn-primary me-2" @onclick=ToggleAdding>
             <i class="me-1"></i> Tạo mới
         </button>
@@ -53,7 +70,6 @@
 
         <div class="card shadow-lg" style="width: 700px;">
             <h5 class="card-header">Tạo xuất kho</h5>
-
             <div class="p-3">
 
                 <!-- Input Fields -->
@@ -62,20 +78,22 @@
                     <div class="col-8">
                         <div class="position-relative">
                             <input class="form-control"
-                                   placeholder="Tìm theo mã hoặc tên..."
-                                   @bind="materialSearch"
-                                   @bind:event="oninput" />
+                                   placeholder="Tìm theo mã vật tư..."
+                                   value="@materialSearch"
+                                   @oninput="OnMaterialSearch" />
 
-                            @if (!string.IsNullOrWhiteSpace(materialSearch))
+                            @if (ShowSuggestions)
                             {
                                 <ul class="list-group position-absolute w-100"
-                                    style="max-height: 200px; overflow-y: auto; z-index: 2000;">
+                                    style="top:100%; z-index:9999; max-height:200px; overflow:auto">
 
                                     @foreach (var m in FilteredMaterials)
                                     {
                                         <li class="list-group-item list-group-item-action"
+                                            style="cursor:pointer"
                                             @onclick="() => SelectMaterial(m)">
-                                            <strong>@m.Id</strong> — @m.Name
+                                            <strong>@m.MaterialId</strong>
+                                            — @m.Length m (Tồn: @m.Stock)
                                         </li>
                                     }
                                 </ul>
@@ -125,7 +143,7 @@
                             @foreach (var r in pendingIssues)
                             {
                                 <tr>
-                                    <td>@materials.FirstOrDefault(m => m.Id == r.MaterialId)?.Name</td>
+                                    <td>@materials.FirstOrDefault(m => m.Id == r.MaterialStock.MaterialId)?.Name</td>
 
                                     <td>
                                         <input class="form-control form-control-sm"
@@ -182,6 +200,8 @@
         {
             <div class="p-3">Lỗi tải dữ liệu</div>
             <div class="p-3">@m_res.ErrorMessage</div>
+            <div class="p-3">@mt_res.ErrorMessage</div>
+            <div class="p-3">@si_res.ErrorMessage</div>
         }
         else
         {
@@ -210,11 +230,11 @@
                         <!-- Rows Under That Date -->
                         @foreach (var r in group)
                         {
-                            var material = materials.FirstOrDefault(m => m.Id == r.MaterialId);
+                            var material = materials.FirstOrDefault(m => m.Id == r.MaterialStock.MaterialId);
 
                             <tr>
                                 <td>@r.VoucherCode</td>
-                                <td>@r.MaterialId</td>
+                                <td>@r.MaterialStock.MaterialId</td>
                                 <td>@material?.Name</td>
                                 <td>@r.QuantityChange</td>
                                 <td>@r.Price.ToString("N0") đ</td>
@@ -242,7 +262,8 @@
     private bool show_only_with_stocks = false;
 
     private IEnumerable<Material> materials = new List<Material> { };
-    private IEnumerable<MaterialType> material_types = new List<MaterialType> { };
+    private List<MaterialType> material_types = new List<MaterialType> { };
+    private List<MaterialStock> material_stocks = new List<MaterialStock> { };
     private IEnumerable<StockIssue> stockIssues = new List<StockIssue> { };
     private StockIssue[] items = new StockIssue[] { };
     private System.Threading.Timer? searchTimer;
@@ -253,29 +274,45 @@
     private List<StockIssue> pendingIssues = new();
 
     private string materialSearch = "";
-    private Material? selectedMaterial;
+    private MaterialStock? selectedMaterial;
 
-    private IEnumerable<Material> FilteredMaterials =>
-        materials.Where(m =>
-            (m.Id?.Contains(materialSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (m.Name?.Contains(materialSearch, StringComparison.OrdinalIgnoreCase) ?? false)
-        );
+    // Export cooldown
+    private bool isExporting = false;
+    private int exportCooldownRemaining = 0;
+    private System.Threading.Timer? exportCooldownTimer;
 
-    void SelectMaterial(Material m)
+    // private IEnumerable<MaterialStock> FilteredMaterials =>
+    //     material_stocks.Where(m =>
+    //         (m.MaterialId.Contains(materialSearch, StringComparison.OrdinalIgnoreCase))
+    //     );
+
+    private bool ShowSuggestions =>
+    !string.IsNullOrWhiteSpace(materialSearch)
+    && selectedMaterial == null
+    && FilteredMaterials.Any();
+
+    private IEnumerable<MaterialStock> FilteredMaterials =>
+        material_stocks
+            .Where(m =>
+                m.MaterialId.Contains(materialSearch, StringComparison.OrdinalIgnoreCase))
+            .Take(10);
+
+
+    void SelectMaterial(MaterialStock m)
     {
         selectedMaterial = m;
-        materialSearch = $"{m.Id} - {m.Name}";
-        tempReceipt.MaterialId = m.Id;
+        materialSearch = $"{m.Id} - {m.Length}";
+        tempReceipt.MaterialStock = m;
     }
 
     void AddToList()
     {
-        if (tempReceipt.MaterialId == null || tempReceipt.QuantityChange == 0)
+        if (tempReceipt.MaterialStock.MaterialId == null || tempReceipt.QuantityChange == 0)
             return;
 
         pendingIssues.Add(new StockIssue
         {
-            MaterialId = tempReceipt.MaterialId,
+            MaterialStock = tempReceipt.MaterialStock,
             QuantityChange = tempReceipt.QuantityChange,
             VoucherCode = tempReceipt.VoucherCode,
             Price = tempReceipt.Price,
@@ -301,7 +338,7 @@
             Console.WriteLine("Nothing");
             return;
         }
-            
+
 
         foreach (var r in pendingIssues)
         {
@@ -321,10 +358,11 @@
     {
         is_loading = true;
         tempReceipt.VoucherCode = DateTime.Now.ToString("yyyyMMddHHmmss");
+        tempReceipt.MaterialStock = new MaterialStock();
         mt_res = await inventoryService.GetMaterialType();
         if (mt_res.Success)
         {
-            material_types = mt_res.MaterialTypes;
+            material_types = mt_res.MaterialTypes.ToList();
         }
         m_res = await inventoryService.GetMaterial();
         if (m_res.Success)
@@ -340,6 +378,13 @@
         else
         {
             load_error = true;
+        }
+        foreach (Material m in materials)
+        {
+            foreach (MaterialStock ms in m.Stocks)
+            {
+                material_stocks.Add(ms);
+            }
         }
         PerformSearch(null);
         is_loading = false;
@@ -389,5 +434,53 @@
     void ToggleAdding()
     {
         is_adding = !is_adding;
+    }
+
+    void OnMaterialSearch(ChangeEventArgs e)
+    {
+        materialSearch = e.Value?.ToString() ?? "";
+        selectedMaterial = null;
+        StateHasChanged(); // 🔥 BẮT BUỘC
+    }
+
+    private async Task ExportToExcel()
+    {
+        if (isExporting || exportCooldownRemaining > 0) return;
+
+        isExporting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Trigger download via JavaScript
+            var url = $"{Nav.BaseUri}api/inventory/issues/export";
+            await JS.InvokeVoidAsync("downloadFile", url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting Excel: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+            
+            // Start 5-second cooldown
+            exportCooldownRemaining = 5;
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = new System.Threading.Timer(UpdateCooldown, null, 1000, 1000);
+            
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateCooldown(object? state)
+    {
+        exportCooldownRemaining--;
+        if (exportCooldownRemaining <= 0)
+        {
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = null;
+        }
+        InvokeAsync(StateHasChanged);
     }
 }

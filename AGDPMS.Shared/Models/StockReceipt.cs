@@ -3,7 +3,7 @@
 public class StockReceipt
 {
     public int Id { get; set; }
-    public string MaterialId { get; set; } = string.Empty;
+    public MaterialStock MaterialStock { get; set; }
     public string VoucherCode { get; set; } = string.Empty;
     public int QuantityChange { get; set; }
     public int QuantityAfter { get; set; }

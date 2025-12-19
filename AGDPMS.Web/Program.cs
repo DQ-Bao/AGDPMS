@@ -85,6 +85,7 @@ app.MapOrderSettings();
 app.MapQr();
 app.MapLookup();
 app.MapNotificationEndpoints();
+app.MapInventory();
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.MapStaticAssets();

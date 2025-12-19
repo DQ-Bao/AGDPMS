@@ -8,11 +8,12 @@
 @* @attribute [Authorize(Roles = "Admin")] *@
 
 @inject IInventoryService inventoryService
-@inject IReportService reportService
+@inject IJSRuntime JS
+@inject NavigationManager Nav
 
-<PageTitle>Quản lý nhập kho</PageTitle>
+<PageTitle>Quản lý xuất kho</PageTitle>
 
-<h3>Quản lý nhập kho</h3>
+<h3>Quản lý xuất kho</h3>
 
 <div class="card mb-3">
     <h5 class="card-header">Tìm kiếm</h5>
@@ -20,9 +21,9 @@
         <div class="row">
             <div class="col-6">
                 <input type="search"
-                        class="form-row form-control col-10"
-                        placeholder="Tìm kiếm theo mã hoặc tên"
-                        value="@search_term" @oninput="Search" />
+                       class="form-row form-control col-10"
+                       placeholder="Tìm kiếm theo mã hoặc tên"
+                       value="@search_term" @oninput="Search" />
             </div>
             <label class="col-1" for="from">Từ</label>
             <div class="col-2">
@@ -40,11 +41,23 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     @* <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Kho </h4> *@
     <div>
+        <button class="btn btn-success me-2" @onclick="ExportToExcel" disabled="@(isExporting || exportCooldownRemaining > 0)">
+            <i class="bi bi-file-earmark-excel me-1"></i> 
+            @if (isExporting)
+            {
+                <text>Đang xuất...</text>
+            }
+            else if (exportCooldownRemaining > 0)
+            {
+                <text>Xuất Excel (@exportCooldownRemaining giây)</text>
+            }
+            else
+            {
+                <text>Xuất Excel</text>
+            }
+        </button>
         <button class="btn btn-primary me-2" @onclick=ToggleAdding>
             <i class="me-1"></i> Tạo mới
-        </button>
-        <button class="btn btn-primary me-2" @onclick=Export>
-            <i class="me-1"></i> Xuất file nhập kho
         </button>
     </div>
 </div>
@@ -52,20 +65,13 @@
 @if (is_adding)
 {
     <div class="position-fixed top-0 start-0 w-100 h-100 d-flex
-                    justify-content-center align-items-center"
+                            justify-content-center align-items-center"
          style="background-color: rgba(0,0,0,0.4); z-index: 9999;">
 
         <div class="card shadow-lg" style="width: 700px;">
-            <h5 class="card-header">Tạo nhập kho</h5>
+            <h5 class="card-header">Tạo xuất kho</h5>
 
             <div class="p-3">
-
-                <div class="row mb-3">
-                    <label class="col-4 col-form-label">Mã phiếu</label>
-                    <div class="col-8">
-                        <input class="form-control" type="number" @bind="tempReceipt.VoucherCode" />
-                    </div>
-                </div>
 
                 <!-- Input Fields -->
                 <div class="row mb-3">
@@ -77,108 +83,110 @@
                                    @bind="materialSearch"
                                    @bind:event="oninput" />
 
-                            @if (!string.IsNullOrWhiteSpace(materialSearch))
+                            @if (!string.IsNullOrWhiteSpace(materialSearch) && selectedMaterial == null)
                             {
                                 <ul class="list-group position-absolute w-100"
-                                    style="max-height: 200px; overflow-y: auto; z-index: 2000;">
+                                    style="max-height:200px; overflow-y:auto; z-index:2000">
 
-                                    @foreach (var m in FilteredMaterials)
+                                    @foreach (var m in filteredMaterials)
                                     {
                                         <li class="list-group-item list-group-item-action"
                                             @onclick="() => SelectMaterial(m)">
-                                            <strong>@m.Id</strong> — @m.Name
+                                            <strong>@m.MaterialId</strong>
+                                            — @m.Length m
+                                            (Tồn: @m.Stock)
                                         </li>
                                     }
                                 </ul>
                             }
-                        </div>
                     </div>
-                </div>
-
-                <div class="row mb-3">
-                    <label class="col-4 col-form-label">SL thay đổi</label>
-                    <div class="col-8">
-                        <input class="form-control" type="number" @bind="tempReceipt.QuantityChange" />
-                    </div>
-                </div>
-
-                <div class="row mb-3">
-                    <label class="col-4 col-form-label">Giá</label>
-                    <div class="col-8">
-                        <input class="form-control" type="number" @bind="tempReceipt.Price" />
-                    </div>
-                </div>
-
-                <div class="row mb-3">
-                    <label class="col-4 col-form-label">Ngày</label>
-                    <div class="col-8">
-                        <input class="form-control" type="date" @bind="tempReceipt.Date" />
-                    </div>
-                </div>
-
-                <div class="text-end mb-4">
-                    <button class="btn btn-primary" @onclick="AddToList">Thêm vào danh sách</button>
-                </div>
-
-                <!-- Pending Items Table -->
-                @if (pendingReceipts.Any())
-                {
-                    <table class="table table-sm table-bordered">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Vật tư</th>
-                                <th>SL</th>
-                                <th>Giá</th>
-                                <th></th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach (var r in pendingReceipts)
-                            {
-                                <tr>
-                                    <td>@materials.FirstOrDefault(m => m.Id == r.MaterialId)?.Name</td>
-
-                                    <td>
-                                        <input class="form-control form-control-sm"
-                                               type="number"
-                                               @bind="r.QuantityChange" />
-                                    </td>
-
-                                    <td>
-                                        <input class="form-control form-control-sm"
-                                               type="number"
-                                               @bind="r.Price" />
-                                    </td>
-
-                                    <td>
-                                        <button class="btn btn-sm btn-danger"
-                                                @onclick="@(() => RemoveItem(r))">
-                                            Xóa
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        </tbody>
-                    </table>
-                }
-
-
-                <!-- Save -->
-                <div class="text-end mt-3">
-                    <button class="btn btn-success me-2" @onclick="SaveAll">Lưu tất cả</button>
-                    <button class="btn btn-secondary" @onclick="ToggleAdding">Hủy</button>
                 </div>
             </div>
+
+            <div class="row mb-3">
+                <label class="col-4 col-form-label">SL thay đổi</label>
+                <div class="col-8">
+                    <input class="form-control" type="number" @bind="tempReceipt.QuantityChange" />
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-4 col-form-label">Giá</label>
+                <div class="col-8">
+                    <input class="form-control" type="number" @bind="tempReceipt.Price" />
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-4 col-form-label">Ngày</label>
+                <div class="col-8">
+                    <input class="form-control" type="date" @bind="tempReceipt.Date" />
+                </div>
+            </div>
+
+            <div class="text-end mb-4">
+                <button class="btn btn-primary" @onclick="AddToList">Thêm vào danh sách</button>
+            </div>
+
+            <!-- Pending Items Table -->
+            @if (pendingIssues.Any())
+            {
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Vật tư</th>
+                            <th>SL</th>
+                            <th>Giá</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var r in pendingIssues)
+                        {
+                            <tr>
+                                <td>@materials.FirstOrDefault(m => m.Id == r.MaterialStock.MaterialId)?.Name</td>
+
+                                <td>
+                                    <input class="form-control form-control-sm"
+                                           type="number"
+                                           @bind="r.QuantityChange" />
+                                </td>
+
+                                <td>
+                                    <input class="form-control form-control-sm"
+                                           type="number"
+                                           @bind="r.Price" />
+                                </td>
+
+                                <td>
+                                    <button class="btn btn-sm btn-danger"
+                                            @onclick="@(() => RemoveItem(r))">
+                                        Xóa
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+
+
+            <!-- Save -->
+            <div class="text-end mt-3">
+                <button class="btn btn-success me-2" @onclick="SaveAll">Lưu tất cả</button>
+                <button class="btn btn-secondary" @onclick="ToggleAdding">Hủy</button>
+            </div>
         </div>
-
-
     </div>
+
+
+</div>
 }
 
 
 <div class="card">
     <h5 class="card-header">
-        Nhập kho (Số lượng: @(items.Count()))
+        Xuất kho (Số lượng: @(items.Count()))
     </h5>
     <div class="table-responsive text-nowrap">
         @if (is_loading)
@@ -193,12 +201,15 @@
         {
             <div class="p-3">Lỗi tải dữ liệu</div>
             <div class="p-3">@m_res.ErrorMessage</div>
+            <div class="p-3">@mt_res.ErrorMessage</div>
+            <div class="p-3">@si_res.ErrorMessage</div>
         }
         else
         {
             <table class="table">
                 <thead>
                     <tr>
+                        <th>Mã phiếu</th>
                         <th>Mã vật tư</th>
                         <th>Tên vật tư</th>
                         <th>SL nhập</th>
@@ -206,7 +217,7 @@
                     </tr>
                 </thead>
                 <tbody class="table-border-bottom-0">
-                    @foreach (var group in stockReceipts
+                    @foreach (var group in stockIssues
                                     .OrderByDescending(r => r.Date)
                                     .GroupBy(r => r.Date))
                     {
@@ -220,10 +231,11 @@
                         <!-- Rows Under That Date -->
                         @foreach (var r in group)
                         {
-                            var material = materials.FirstOrDefault(m => m.Id == r.MaterialId);
+                            var material = materials.FirstOrDefault(m => m.Id == r.MaterialStock.MaterialId);
 
                             <tr>
-                                <td>@r.MaterialId</td>
+                                <td>@r.VoucherCode</td>
+                                <td>@r.MaterialStock.MaterialId</td>
                                 <td>@material?.Name</td>
                                 <td>@r.QuantityChange</td>
                                 <td>@r.Price.ToString("N0") đ</td>
@@ -239,10 +251,9 @@
 <hr />
 
 @code {
-    private StockReceipt newReceipt = new StockReceipt();
     private GetMaterialResult m_res = null;
     private GetMaterialTypeResult mt_res = null;
-    private GetStockReceiptResult sr_res = null;
+    private GetStockReceiptResult si_res = null;
     private bool load_error = false;
     private bool is_loading = true;
     private bool is_adding = false;
@@ -252,105 +263,121 @@
     private bool show_only_with_stocks = false;
 
     private IEnumerable<Material> materials = new List<Material> { };
-    private IEnumerable<MaterialType> material_types = new List<MaterialType> { };
-    private IEnumerable<StockReceipt> stockReceipts = new List<StockReceipt> { };
+    private List<MaterialType> material_types = new List<MaterialType> { };
+    private List<MaterialStock> material_stocks = new List<MaterialStock> { };
+    private IEnumerable<StockReceipt> stockIssues = new List<StockReceipt> { };
     private StockReceipt[] items = new StockReceipt[] { };
     private System.Threading.Timer? searchTimer;
     private int current_page = 1;
     private int pageSize = Int32.MaxValue;
 
     private StockReceipt tempReceipt = new StockReceipt();
-    private List<StockReceipt> pendingReceipts = new();
+    private List<StockReceipt> pendingIssues = new();
 
     private string materialSearch = "";
-    private Material? selectedMaterial;
+    private MaterialStock? selectedMaterial;
+    private List<MaterialStock> filteredMaterials = new();
 
-    private IEnumerable<Material> FilteredMaterials =>
-        materials.Where(m =>
-            (m.Id?.Contains(materialSearch, StringComparison.OrdinalIgnoreCase) ?? false) ||
-            (m.Name?.Contains(materialSearch, StringComparison.OrdinalIgnoreCase) ?? false)
-        );
+    // Export cooldown
+    private bool isExporting = false;
+    private int exportCooldownRemaining = 0;
+    private System.Threading.Timer? exportCooldownTimer;
 
-    void SelectMaterial(Material m)
+    // private IEnumerable<MaterialStock> FilteredMaterials =>
+    //     material_stocks.Where(m =>
+    //         (m.MaterialId.Contains(materialSearch, StringComparison.OrdinalIgnoreCase))
+    //     );
+
+
+
+    void SelectMaterial(MaterialStock m)
     {
         selectedMaterial = m;
-        materialSearch = $"{m.Id} - {m.Name}";
-        tempReceipt.MaterialId = m.Id;
+        materialSearch = $"{m.Id} - {m.Length}";
+        tempReceipt.MaterialStock = m;
     }
 
     void AddToList()
     {
-        if (tempReceipt.MaterialId == null || tempReceipt.QuantityChange == 0)
+        if (tempReceipt.MaterialStock.MaterialId == null || tempReceipt.QuantityChange == 0)
             return;
 
-        pendingReceipts.Add(new StockReceipt
+        pendingIssues.Add(new StockReceipt
         {
-            MaterialId = tempReceipt.MaterialId,
+            MaterialStock = tempReceipt.MaterialStock,
             QuantityChange = tempReceipt.QuantityChange,
+            VoucherCode = tempReceipt.VoucherCode,
             Price = tempReceipt.Price,
             Date = tempReceipt.Date == default ? DateTime.Today : tempReceipt.Date
         });
 
         tempReceipt = new StockReceipt
         {
-            Date = DateTime.Today
+            Date = DateTime.Today,
+            VoucherCode = DateTime.Now.ToString("yyyyMMddHHmmss")
         };
         materialSearch = "";
     }
 
     void RemoveItem(StockReceipt r)
     {
-        pendingReceipts.Remove(r);
+        pendingIssues.Remove(r);
     }
 
     async Task SaveAll()
     {
-        if (pendingReceipts.Count == 0)
+        if (pendingIssues.Count == 0)
+        {
+            Console.WriteLine("Nothing");
             return;
+        }
 
-        foreach (var r in pendingReceipts)
+
+        foreach (var r in pendingIssues)
         {
             await inventoryService.AddStockReceipt(r);
         }
 
-        pendingReceipts.Clear();
+        pendingIssues.Clear();
         is_adding = false;
 
         // reload list after save
-        sr_res = await inventoryService.GetStockReceipt();
-        stockReceipts = sr_res.StockReceipts;
-        items = stockReceipts.ToArray();
-
-        Console.WriteLine("");
-
-        StateHasChanged();
+        si_res = await inventoryService.GetStockReceipt();
+        stockIssues = si_res.StockReceipts;
+        items = stockIssues.ToArray();
     }
 
     protected override async Task OnInitializedAsync()
     {
         is_loading = true;
         tempReceipt.VoucherCode = DateTime.Now.ToString("yyyyMMddHHmmss");
-        tempReceipt.Date = DateTime.Now;
-
+        tempReceipt.MaterialStock = new MaterialStock();
         mt_res = await inventoryService.GetMaterialType();
         if (mt_res.Success)
         {
-            material_types = mt_res.MaterialTypes;
+            material_types = mt_res.MaterialTypes.ToList();
         }
         m_res = await inventoryService.GetMaterial();
         if (m_res.Success)
         {
             materials = m_res.Materials;
         }
-        sr_res = await inventoryService.GetStockReceipt();
-        if (sr_res.Success)
+        si_res = await inventoryService.GetStockReceipt();
+        if (si_res.Success)
         {
-            stockReceipts = sr_res.StockReceipts;
-            items = stockReceipts.ToArray();
+            stockIssues = si_res.StockReceipts;
+            items = stockIssues.ToArray();
         }
         else
         {
             load_error = true;
+        }
+        foreach (Material m in materials)
+        {
+            foreach (MaterialStock ms in m.Stocks)
+            {
+                material_stocks.Add(ms);
+            }
         }
         PerformSearch(null);
         is_loading = false;
@@ -394,7 +421,7 @@
         // .Take(pageSize)
         // .ToArray();
         // InvokeAsync(StateHasChanged);
-        items = stockReceipts.ToArray();
+        items = stockIssues.ToArray();
     }
 
     void ToggleAdding()
@@ -402,8 +429,58 @@
         is_adding = !is_adding;
     }
 
-    void Export()
+    void OnMaterialSearch(ChangeEventArgs e)
     {
-        reportService.GenerateReceipt(stockReceipts);
+        materialSearch = e.Value?.ToString() ?? "";
+        selectedMaterial = null;
+
+        filteredMaterials = material_stocks
+            .Where(m =>
+                m.MaterialId.Contains(materialSearch, StringComparison.OrdinalIgnoreCase))
+            .Take(10)
+            .ToList();
+
+        StateHasChanged();
+    }
+
+    private async Task ExportToExcel()
+    {
+        if (isExporting || exportCooldownRemaining > 0) return;
+
+        isExporting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Trigger download via JavaScript
+            var url = $"{Nav.BaseUri}api/inventory/receipts/export";
+            await JS.InvokeVoidAsync("downloadFile", url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting Excel: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+            
+            // Start 5-second cooldown
+            exportCooldownRemaining = 5;
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = new System.Threading.Timer(UpdateCooldown, null, 1000, 1000);
+            
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateCooldown(object? state)
+    {
+        exportCooldownRemaining--;
+        if (exportCooldownRemaining <= 0)
+        {
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = null;
+        }
+        InvokeAsync(StateHasChanged);
     }
 }

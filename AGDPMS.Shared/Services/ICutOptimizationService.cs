@@ -4,81 +4,81 @@ namespace AGDPMS.Shared.Services;
 
 public interface ICutOptimizationService
 {
-    //static Solution Solve(double L, double[] lengths, double[] demands)
-    //{
-    //    Solution solution = new Solution();
-    //    solution.lengths = lengths;
-    //    solution.demands = demands;
-    //    solution.stock_len = L;
-    //    int n = lengths.Length;
+    static Solution Solve(double L, double[] lengths, double[] demands)
+    {
+        Solution solution = new Solution();
+        solution.lengths = lengths;
+        solution.demands = demands;
+        solution.stock_len = [L];
+        int n = lengths.Length;
 
-    //    // === Initial Patterns (Greedy) ===
-    //    List<double[]> patterns = GenerateInitialPattern(L, lengths, demands);
+        // === Initial Patterns (Greedy) ===
+        List<double[]> patterns = GenerateInitialPattern(L, lengths, demands);
 
-    //    bool continueGen = true;
-    //    int iter = 0;
-    //    double[] finalX = null;
-    //    double finalObj = 0.0;
+        bool continueGen = true;
+        int iter = 0;
+        double[] finalX = null;
+        double finalObj = 0.0;
 
-    //    // === Column generation loop ===
-    //    while (continueGen)
-    //    {
-    //        iter++;
+        // === Column generation loop ===
+        while (continueGen)
+        {
+            iter++;
 
-    //        // --- Solve LP Master ---
-    //        double[] duals = SolveMaster(patterns, demands, out double[] x, out double obj);
-    //        finalX = x;
-    //        finalObj = obj;
+            // --- Solve LP Master ---
+            double[] duals = SolveMaster(patterns, demands, out double[] x, out double obj);
+            finalX = x;
+            finalObj = obj;
 
-    //        // --- Solve Subproblem (Knapsack) ---
-    //        double[] newPattern = SolveKnapsack(L, lengths, duals, out double patternValue);
-    //        double reducedCost = 1.0 - patternValue;
+            // --- Solve Subproblem (Knapsack) ---
+            double[] newPattern = SolveKnapsack(L, lengths, duals, out double patternValue);
+            double reducedCost = 1.0 - patternValue;
 
-    //        if (reducedCost >= -1e-6)
-    //        {
-    //            continueGen = false;
-    //        }
-    //        else
-    //        {
-    //            patterns.Add(newPattern);
-    //        }
-    //    }
+            if (reducedCost >= -1e-6)
+            {
+                continueGen = false;
+            }
+            else
+            {
+                patterns.Add(newPattern);
+            }
+        }
 
-    //    // === Solve Final Integer Master with Waste Minimization ===
-    //    SolveFinalIntegerMaster(patterns, demands, lengths, L, out finalX, out finalObj);
+        // === Solve Final Integer Master with Waste Minimization ===
+        SolveFinalIntegerMaster(patterns, demands, lengths, L, out finalX, out finalObj);
 
-    //    // === Report Results ===
-    //    for (int j = 0; j < patterns.Count; j++)
-    //    {
-    //        if (finalX[j] > 1e-6)
-    //        {
-    //            solution.patterns.Add(patterns[j]);
-    //        }
-    //    }
-    //    double totalWaste = 0;
-    //    double[] wastes = new double[solution.patterns.Count];
-    //    double[] used = new double[solution.patterns.Count];
-    //    for (int j = 0; j < solution.patterns.Count; j++)
-    //    {
-    //        used[j] = patterns[j].Select((v, i) => v * lengths[i]).Sum();
-    //        wastes[j] = L - used[j];
-    //        totalWaste += wastes[j] * finalX[j];
-    //    }
-    //    solution.total_waste = totalWaste;
-    //    solution.wastes = wastes;
-    //    solution.used = used;
-    //    solution.pattern_quantity = new double[solution.patterns.Count];
-    //    for (int i = 0, j = 0; i < finalX.Length; i++)
-    //    {
-    //        if (finalX[i] > 1e-6)
-    //        {
-    //            solution.pattern_quantity[j] = finalX[i];
-    //            j++;
-    //        }
-    //    }
+        // === Report Results ===
+        for (int j = 0; j < patterns.Count; j++)
+        {
+            if (finalX[j] > 1e-6)
+            {
+                solution.patterns.Add(patterns[j]);
+            }
+        }
+        double totalWaste = 0;
+        double[] wastes = new double[solution.patterns.Count];
+        double[] used = new double[solution.patterns.Count];
+        for (int j = 0; j < solution.patterns.Count; j++)
+        {
+            used[j] = patterns[j].Select((v, i) => v * lengths[i]).Sum();
+            wastes[j] = L - used[j];
+            totalWaste += wastes[j] * finalX[j];
+        }
+        solution.total_waste = totalWaste;
+        solution.wastes = wastes;
+        solution.used = used;
+        solution.pattern_quantity = new double[solution.patterns.Count];
+        for (int i = 0, j = 0; i < finalX.Length; i++)
+        {
+            if (finalX[i] > 1e-6)
+            {
+                solution.pattern_quantity[j] = finalX[i];
+                j++;
+            }
+        }
 
-    //    return solution;
-    //}
+        return solution;
+    }
 
     // === Greedy pattern generator ===
     static List<double[]> GenerateInitialPattern(double L, double[] lengths, double[] demand)

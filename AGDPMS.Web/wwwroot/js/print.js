@@ -130,3 +130,18 @@ ${printStyles}
         console.error("openPrintWindow error:", err);
     }
 };
+
+// Download file function for Excel exports
+window.downloadFile = function(url) {
+    try {
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = '';
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    } catch (err) {
+        console.error("downloadFile error:", err);
+    }
+};
