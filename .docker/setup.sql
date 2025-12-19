@@ -1,5 +1,6 @@
 set client_encoding to 'utf8';
 
+drop table if exists notifications;
 drop table if exists global_stage_time_settings;
 drop table if exists global_labor_cost_settings;
 drop table if exists production_order_settings;

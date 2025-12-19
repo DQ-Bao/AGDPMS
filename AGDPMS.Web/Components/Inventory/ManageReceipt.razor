@@ -8,6 +8,8 @@
 @* @attribute [Authorize(Roles = "Admin")] *@
 
 @inject IInventoryService inventoryService
+@inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <PageTitle>Quản lý xuất kho</PageTitle>
 
@@ -39,6 +41,21 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     @* <h4 class="fw-bold py-3 mb-0"><span class="text-muted fw-light">Quản lý /</span> Kho </h4> *@
     <div>
+        <button class="btn btn-success me-2" @onclick="ExportToExcel" disabled="@(isExporting || exportCooldownRemaining > 0)">
+            <i class="bi bi-file-earmark-excel me-1"></i> 
+            @if (isExporting)
+            {
+                <text>Đang xuất...</text>
+            }
+            else if (exportCooldownRemaining > 0)
+            {
+                <text>Xuất Excel (@exportCooldownRemaining giây)</text>
+            }
+            else
+            {
+                <text>Xuất Excel</text>
+            }
+        </button>
         <button class="btn btn-primary me-2" @onclick=ToggleAdding>
             <i class="me-1"></i> Tạo mới
         </button>
@@ -261,6 +278,11 @@
     private MaterialStock? selectedMaterial;
     private List<MaterialStock> filteredMaterials = new();
 
+    // Export cooldown
+    private bool isExporting = false;
+    private int exportCooldownRemaining = 0;
+    private System.Threading.Timer? exportCooldownTimer;
+
     // private IEnumerable<MaterialStock> FilteredMaterials =>
     //     material_stocks.Where(m =>
     //         (m.MaterialId.Contains(materialSearch, StringComparison.OrdinalIgnoreCase))
@@ -419,5 +441,46 @@
             .ToList();
 
         StateHasChanged();
+    }
+
+    private async Task ExportToExcel()
+    {
+        if (isExporting || exportCooldownRemaining > 0) return;
+
+        isExporting = true;
+        StateHasChanged();
+
+        try
+        {
+            // Trigger download via JavaScript
+            var url = $"{Nav.BaseUri}api/inventory/receipts/export";
+            await JS.InvokeVoidAsync("downloadFile", url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting Excel: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+            
+            // Start 5-second cooldown
+            exportCooldownRemaining = 5;
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = new System.Threading.Timer(UpdateCooldown, null, 1000, 1000);
+            
+            StateHasChanged();
+        }
+    }
+
+    private void UpdateCooldown(object? state)
+    {
+        exportCooldownRemaining--;
+        if (exportCooldownRemaining <= 0)
+        {
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = null;
+        }
+        InvokeAsync(StateHasChanged);
     }
 }

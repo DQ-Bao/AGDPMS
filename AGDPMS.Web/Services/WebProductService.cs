@@ -1,4 +1,4 @@
-﻿using AGDPMS.Shared.Models;
+using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
 
@@ -155,7 +155,7 @@ internal class WebProductService(
                     {
                         cutSolutions.Add(new CavityProfileSummary.CutSolution
                         {
-                            StockLength = opt.stock_len,
+                            StockLength = opt.stock_len.Length > 0 ? opt.stock_len[0] : stockLengthForOptimize,
                             Quantity = quantity,
                             Pattern = patternCuts
                         });
