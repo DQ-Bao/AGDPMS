@@ -10,7 +10,7 @@ public interface IProductService
     Task<UpdateCavityResult> UpdateCavityAsync(Cavity cavity);
     Task<DeleteCavityResult> DeleteCavityAsync(int cavityId);
     Task<AddCavitiesFromWStarDesignResult> AddCavitiesFromWStarDesignAsync(int projectId, IEnumerable<WStarCavity> cavities);
-    Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId, double stockLengthForOptimize);
+    Task<GetCavityProfileSummariesResult> GetCavityProfileSummariesAsync(int projectId/*, double stockLengthForOptimize*/);
     Task<GetCavityGlassAndOtherMaterialSummariesResult> GetCavityGlassAndOtherMaterialSummariesAsync(int projectId);
     Task<UpdateProfileMaterialWeightResult> UpdateProfileMaterialWeightAsync(string materialId, double weight);
     Task<AddOrUpdateProfileMaterialBasePriceResult> AddOrUpdateProfileMaterialBasePriceAsync(string materialId, double stockLength, int stockId, decimal price);
