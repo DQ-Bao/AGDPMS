@@ -224,9 +224,9 @@ public class CavityDataAccess(IDbConnection conn)
     // Move this to inventory data access
     public Task AddMaterialStockAsync(string materialId, MaterialStock stock, IDbTransaction? tran = null) =>
         conn.ExecuteAsync(@"
-            insert into material_stock(material_id, length, base_price)
-            values (@MaterialId, @Length, @Price)",
-            new { MaterialId = materialId, stock.Length, Price = stock.BasePrice }, tran);
+            insert into material_stock(material_id, length, width, base_price)
+            values (@MaterialId, @Length, @Width, @Price)",
+            new { MaterialId = materialId, stock.Length, stock.Width, Price = stock.BasePrice }, tran);
     public Task UpdateMaterialStockBasePriceAsync(int stockId, decimal price, IDbTransaction? tran = null) =>
         conn.ExecuteAsync(@"
             update material_stock

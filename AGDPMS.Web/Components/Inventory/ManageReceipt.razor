@@ -4,16 +4,17 @@
 @using AGDPMS.Shared.Models
 @using AGDPMS.Shared.Services
 @using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
 
-@* @attribute [Authorize(Roles = "Admin")] *@
+@attribute [Authorize(Roles = "InventoryManager")]
 
 @inject IInventoryService inventoryService
 @inject IJSRuntime JS
 @inject NavigationManager Nav
 
-<PageTitle>Quản lý xuất kho</PageTitle>
+<PageTitle>Quản lý nhập kho</PageTitle>
 
-<h3>Quản lý xuất kho</h3>
+<h3>Quản lý nhập kho</h3>
 
 <div class="card mb-3">
     <h5 class="card-header">Tìm kiếm</h5>
@@ -69,7 +70,7 @@
          style="background-color: rgba(0,0,0,0.4); z-index: 9999;">
 
         <div class="card shadow-lg" style="width: 700px;">
-            <h5 class="card-header">Tạo xuất kho</h5>
+            <h5 class="card-header">Tạo nhập kho</h5>
 
             <div class="p-3">
 
@@ -80,6 +81,7 @@
                         <div class="position-relative">
                             <input class="form-control"
                                    placeholder="Tìm theo mã hoặc tên..."
+                                   @onchange="OnMaterialSearch"
                                    @bind="materialSearch"
                                    @bind:event="oninput" />
 
@@ -186,7 +188,7 @@
 
 <div class="card">
     <h5 class="card-header">
-        Xuất kho (Số lượng: @(items.Count()))
+        Nhập kho (Số lượng: @(items.Count()))
     </h5>
     <div class="table-responsive text-nowrap">
         @if (is_loading)

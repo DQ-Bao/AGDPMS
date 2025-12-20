@@ -14,6 +14,8 @@
 @inject WStarService WStarService
 @inject IProductService ProductService
 @inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@inject IJSRuntime JS
 
 <AuthorizeView Roles="Technician">
     <Authorized>
@@ -161,9 +163,9 @@
                 </h2>
                 <div id="collapseProfile" class="accordion-collapse collapse show" data-bs-parent="#materialsAccordion">
                     <div class="accordion-body">
-                        <AuthorizeView Roles="Technician">
+                        @* <AuthorizeView Roles="Technician">
                             <div class="mb-3 d-flex align-items-center">
-                                @* <EditForm Model="Input" OnValidSubmit="LoadProfileSummaries" FormName="summarize-profile-form">
+                                <EditForm Model="Input" OnValidSubmit="LoadProfileSummaries" FormName="summarize-profile-form">
                                     <DataAnnotationsValidator />
                                     <div class="input-group w-auto me-2">
                                         <label class="input-group-text fw-semibold">Chiều dài cây (mm)</label>
@@ -176,10 +178,10 @@
                                     <div class="spinner-border spinner-border-sm text-primary me-2" role="status">
                                         <span class="visually-hidden">Loading...</span>
                                     </div>
-                                } *@
+                                }
                                 <button type="button" class="btn btn-success" disabled="@(!Profiles.Any())">Xuất Excel</button>
                             </div>
-                        </AuthorizeView>
+                        </AuthorizeView> *@
                         <div class="fixed-table-wrapper">
                             <table class="table table-bordered table-striped table-hover align-middle">
                                 <thead class="table-light">
@@ -660,7 +662,22 @@
                     @if (Quotation is not null)
                     {
                         <button type="button" @onclick="() => Quotation = null" class="btn btn-primary">Xóa</button>
-                        <button type="button" class="btn btn-success">Xuất Excel</button>
+                        <button type="button" class="btn btn-success" @onclick="ExportQuotation"
+                                disabled="@(isExporting || exportCooldownRemaining > 0)">
+                            <i class="bi bi-file-earmark-excel me-1"></i>
+                            @if (isExporting)
+                            {
+                                <text>Đang xuất...</text>
+                            }
+                            else if (exportCooldownRemaining > 0)
+                            {
+                                <text>Xuất Excel (@exportCooldownRemaining giây)</text>
+                            }
+                            else
+                            {
+                                <text>Xuất Excel</text>
+                            }
+                        </button>
                     }
                     else
                     {
@@ -805,6 +822,9 @@
     private decimal EditingOtherMaterialStockPrice { get; set; }
 
     private Quotation? Quotation { get; set; }
+    private bool isExporting = false;
+    private int exportCooldownRemaining = 0;
+    private System.Threading.Timer? exportCooldownTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -1119,6 +1139,43 @@
         var result = await ProductService.CalculateQuotationAsync(ProjectId);
         if (result.Success) Quotation = result.Quotation;
         else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private async Task ExportQuotation()
+    {
+        if (isExporting || exportCooldownRemaining > 0) return;
+        isExporting = true;
+        StateHasChanged();
+        try
+        {
+            var url = $"{Nav.BaseUri}api/quotation/{ProjectId}/exports";
+            await JS.InvokeVoidAsync("downloadFile", url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error exporting Excel: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+
+            // Start 5-second cooldown
+            exportCooldownRemaining = 5;
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = new System.Threading.Timer(UpdateCooldown, null, 1000, 1000);
+
+            StateHasChanged();
+        }
+    }
+    private void UpdateCooldown(object? state)
+    {
+        exportCooldownRemaining--;
+        if (exportCooldownRemaining <= 0)
+        {
+            exportCooldownTimer?.Dispose();
+            exportCooldownTimer = null;
+        }
+        InvokeAsync(StateHasChanged);
     }
 
     private sealed class SummarizeAluminumModel

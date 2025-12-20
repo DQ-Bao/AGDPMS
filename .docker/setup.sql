@@ -1,5 +1,6 @@
 set client_encoding to 'utf8';
 
+drop table if exists quotation_settings;
 drop table if exists notifications;
 drop table if exists global_stage_time_settings;
 drop table if exists global_labor_cost_settings;
@@ -412,589 +413,608 @@ values ('Director'), ('Technician'), ('Sale'), ('InventoryManager'), ('QA'), ('P
 
 insert into users ("fullname", "phone", "password_hash", "role_id", "need_change_password")
 values 
-('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1, false),
-('Nguyễn Bảo Khánh', '0966699704', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 1, false),
-('QA Tester 0', '0900000000', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
-('QA Tester 2', '0900000002', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
-('QA Tester 3', '0900000003', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false),
-('Sale', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3, false),
-('Production Manager', '0900000001', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 6, false),
-('Inventory Manager', '0987654321', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 1, false);
+('Doãn Quốc Bảo', '0382633428', 'AQAAAAIAAYagAAAAEC7iGEcwGcYC51eb2ijKCRyIa18U40iGykiY27MJ06+6UzKwx/heauSLbMSeFifZag==', 1, false), -- abcd1234
+('Tech 1', '0765432198', 'AQAAAAIAAYagAAAAEHoCG5WPIdq51mQm0+bDxfE4iUfQaADce3Jb3bsSAOU6AaJ2V52pl/g0ZbYX4bh9WQ==', 2, false), -- abcd1234
+('Nguyễn Bảo Khánh', '0966699704', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 6, false), -- 123456
+('Inventory 1', '0654321987', 'AQAAAAIAAYagAAAAEL9X4EICrXS/tsMWnuTa93rauL1TLY1K2312Ob2Pi/a0SDuIUF0hEAA/RN5m2U5noA==', 4, false), -- abcd1234
+('QA Tester 0', '0900000000', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false), -- 123456
+('QA Tester 1', '0876543219', 'AQAAAAIAAYagAAAAEF38pt9JBNPP8NtWZNmAKVd0Lbo/Gtxw9qcMc4Eekf7uJBl8DpyQZNNS8190RJcKbg==', 5, false), -- 123456
+('QA Tester 2', '0900000002', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false), -- 123456
+('QA Tester 3', '0900000003', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 5, false), -- 123456
+('Sale 1', '0123456789', 'AQAAAAIAAYagAAAAEBuje+go7HqKeZ1XDzGMSqfAjT97yu012mQ7rSw5QNPcF8ftrCM5yFB9SxgF/l1LbQ==', 3, false), -- abcd1234
+('Sale', '0231232323', 'AQAAAAIAAYagAAAAEJHkv+A5U/7Q7OnAKH+XwNUirexztf3hXIhV6er5Ec3xvpEXqBzqFostupbw+5H4Uw==', 3, false); -- 123456
 
 insert into material_type ("name")
 values ('Nhôm'), ('Kính'), ('Phụ kiện'), ('Roăng'), ('Vật tư phụ');
 
-insert into materials ("id", "name", "weight", "type")
-values
--- Cửa đi mở quay
-('C3328', 'Khung cửa đi', 1.257, 1),
-('C3303', 'Cánh cửa đi mở ngoài (có gân)', 1.441, 1),
-('C18772', 'Cánh cửa đi mở ngoài (không gân)', 1.431, 1),
-('C3332', 'Cánh cửa đi mở trong (có gân)', 1.442, 1),
-('C18782', 'Cánh cửa đi mở trong (không gân)', 1.431, 1),
-
-('C3322', 'Cánh cửa đi mở ngoài (có gân & bo cạnh)', 1.507, 1),
-('C22912', 'Cánh cửa đi mở ngoài (không gân & bo cạnh)', 1.496, 1),
-('C38032', 'Cánh cửa đi ngang dưới (có gân)', 2.260, 1),
-('C3304', 'Cánh cửa đi ngang dưới (có gân)', 2.023, 1),
-('C6614', 'Cánh cửa đi ngang dưới (không gân)', 2.014, 1),
-
-('C3323', 'Đố động cửa đi', 1.086, 1),
-('C22903', 'Đố động cửa đi và cửa sổ', 0.891, 1),
-('C22900', 'Ốp đáy cánh cửa đi', 0.476, 1),
-('C3329', 'Ốp đáy cánh cửa đi', 0.428, 1),
-('C3319', 'Ngưỡng cửa đi', 0.689, 1),
-
-('C3291', 'Nẹp kính', 0.206, 1),
-('C3225', 'Nẹp kính', 0.211, 1),
-('C3296', 'Nẹp kính', 0.237, 1),
-('F347', 'Ke góc', 4.957, 5),
-
-('C3246', 'Nẹp kính', 0.216, 1),
-('C3286', 'Nẹp kính', 0.223, 1),
-('C3236', 'Nẹp kính', 0.227, 1),
-('C3206', 'Nẹp kính', 0.257, 1),
-('C3295', 'Nẹp kính', 0.271, 1),
--- Cửa sổ mở quay
-('C3318', 'Khung cửa sổ',  0.876, 1),
-('C8092', 'Cánh cửa sổ mở ngoài (có gân)', 1.064, 1),
-('C3202', 'Cánh cửa sổ mở ngoài (có gân)', 1.088, 1),
-('C18762', 'Cánh cửa sổ mở ngoài (không gân)', 1.081, 1),
-('C3312', 'Cánh cửa sổ mở ngoài (có gân & bo cạnh)', 1.159, 1),
-
-('C22922', 'Cánh cửa sổ mở ngoài (không gân & bo cạnh', 1.118, 1),
-('C3033', 'Đố động cửa sổ', 0.825, 1),
---('C22903', N'Đố động cửa đi và cửa sổ', 0.891, 1), --duplicate
-('C3313', 'Đố cố định trên khung', 1.126, 1),
-('C3209', 'Khung vách kính', 0.876, 1),
-
-('C3203', 'Đố cố định (có lỗ vít)', 0.314, 1),
-('F077', 'Pano', 0.664, 1),
-('E1283', 'Khung lá sách', 0.290, 1),
-('E192', 'Lá sách', 0.317, 1),
-('B507', 'Nan dán trang trí', 0.150, 1),
-
-('C3300', 'Nối khung', 0.347, 1),
-('C3310', 'Nối khung', 1.308, 1),
-('C3210', 'Nối khung 90 độ (bo cạnh)', 1.275, 1),
-('C920', 'Nối khung 90 độ (vuông cạnh)', 1.126, 1),
-('C910', 'Nối khung 135 độ', 0.916, 1),
-
-('C459', 'Thanh truyền khóa', 0.139, 1),
-
-('C3317', 'Pát liên kết (đố cố định với Fix)', 1.105, 1),
-('C3207', 'Pát liên kết (đố cố định với Fix)', 1.154, 1),
-('C1687', 'Ke góc', 3.134, 5),
-('C4137', 'Ke góc', 1.879, 5),
-('C1697', 'Ke góc', 2.436, 5),
-
---MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
-('C38019', 'Khung cửa đi bản 100', 2.057, 1),
-('C38038', 'Khung cửa sổ bản 100', 1.421, 1),
-('C38039', 'Khung vách kính bản 100 (loại 1 nẹp)', 1.375, 1),
-('C48949', 'Khung vách kính bản 100 (loại 2 nẹp)', 1.272, 1),
-
-('C48954', 'Đố cố định bản 100 (loại 1 nẹp)', 1.521, 1),
-('C48953', 'Đố cố định bản 100 (loại 2 nẹp)', 1.405, 1),
-('C38010', 'Nối khung bản 100', 0.617, 1),
-('C48980', 'Nối khung 90 độ bản 100', 2.090, 1),
-
-('C48945', 'Nẹp phụ bản 100', 0.346, 1),
---('F347', 'Ke góc', 4.957, 1), --duplicate
---('C1687', 'Ke góc', 3.134, 1), --duplicate
---('C4137', 'Ke góc', 1.879, 1), --duplicate
-
---MẶT CẮT THANH NHÔM CỬA ĐI MỞ QUAY
-('CX283', 'Khung cửa đi', 1.533, 1),
-('CX281', 'Cánh cửa đi mở ngoài', 1.839, 1),
-('CX282', 'Cánh ngang dưới cửa đi', 3.033, 1),
-('CX568', 'Đố động cửa đi', 1.195, 1),
-('CX309', 'Nối khung', 0.427, 1),
-
---('C22900', 'Ốp đáy cánh cửa đi', 0.476, 1), --duplicate
---('C3329', 'Ốp đáy cánh cửa đi', 0.428, 1), --duplicate
---('C3319', 'Ngưỡng cửa đi', 0.689, 1), --duplicate
---('C459', 'Thanh truyền khóa', 0.139, 1), --duplicate
---('B507', 'Nan dán trang trí', 0.150, 1), --duplicate
-
---('F347', 'Ke góc', 4.957, 1), --duplicate
-
---MẶT CẮT THANH NHÔM CỬA SỔ MỞ QUAY
-('CX267', 'Khung cửa sổ, vách kính', 1.057, 1),
-('CX264', 'Cánh cửa sổ mở ngoài', 1.419, 1),
-('CX750', 'Đố động cửa sổ', 0.985, 1),
-('CX266', 'Đố cố định (có lỗ vít)', 1.233, 1),
-('CX265', 'Đố cố định (không lỗ vít)', 1.163, 1),
-
-('C25899', 'Khung bao chuyển hướng', 0.727, 1),
-('CX311', 'Nối khung vách kính', 1.461, 1),
-('CX310', 'Thanh nối góc 90 độ', 1.614, 1),
-
---('C3246', 'Nẹp kính', 0.216, 1), --duplicate
---('C3286', 'Nẹp kính', 0.223, 1), --duplicate
---('C3236', 'Nẹp kính', 0.227, 1), --duplicate
---('C3206', 'Nẹp kính', 0.257, 1), --duplicate
---('C3295', 'Nẹp kính', 0.271, 1), --duplicate
-
---('C1687', 'Ke góc', 3.134, 1), --duplicate
---('C4137', 'Ke góc', 1.879, 1), --duplicate
---('C1697', 'Ke góc', 2.436, 1), --duplicate
-('C1757', 'Ke góc', 2.167, 5),
-
---MẶT CẮT THANH NHÔM CỬA ĐI VÀ CỬA SỔ MỞ QUAY
-('C40988', 'Khung cửa đi và cửa sổ', 0.862, 1),
-('C48952', 'Cánh cửa đi vát cạnh bằng', 0.991, 1),
-('C40912', 'Cánh cửa đi vát cạnh lệch', 1.008, 1),
-('C48942', 'Cánh cửa sổ vát cạnh bằng', 0.908, 1),
-('C40902', 'Cánh cửa sổ vát cạnh lệch', 0.924, 1),
-
-('C40983', 'Đố cố định vát cạnh bằng', 0.977, 1),
-('C40984', 'Đố cố định vát cạnh lệch', 1.021, 1),
-('C44249', 'Khung vách kính', 0.753, 1),
-('C44234', 'Đố cố định (có lỗ vít)', 0.857, 1),
-('C40869', 'Đố động cửa đi và cửa sổ', 0.701, 1),
-
-('C40973', 'Đố cố định trên khung', 0.860, 1),
-('C40978', 'Ốp đáy cánh cửa đi', 0.375, 1),
-('E17523', 'Pano', 0.605, 1),
-('C44226', 'Nẹp kính', 0.199, 1),
-('C40979', 'Nẹp kính', 0.218, 1),
-
---MẶT CẮT THANH NHÔM CỬA ĐI XẾP TRƯỢT
-('F605', 'Khung ngang trên', 3.107, 1),
-('F606', 'Khung đứng', 1.027, 1),
-('F4116', 'Khung đứng (khoá đa điểm)', 1.056, 1),
-('F607', 'Khung ngang dưới (ray nổi)', 1.053, 1),
-('F2435', 'Khung ngang dưới (ray âm)', 1.351, 1),
-
-('F523', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1.254, 1),
-('F4117', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1.269, 1),
-('F5017', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1.307, 1),
-('F522', 'Cánh cửa có lỗ vít (khoá đơn điểm)', 1.336, 1),
-('F560', 'Đố cố định trên cánh', 1.142, 1),
-
-('F520', 'Ốp giữa 2 cánh mở', 0.241, 1),
-('F519', 'Ốp che nước mưa', 0.177, 1),
-('F6029', 'Nẹp kính', 0.276, 1),
-('F521', 'Nẹp kính', 0.222, 1),
-
-('F608', 'Ke liên kết khung đứng với ngang trên', 1.440, 5),
-('F609', 'Ke liên kết khung đứng với ngang dưới', 1.377, 5),
-('F417', 'Ke góc', 5.228, 5),
---('F347', 'Ke góc', 4.957, 1), --duplicate
-
---MẶT CẮT THANH NHÔM CỬA SỔ MỞ LÙA
-('D23151', 'Khung cửa lùa', 0.949, 1),
-('D45482', 'Khung cửa lùa 3 ray', 1.414, 1),
-('D23156', 'Cánh cửa lùa', 0.936, 1),
-('D23157', 'Ốp cánh cửa lùa', 0.365, 1),
-('D23158', 'Nẹp đối đầu cửa 4 cánh', 0.229, 1),
-
-('D23159', 'Ốp che nước mưa', 0.279, 1),
-
---MẶT CẮT THANH NHÔM CỬA SỔ MỞ LÙA
-('D44329', 'Khung cửa lùa', 0.885, 1),
-('D44035', 'Cánh cửa mở lùa', 0.827, 1),
-('D44327', 'Ốp cánh cửa lùa', 0.315, 1),
-('D44328', 'Nẹp đối đầu cửa 4 cánh', 0.396, 1),
-
---MẶT CẮT THANH NHÔM CỬA ĐI MỞ LÙA
-('D47713', 'Khung cửa lùa', 1.223, 1),
-('D45316', 'Cánh cửa mở lùa', 1.319, 1),
-('D44564', 'Cánh cửa mở lùa', 1.201, 1),
-('D47688', 'Nẹp đối đầu cửa 4 cánh', 0.545, 1),
-('D46070', 'Ốp khóa đa điểm', 0.364, 1),
-
-('D47679', 'Ốp đậy ray', 0.096, 1),
-('D47678', 'Ốp đậy rãnh phụ kiện', 0.073, 1),
-('D45478', 'Thanh ốp móc', 0.383, 1),
-('D44569', 'Nẹp kính', 0.199, 1),
-
---MẶT CẮT THANH NHÔM CỬA MỞ LÙA
-('D1541A', 'Khung ngang trên', 1.459, 1),
-('D1551A', 'Đố chia cửa lùa với vách kính trên', 2.164, 1),
-('D17182', 'Khung ngang dưới (ray bằng)', 1.307, 1),
-('D1942', 'Khung ngang dưới (ray lệch)', 1.561, 1),
-('D1542A', 'Khung ngang dưới (ray lệch)', 1.706, 1),
-
-('D1543A', 'Khung đứng', 1.134, 1),
-('D3213', 'Khung đứng (3 ray)', 1.367, 1),
-('D3211', 'Khung ngang trên (3 ray)', 1.959, 1),
-('D3212', 'Khung ngang dưới (3 ray)', 2.295, 1),
-('D1544A', 'Cánh ngang trên', 0.990, 1),
-
-('D1545A', 'Cánh ngang dưới', 1.000, 1),
-('D1546A', 'Cánh đứng trơn', 1.273, 1),
-('D1547A', 'Cánh đứng móc', 1.098, 1),
-('D28144', 'Cánh ngang trên', 1.115, 1),
-('D1555A', 'Cánh ngang dưới', 1.243, 1),
-
-('D26146', 'Cánh đứng trơn', 1.330, 1),
-('D28127', 'Cánh đứng móc', 1.303, 1),
-('D1559A', 'Khung đứng vách kính', 1.070, 1),
-('D2618', 'Đố cố định trên vách kính', 1.546, 1),
-('D1354', 'Đố cố định trên cánh', 0.696, 1),
-
-('D1548A', 'Nẹp đối đầu cửa 4 cánh', 0.620, 1),
-('D1549A', 'Ốp khung vách kính', 0.712, 1),
-('D1578', 'Nối khung vách kính', 0.676, 1),
-('D2420', 'Nối góc 90 độ trái', 2.292, 1),
-('D2490', 'Nối góc 90 độ phải', 2.292, 1),
-
-('D34608', 'Thanh chuyển kính hộp', 0.399, 1),
-('D1779', 'Nẹp kính', 0.100, 1),
-('D1298', 'Nẹp kính', 0.109, 1),
-('D1168', 'Nẹp kính', 0.130, 1),
-('C101', 'Nẹp kính', 0.133, 1),
-
---MẶT CẮT THANH NHÔM CỬA BẢN LỀ SÀN
-('F631', 'Cánh đứng', 2.570, 1),
-('F632', 'Cánh ngang trên', 2.382, 1),
-('F633', 'Cánh ngang dưới', 2.382, 1),
-
-('F2084', 'Đố tĩnh', 2.278, 1),
-('F630', 'Nẹp kính', 0.173, 1),
-('F949', 'Nẹp kính', 0.176, 1),
-
---MỘT SỐ MÃ PHỤ
-('D47680', 'Ngưỡng nhôm', 0.408, 1),
-('A1079', 'Nẹp lưới chống muỗi', 0.087, 1),
-('A1080', 'Nẹp lưới chống muỗi', 0.087, 1),
-('D47590', 'Ray nhôm cho cửa nhựa', 0.040, 1),
-
---MẶT CẮT THANH NHÔM MẶT DỰNG LỘ ĐỐ
-('GK461', 'Thanh đố đứng', 2.138, 1),
-('GK471', 'Thanh đố đứng', 2.281, 1),
-('GK481', 'Thanh đố đứng', 2.424, 1),
-('GK491', 'Thanh đố đứng', 2.567, 1),
-
-('GK501', 'Thanh đố đứng', 2.711, 1),
-('E21451', 'Thanh đố đứng', 2.347, 1),
-('GK581', 'Thanh đố đứng (kính hộp)', 2.730, 1),
-('GK993', 'Thanh đố ngang', 1.908, 1),
-
-('GK2053', 'Thanh đố ngang', 1.863, 1),
-('GK2467', 'Thanh nêm đố ngang', 0.304, 1),
-('GK858', 'Pat liên kết thang ngang', 1.218, 1),
-('GK1073', 'Nắp đậy đố ngang', 0.292, 1),
-
-('GK015', 'Đế ốp mặt ngoài', 0.577, 1),
-('GK066', 'Nắp đậy đế ốp', 0.404, 1),
-('GK780', 'Nối góc 90 độ ngoài', 0.743, 1),
-('GK1495', 'Đế ốp mặt ngoài góc 90 độ', 1.110, 1),
-
-('GK806', 'Nắp đậy đế ốp góc 90 độ', 1.721, 1),
-('GK1035', 'Đế ốp mặt ngoài góc 135 độ', 0.743, 1),
-('GK606', 'Nắp đậy đế ốp góc 135 độ', 0.675, 1),
-('GK294', 'Nắp đậy che rãnh', 0.138, 1),
-
-('GK2464', 'Nắp đậy khe rãnh', 0.264, 1),
-('GK1255', 'Khung trên cửa sổ (dạng móc treo)', 0.918, 1),
-('GK1325', 'Cánh trên cửa sổ (dạng móc treo)', 0.791, 1),
-('GK1295', 'Khung cửa sổ', 0.751, 1),
-
-('GK1365', 'Cánh cửa sổ', 0.801, 1),
-('GK505', 'Thanh đố kính cho cánh cửa sổ', 0.959, 1),
-('GK1215', 'Ke cửa sổ', 0.959, 5),
-
---THANH NHÔM MẶT DỰNG GIẤU ĐỐ
-('GK001', 'Thanh đố đứng', 1.923, 1),
-('GK011', 'Thanh đố đứng', 2.211, 1),
-('GK021', 'Thanh đố đứng', 2.495, 1),
-('GK251', 'Thanh đố đứng', 2.638, 1),
-
-('GK261', 'Thanh đố đứng', 3.051, 1),
-('GK813', 'Thanh đố ngang', 1.733, 1),
-('GK853', 'Thanh đố ngang', 1.757, 1),
-('GK413', 'Nắp đậy thanh đố ngang', 0.217, 1),
-
-('GK1745', 'Pat liên kết thanh đố ngang', 1.173, 1),
---('GK2467', 'Thanh nêm đố ngang', 0.304, 1), --duplicate
-('GK228', 'Nẹp kính trái', 0.356, 1),
-('GK238', 'Nẹp kính phải', 0.294, 1),
-
-('GK218', 'Nẹp kính trên', 0.437, 1),
-('GK208', 'Nẹp kính dưới', 0.383, 1),
-('GK255', 'Thanh móc treo kính', 0.436, 1),
---('C459', 'Thanh truyền khóa', 0.139, 1), --duplicate
-
-('GK275', 'Thanh đố kính', 0.245, 1),
-('GK1064', 'Chống nhấc cánh', 0.257, 1),
---('GK1255', 'Khung trên cửa sổ (dạng móc treo)', 0.918, 1), --duplicate
---('GK1325', 'Cánh trên cửa sổ (dạng móc treo)', 0.791, 1), --duplicate
-
---('GK1295', 'Khung cửa sổ', 0.751, 1), --duplicate
---('GK1365', 'Cánh cửa sổ', 0.801, 1), --duplicate
-('GK534', 'Thanh đỡ kính cho cánh cửa sổ', 0.195, 1),
-('GK454', 'Máng che cánh cửa sổ', 0.288, 1),
-
---('GK1215', 'Ke cửa sổ', 0.959, 1), --duplicate
-
---MẶT CẮT PROFILE LAN CAN KÍNH
-('E1214', 'Khung bao ngang trên', 1.795, 1),
-('E1215', 'Khung bao dưới', 0.976, 1),
-('E1216', 'Đố Lan Can', 1.131, 1),
-('B1735', 'Đố Lan Can', 1.347, 1),
-
-('E1217', 'Nối góc 90 độ', 1.453, 1),
-('E1218', 'Nắp đậy che rãnh', 0.110, 1),
-
-('B2831', 'Khung bao ngang trên', 1.402, 1),
-('B2832', 'Nắp đậy che rãnh', 0.177, 1),
-('B2846', 'Khung đứng', 1.081, 1),
-('B2833', 'Đố Lan Can', 1.404, 1),
-
-('B2834', 'Nối góc 90 độ', 1.617, 1),
-('B2835', 'Nắp đậy rãnh khung đứng', 0.109, 1),
-
-('B4425', 'Khung bao ngang trên', 1.453, 1),
-('B4426', 'Nẹp kính', 0.155, 1),
-('B4429', 'Khung bao đứng', 0.765, 1),
-('B4428', 'Đố lan can', 0.932, 1),
-
-('B4430', 'Nẹp kính', 0.153, 1),
-('B4427', 'Nối góc 90 độ', 1.197, 1),
-
-('B3730', 'Khung bao ngang trên', 1.128, 1),
-('B3731', 'Đố đứng', 0.920, 1),
-('B3732', 'Khung đứng', 0.689, 1),
-('B3733', 'Nẹp kính', 0.136, 1);
-
-insert into material_stock("material_id", "length", "base_price")
-values
---('F431', 6000, 88000),
---('C3208', 6000, 88000),
-('C3328', 6000, 88000),
-('C3328', 5800, 0),
-('C3303', 6000, 88000),
-('C18772', 6000, 88000),
-('C3332', 6000, 88000),
-('C18782', 6000, 88000),
-('C3322', 6000, 88000),
-('C22912', 6000, 88000),
-('C38032', 6000, 88000),
-('C3304', 6000, 88000),
-('C6614', 6000, 88000),
-('C3323', 6000, 88000),
-('C22903', 6000, 88000),
-('C22900', 6000, 88000),
-('C3329', 6000, 88000),
-('C3319', 6000, 88000),
-('C3291', 6000, 88000),
-('C3225', 6000, 88000),
-('C3296', 6000, 88000),
-('F347', 6000, 88000),
-('C3246', 6000, 88000),
-('C3286', 6000, 88000),
-('C3236', 6000, 88000),
-('C3206', 6000, 88000),
-('C3295', 6000, 88000),
-('C3318', 6000, 88000),
-('C8092', 6000, 88000),
-('C3202', 6000, 88000),
-('C18762', 6000, 88000),
-('C3312', 6000, 88000),
-('C22922', 6000, 88000),
-('C3033', 6000, 88000),
-('C3313', 6000, 88000),
-('C3209', 6000, 88000),
-('C3203', 6000, 88000),
-('F077', 6000, 88000),
-('E1283', 6000, 88000),
-('E192', 6000, 88000),
-('B507', 6000, 88000),
-('C3300', 6000, 88000),
-('C3310', 6000, 88000),
-('C3210', 6000, 88000),
-('C920', 6000, 88000),
-('C910', 6000, 88000),
-('C459', 6000, 88000),
-('C3317', 6000, 88000),
-('C3207', 6000, 88000),
-('C1687', 6000, 88000),
-('C4137', 6000, 88000),
-('C1697', 6000, 88000),
-('C38019', 6000, 88000),
-('C38038', 6000, 88000),
-('C38039', 6000, 88000),
-('C48949', 6000, 88000),
-('C48954', 6000, 88000),
-('C48953', 6000, 88000),
-('C38010', 6000, 88000),
-('C48980', 6000, 88000),
-('C48945', 6000, 88000),
-('CX283', 6000, 88000),
-('CX281', 6000, 88000),
-('CX282', 6000, 88000),
-('CX568', 6000, 88000),
-('CX309', 6000, 88000),
-('CX267', 6000, 88000),
-('CX264', 6000, 88000),
-('CX750', 6000, 88000),
-('CX266', 6000, 88000),
-('CX265', 6000, 88000),
-('C25899', 6000, 88000),
-('CX311', 6000, 88000),
-('CX310', 6000, 88000),
-('C1757', 6000, 88000),
-('C40988', 6000, 88000),
-('C48952', 6000, 88000),
-('C40912', 6000, 88000),
-('C48942', 6000, 88000),
-('C40902', 6000, 88000),
-('C40983', 6000, 88000),
-('C40984', 6000, 88000),
-('C44249', 6000, 88000),
-('C44234', 6000, 88000),
-('C40869', 6000, 88000),
-('C40973', 6000, 88000),
-('C40978', 6000, 88000),
-('E17523', 6000, 88000),
-('C44226', 6000, 88000),
-('C40979', 6000, 88000),
-('F605', 6000, 88000),
-('F606', 6000, 88000),
-('F4116', 6000, 88000),
-('F607', 6000, 88000),
-('F2435', 6000, 88000),
-('F523', 6000, 88000),
-('F4117', 6000, 88000),
-('F5017', 6000, 88000),
-('F522', 6000, 88000),
-('F560', 6000, 88000),
-('F520', 6000, 88000),
-('F519', 6000, 88000),
-('F6029', 6000, 88000),
-('F521', 6000, 88000),
-('F608', 6000, 88000),
-('F609', 6000, 88000),
-('F417', 6000, 88000),
-('D23151', 6000, 88000),
-('D45482', 6000, 88000),
-('D23156', 6000, 88000),
-('D23157', 6000, 88000),
-('D23158', 6000, 88000),
-('D23159', 6000, 88000),
-('D44329', 6000, 88000),
-('D44035', 6000, 88000),
-('D44327', 6000, 88000),
-('D44328', 6000, 88000),
-('D47713', 6000, 88000),
-('D45316', 6000, 88000),
-('D44564', 6000, 88000),
-('D47688', 6000, 88000),
-('D46070', 6000, 88000),
-('D47679', 6000, 88000),
-('D47678', 6000, 88000),
-('D45478', 6000, 88000),
-('D44569', 6000, 88000),
-('D1541A', 6000, 88000),
-('D1551A', 6000, 88000),
-('D17182', 6000, 88000),
-('D1942', 6000, 88000),
-('D1542A', 6000, 88000),
-('D1543A', 6000, 88000),
-('D3213', 6000, 88000),
-('D3211', 6000, 88000),
-('D3212', 6000, 88000),
-('D1544A', 6000, 88000),
-('D1545A', 6000, 88000),
-('D1546A', 6000, 88000),
-('D1547A', 6000, 88000),
-('D28144', 6000, 88000),
-('D1555A', 6000, 88000),
-('D26146', 6000, 88000),
-('D28127', 6000, 88000),
-('D1559A', 6000, 88000),
-('D2618', 6000, 88000),
-('D1354', 6000, 88000),
-('D1548A', 6000, 88000),
-('D1549A', 6000, 88000),
-('D1578', 6000, 88000),
-('D2420', 6000, 88000),
-('D2490', 6000, 88000),
-('D34608', 6000, 88000),
-('D1779', 6000, 88000),
-('D1298', 6000, 88000),
-('D1168', 6000, 88000),
-('C101', 6000, 88000),
-('F631', 6000, 88000),
-('F632', 6000, 88000),
-('F633', 6000, 88000),
-('F2084', 6000, 88000),
-('F630', 6000, 88000),
-('F949', 6000, 88000),
-('D47680', 6000, 88000),
-('A1079', 6000, 88000),
-('A1080', 6000, 88000),
-('D47590', 6000, 88000),
-('GK461', 6000, 88000),
-('GK471', 6000, 88000),
-('GK481', 6000, 88000),
-('GK491', 6000, 88000),
-('GK501', 6000, 88000),
-('E21451', 6000, 88000),
-('GK581', 6000, 88000),
-('GK993', 6000, 88000),
-('GK2053', 6000, 88000),
-('GK2467', 6000, 88000),
-('GK858', 6000, 88000),
-('GK1073', 6000, 88000),
-('GK015', 6000, 88000),
-('GK066', 6000, 88000),
-('GK780', 6000, 88000),
-('GK1495', 6000, 88000),
-('GK806', 6000, 88000),
-('GK1035', 6000, 88000),
-('GK606', 6000, 88000),
-('GK294', 6000, 88000),
-('GK2464', 6000, 88000),
-('GK1255', 6000, 88000),
-('GK1325', 6000, 88000),
-('GK1295', 6000, 88000),
-('GK1365', 6000, 88000),
-('GK505', 6000, 88000),
-('GK1215', 6000, 88000),
-('GK001', 6000, 88000),
-('GK011', 6000, 88000),
-('GK021', 6000, 88000),
-('GK251', 6000, 88000),
-('GK261', 6000, 88000),
-('GK813', 6000, 88000),
-('GK853', 6000, 88000),
-('GK413', 6000, 88000),
-('GK1745', 6000, 88000),
-('GK228', 6000, 88000),
-('GK238', 6000, 88000),
-('GK218', 6000, 88000),
-('GK208', 6000, 88000),
-('GK255', 6000, 88000),
-('GK275', 6000, 88000),
-('GK1064', 6000, 88000),
-('GK534', 6000, 88000),
-('GK454', 6000, 88000),
-('E1214', 6000, 88000),
-('E1215', 6000, 88000),
-('E1216', 6000, 88000),
-('B1735', 6000, 88000),
-('E1217', 6000, 88000),
-('E1218', 6000, 88000),
-('B2831', 6000, 88000),
-('B2832', 6000, 88000),
-('B2846', 6000, 88000),
-('B2833', 6000, 88000),
-('B2834', 6000, 88000),
-('B2835', 6000, 88000),
-('B4425', 6000, 88000),
-('B4426', 6000, 88000),
-('B4429', 6000, 88000),
-('B4428', 6000, 88000),
-('B4430', 6000, 88000),
-('B4427', 6000, 88000),
-('B3730', 6000, 88000),
-('B3731', 6000, 88000),
-('B3732', 6000, 88000),
-('B3733', 6000, 88000);
+INSERT INTO materials (id, name, type, weight) VALUES ('C3328', 'Khung cửa đi', 1, '1.257');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3303', 'Cánh cửa đi mở ngoài (có gân)', 1, '1.441');
+INSERT INTO materials (id, name, type, weight) VALUES ('C18772', 'Cánh cửa đi mở ngoài (không gân)', 1, '1.431');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3332', 'Cánh cửa đi mở trong (có gân)', 1, '1.442');
+INSERT INTO materials (id, name, type, weight) VALUES ('C18782', 'Cánh cửa đi mở trong (không gân)', 1, '1.431');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3322', 'Cánh cửa đi mở ngoài (có gân & bo cạnh)', 1, '1.507');
+INSERT INTO materials (id, name, type, weight) VALUES ('C22912', 'Cánh cửa đi mở ngoài (không gân & bo cạnh)', 1, '1.496');
+INSERT INTO materials (id, name, type, weight) VALUES ('C38032', 'Cánh cửa đi ngang dưới (có gân)', 1, '2.260');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3304', 'Cánh cửa đi ngang dưới (có gân)', 1, '2.023');
+INSERT INTO materials (id, name, type, weight) VALUES ('C6614', 'Cánh cửa đi ngang dưới (không gân)', 1, '2.014');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3323', 'Đố động cửa đi', 1, '1.086');
+INSERT INTO materials (id, name, type, weight) VALUES ('C22903', 'Đố động cửa đi và cửa sổ', 1, '0.891');
+INSERT INTO materials (id, name, type, weight) VALUES ('C22900', 'Ốp đáy cánh cửa đi', 1, '0.476');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3329', 'Ốp đáy cánh cửa đi', 1, '0.428');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3319', 'Ngưỡng cửa đi', 1, '0.689');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3291', 'Nẹp kính', 1, '0.206');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3225', 'Nẹp kính', 1, '0.211');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3296', 'Nẹp kính', 1, '0.237');
+INSERT INTO materials (id, name, type, weight) VALUES ('F347', 'Ke góc', 5, '4.957');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3246', 'Nẹp kính', 1, '0.216');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3286', 'Nẹp kính', 1, '0.223');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3236', 'Nẹp kính', 1, '0.227');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3206', 'Nẹp kính', 1, '0.257');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3295', 'Nẹp kính', 1, '0.271');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3318', 'Khung cửa sổ', 1, '0.876');
+INSERT INTO materials (id, name, type, weight) VALUES ('C8092', 'Cánh cửa sổ mở ngoài (có gân)', 1, '1.064');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3202', 'Cánh cửa sổ mở ngoài (có gân)', 1, '1.088');
+INSERT INTO materials (id, name, type, weight) VALUES ('C18762', 'Cánh cửa sổ mở ngoài (không gân)', 1, '1.081');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3312', 'Cánh cửa sổ mở ngoài (có gân & bo cạnh)', 1, '1.159');
+INSERT INTO materials (id, name, type, weight) VALUES ('C22922', 'Cánh cửa sổ mở ngoài (không gân & bo cạnh', 1, '1.118');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3033', 'Đố động cửa sổ', 1, '0.825');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3313', 'Đố cố định trên khung', 1, '1.126');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3209', 'Khung vách kính', 1, '0.876');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3203', 'Đố cố định (có lỗ vít)', 1, '0.314');
+INSERT INTO materials (id, name, type, weight) VALUES ('F077', 'Pano', 1, '0.664');
+INSERT INTO materials (id, name, type, weight) VALUES ('E1283', 'Khung lá sách', 1, '0.290');
+INSERT INTO materials (id, name, type, weight) VALUES ('E192', 'Lá sách', 1, '0.317');
+INSERT INTO materials (id, name, type, weight) VALUES ('B507', 'Nan dán trang trí', 1, '0.150');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3300', 'Nối khung', 1, '0.347');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3310', 'Nối khung', 1, '1.308');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3210', 'Nối khung 90 độ (bo cạnh)', 1, '1.275');
+INSERT INTO materials (id, name, type, weight) VALUES ('C920', 'Nối khung 90 độ (vuông cạnh)', 1, '1.126');
+INSERT INTO materials (id, name, type, weight) VALUES ('C910', 'Nối khung 135 độ', 1, '0.916');
+INSERT INTO materials (id, name, type, weight) VALUES ('C459', 'Thanh truyền khóa', 1, '0.139');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3317', 'Pát liên kết (đố cố định với Fix)', 1, '1.105');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3207', 'Pát liên kết (đố cố định với Fix)', 1, '1.154');
+INSERT INTO materials (id, name, type, weight) VALUES ('C1687', 'Ke góc', 5, '3.134');
+INSERT INTO materials (id, name, type, weight) VALUES ('C4137', 'Ke góc', 5, '1.879');
+INSERT INTO materials (id, name, type, weight) VALUES ('C1697', 'Ke góc', 5, '2.436');
+INSERT INTO materials (id, name, type, weight) VALUES ('C38019', 'Khung cửa đi bản 100', 1, '2.057');
+INSERT INTO materials (id, name, type, weight) VALUES ('C38038', 'Khung cửa sổ bản 100', 1, '1.421');
+INSERT INTO materials (id, name, type, weight) VALUES ('C38039', 'Khung vách kính bản 100 (loại 1 nẹp)', 1, '1.375');
+INSERT INTO materials (id, name, type, weight) VALUES ('C48949', 'Khung vách kính bản 100 (loại 2 nẹp)', 1, '1.272');
+INSERT INTO materials (id, name, type, weight) VALUES ('C48954', 'Đố cố định bản 100 (loại 1 nẹp)', 1, '1.521');
+INSERT INTO materials (id, name, type, weight) VALUES ('C48953', 'Đố cố định bản 100 (loại 2 nẹp)', 1, '1.405');
+INSERT INTO materials (id, name, type, weight) VALUES ('C38010', 'Nối khung bản 100', 1, '0.617');
+INSERT INTO materials (id, name, type, weight) VALUES ('C48980', 'Nối khung 90 độ bản 100', 1, '2.090');
+INSERT INTO materials (id, name, type, weight) VALUES ('C48945', 'Nẹp phụ bản 100', 1, '0.346');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX283', 'Khung cửa đi', 1, '1.533');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX281', 'Cánh cửa đi mở ngoài', 1, '1.839');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX282', 'Cánh ngang dưới cửa đi', 1, '3.033');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX568', 'Đố động cửa đi', 1, '1.195');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX309', 'Nối khung', 1, '0.427');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX267', 'Khung cửa sổ, vách kính', 1, '1.057');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX264', 'Cánh cửa sổ mở ngoài', 1, '1.419');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX750', 'Đố động cửa sổ', 1, '0.985');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX266', 'Đố cố định (có lỗ vít)', 1, '1.233');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX265', 'Đố cố định (không lỗ vít)', 1, '1.163');
+INSERT INTO materials (id, name, type, weight) VALUES ('C25899', 'Khung bao chuyển hướng', 1, '0.727');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX311', 'Nối khung vách kính', 1, '1.461');
+INSERT INTO materials (id, name, type, weight) VALUES ('CX310', 'Thanh nối góc 90 độ', 1, '1.614');
+INSERT INTO materials (id, name, type, weight) VALUES ('C1757', 'Ke góc', 5, '2.167');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40988', 'Khung cửa đi và cửa sổ', 1, '0.862');
+INSERT INTO materials (id, name, type, weight) VALUES ('C48952', 'Cánh cửa đi vát cạnh bằng', 1, '0.991');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40912', 'Cánh cửa đi vát cạnh lệch', 1, '1.008');
+INSERT INTO materials (id, name, type, weight) VALUES ('C48942', 'Cánh cửa sổ vát cạnh bằng', 1, '0.908');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40902', 'Cánh cửa sổ vát cạnh lệch', 1, '0.924');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40983', 'Đố cố định vát cạnh bằng', 1, '0.977');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40984', 'Đố cố định vát cạnh lệch', 1, '1.021');
+INSERT INTO materials (id, name, type, weight) VALUES ('C44249', 'Khung vách kính', 1, '0.753');
+INSERT INTO materials (id, name, type, weight) VALUES ('C44234', 'Đố cố định (có lỗ vít)', 1, '0.857');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40869', 'Đố động cửa đi và cửa sổ', 1, '0.701');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40973', 'Đố cố định trên khung', 1, '0.860');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40978', 'Ốp đáy cánh cửa đi', 1, '0.375');
+INSERT INTO materials (id, name, type, weight) VALUES ('E17523', 'Pano', 1, '0.605');
+INSERT INTO materials (id, name, type, weight) VALUES ('C44226', 'Nẹp kính', 1, '0.199');
+INSERT INTO materials (id, name, type, weight) VALUES ('C40979', 'Nẹp kính', 1, '0.218');
+INSERT INTO materials (id, name, type, weight) VALUES ('F605', 'Khung ngang trên', 1, '3.107');
+INSERT INTO materials (id, name, type, weight) VALUES ('F606', 'Khung đứng', 1, '1.027');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4116', 'Khung đứng (khoá đa điểm)', 1, '1.056');
+INSERT INTO materials (id, name, type, weight) VALUES ('F607', 'Khung ngang dưới (ray nổi)', 1, '1.053');
+INSERT INTO materials (id, name, type, weight) VALUES ('F2435', 'Khung ngang dưới (ray âm)', 1, '1.351');
+INSERT INTO materials (id, name, type, weight) VALUES ('F523', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1, '1.254');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4117', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1, '1.269');
+INSERT INTO materials (id, name, type, weight) VALUES ('F5017', 'Cánh cửa không lỗ vít (khoá đa điểm)', 1, '1.307');
+INSERT INTO materials (id, name, type, weight) VALUES ('F522', 'Cánh cửa có lỗ vít (khoá đơn điểm)', 1, '1.336');
+INSERT INTO materials (id, name, type, weight) VALUES ('F560', 'Đố cố định trên cánh', 1, '1.142');
+INSERT INTO materials (id, name, type, weight) VALUES ('F520', 'Ốp giữa 2 cánh mở', 1, '0.241');
+INSERT INTO materials (id, name, type, weight) VALUES ('F519', 'Ốp che nước mưa', 1, '0.177');
+INSERT INTO materials (id, name, type, weight) VALUES ('F6029', 'Nẹp kính', 1, '0.276');
+INSERT INTO materials (id, name, type, weight) VALUES ('F521', 'Nẹp kính', 1, '0.222');
+INSERT INTO materials (id, name, type, weight) VALUES ('F608', 'Ke liên kết khung đứng với ngang trên', 5, '1.440');
+INSERT INTO materials (id, name, type, weight) VALUES ('F609', 'Ke liên kết khung đứng với ngang dưới', 5, '1.377');
+INSERT INTO materials (id, name, type, weight) VALUES ('F417', 'Ke góc', 5, '5.228');
+INSERT INTO materials (id, name, type, weight) VALUES ('D23151', 'Khung cửa lùa', 1, '0.949');
+INSERT INTO materials (id, name, type, weight) VALUES ('D45482', 'Khung cửa lùa 3 ray', 1, '1.414');
+INSERT INTO materials (id, name, type, weight) VALUES ('D23156', 'Cánh cửa lùa', 1, '0.936');
+INSERT INTO materials (id, name, type, weight) VALUES ('D23157', 'Ốp cánh cửa lùa', 1, '0.365');
+INSERT INTO materials (id, name, type, weight) VALUES ('D23158', 'Nẹp đối đầu cửa 4 cánh', 1, '0.229');
+INSERT INTO materials (id, name, type, weight) VALUES ('D23159', 'Ốp che nước mưa', 1, '0.279');
+INSERT INTO materials (id, name, type, weight) VALUES ('D44329', 'Khung cửa lùa', 1, '0.885');
+INSERT INTO materials (id, name, type, weight) VALUES ('D44035', 'Cánh cửa mở lùa', 1, '0.827');
+INSERT INTO materials (id, name, type, weight) VALUES ('D44327', 'Ốp cánh cửa lùa', 1, '0.315');
+INSERT INTO materials (id, name, type, weight) VALUES ('D44328', 'Nẹp đối đầu cửa 4 cánh', 1, '0.396');
+INSERT INTO materials (id, name, type, weight) VALUES ('D47713', 'Khung cửa lùa', 1, '1.223');
+INSERT INTO materials (id, name, type, weight) VALUES ('D45316', 'Cánh cửa mở lùa', 1, '1.319');
+INSERT INTO materials (id, name, type, weight) VALUES ('D44564', 'Cánh cửa mở lùa', 1, '1.201');
+INSERT INTO materials (id, name, type, weight) VALUES ('D47688', 'Nẹp đối đầu cửa 4 cánh', 1, '0.545');
+INSERT INTO materials (id, name, type, weight) VALUES ('D46070', 'Ốp khóa đa điểm', 1, '0.364');
+INSERT INTO materials (id, name, type, weight) VALUES ('D47679', 'Ốp đậy ray', 1, '0.096');
+INSERT INTO materials (id, name, type, weight) VALUES ('D47678', 'Ốp đậy rãnh phụ kiện', 1, '0.073');
+INSERT INTO materials (id, name, type, weight) VALUES ('D45478', 'Thanh ốp móc', 1, '0.383');
+INSERT INTO materials (id, name, type, weight) VALUES ('D44569', 'Nẹp kính', 1, '0.199');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1541A', 'Khung ngang trên', 1, '1.459');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1551A', 'Đố chia cửa lùa với vách kính trên', 1, '2.164');
+INSERT INTO materials (id, name, type, weight) VALUES ('D17182', 'Khung ngang dưới (ray bằng)', 1, '1.307');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1942', 'Khung ngang dưới (ray lệch)', 1, '1.561');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1542A', 'Khung ngang dưới (ray lệch)', 1, '1.706');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1543A', 'Khung đứng', 1, '1.134');
+INSERT INTO materials (id, name, type, weight) VALUES ('D3213', 'Khung đứng (3 ray)', 1, '1.367');
+INSERT INTO materials (id, name, type, weight) VALUES ('D3211', 'Khung ngang trên (3 ray)', 1, '1.959');
+INSERT INTO materials (id, name, type, weight) VALUES ('D3212', 'Khung ngang dưới (3 ray)', 1, '2.295');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1544A', 'Cánh ngang trên', 1, '0.990');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1545A', 'Cánh ngang dưới', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1546A', 'Cánh đứng trơn', 1, '1.273');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1547A', 'Cánh đứng móc', 1, '1.098');
+INSERT INTO materials (id, name, type, weight) VALUES ('D28144', 'Cánh ngang trên', 1, '1.115');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1555A', 'Cánh ngang dưới', 1, '1.243');
+INSERT INTO materials (id, name, type, weight) VALUES ('D26146', 'Cánh đứng trơn', 1, '1.330');
+INSERT INTO materials (id, name, type, weight) VALUES ('D28127', 'Cánh đứng móc', 1, '1.303');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1559A', 'Khung đứng vách kính', 1, '1.070');
+INSERT INTO materials (id, name, type, weight) VALUES ('D2618', 'Đố cố định trên vách kính', 1, '1.546');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1354', 'Đố cố định trên cánh', 1, '0.696');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1548A', 'Nẹp đối đầu cửa 4 cánh', 1, '0.620');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1549A', 'Ốp khung vách kính', 1, '0.712');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1578', 'Nối khung vách kính', 1, '0.676');
+INSERT INTO materials (id, name, type, weight) VALUES ('D2420', 'Nối góc 90 độ trái', 1, '2.292');
+INSERT INTO materials (id, name, type, weight) VALUES ('D2490', 'Nối góc 90 độ phải', 1, '2.292');
+INSERT INTO materials (id, name, type, weight) VALUES ('D34608', 'Thanh chuyển kính hộp', 1, '0.399');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1779', 'Nẹp kính', 1, '0.100');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1298', 'Nẹp kính', 1, '0.109');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1168', 'Nẹp kính', 1, '0.130');
+INSERT INTO materials (id, name, type, weight) VALUES ('C101', 'Nẹp kính', 1, '0.133');
+INSERT INTO materials (id, name, type, weight) VALUES ('F631', 'Cánh đứng', 1, '2.570');
+INSERT INTO materials (id, name, type, weight) VALUES ('F632', 'Cánh ngang trên', 1, '2.382');
+INSERT INTO materials (id, name, type, weight) VALUES ('F633', 'Cánh ngang dưới', 1, '2.382');
+INSERT INTO materials (id, name, type, weight) VALUES ('F2084', 'Đố tĩnh', 1, '2.278');
+INSERT INTO materials (id, name, type, weight) VALUES ('F630', 'Nẹp kính', 1, '0.173');
+INSERT INTO materials (id, name, type, weight) VALUES ('F949', 'Nẹp kính', 1, '0.176');
+INSERT INTO materials (id, name, type, weight) VALUES ('D47680', 'Ngưỡng nhôm', 1, '0.408');
+INSERT INTO materials (id, name, type, weight) VALUES ('A1079', 'Nẹp lưới chống muỗi', 1, '0.087');
+INSERT INTO materials (id, name, type, weight) VALUES ('A1080', 'Nẹp lưới chống muỗi', 1, '0.087');
+INSERT INTO materials (id, name, type, weight) VALUES ('D47590', 'Ray nhôm cho cửa nhựa', 1, '0.040');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK461', 'Thanh đố đứng', 1, '2.138');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK471', 'Thanh đố đứng', 1, '2.281');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK481', 'Thanh đố đứng', 1, '2.424');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK491', 'Thanh đố đứng', 1, '2.567');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK501', 'Thanh đố đứng', 1, '2.711');
+INSERT INTO materials (id, name, type, weight) VALUES ('E21451', 'Thanh đố đứng', 1, '2.347');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK581', 'Thanh đố đứng (kính hộp)', 1, '2.730');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK993', 'Thanh đố ngang', 1, '1.908');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK2053', 'Thanh đố ngang', 1, '1.863');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK2467', 'Thanh nêm đố ngang', 1, '0.304');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK858', 'Pat liên kết thang ngang', 1, '1.218');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1073', 'Nắp đậy đố ngang', 1, '0.292');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK015', 'Đế ốp mặt ngoài', 1, '0.577');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK066', 'Nắp đậy đế ốp', 1, '0.404');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK780', 'Nối góc 90 độ ngoài', 1, '0.743');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1495', 'Đế ốp mặt ngoài góc 90 độ', 1, '1.110');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK806', 'Nắp đậy đế ốp góc 90 độ', 1, '1.721');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1035', 'Đế ốp mặt ngoài góc 135 độ', 1, '0.743');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK606', 'Nắp đậy đế ốp góc 135 độ', 1, '0.675');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK294', 'Nắp đậy che rãnh', 1, '0.138');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK2464', 'Nắp đậy khe rãnh', 1, '0.264');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1255', 'Khung trên cửa sổ (dạng móc treo)', 1, '0.918');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1325', 'Cánh trên cửa sổ (dạng móc treo)', 1, '0.791');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1295', 'Khung cửa sổ', 1, '0.751');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1365', 'Cánh cửa sổ', 1, '0.801');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK505', 'Thanh đố kính cho cánh cửa sổ', 1, '0.959');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1215', 'Ke cửa sổ', 5, '0.959');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK001', 'Thanh đố đứng', 1, '1.923');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK011', 'Thanh đố đứng', 1, '2.211');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK021', 'Thanh đố đứng', 1, '2.495');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK251', 'Thanh đố đứng', 1, '2.638');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK261', 'Thanh đố đứng', 1, '3.051');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK813', 'Thanh đố ngang', 1, '1.733');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK853', 'Thanh đố ngang', 1, '1.757');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK413', 'Nắp đậy thanh đố ngang', 1, '0.217');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1745', 'Pat liên kết thanh đố ngang', 1, '1.173');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK228', 'Nẹp kính trái', 1, '0.356');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK238', 'Nẹp kính phải', 1, '0.294');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK218', 'Nẹp kính trên', 1, '0.437');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK208', 'Nẹp kính dưới', 1, '0.383');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK255', 'Thanh móc treo kính', 1, '0.436');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK275', 'Thanh đố kính', 1, '0.245');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK1064', 'Chống nhấc cánh', 1, '0.257');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK534', 'Thanh đỡ kính cho cánh cửa sổ', 1, '0.195');
+INSERT INTO materials (id, name, type, weight) VALUES ('GK454', 'Máng che cánh cửa sổ', 1, '0.288');
+INSERT INTO materials (id, name, type, weight) VALUES ('E1214', 'Khung bao ngang trên', 1, '1.795');
+INSERT INTO materials (id, name, type, weight) VALUES ('E1215', 'Khung bao dưới', 1, '0.976');
+INSERT INTO materials (id, name, type, weight) VALUES ('E1216', 'Đố Lan Can', 1, '1.131');
+INSERT INTO materials (id, name, type, weight) VALUES ('B1735', 'Đố Lan Can', 1, '1.347');
+INSERT INTO materials (id, name, type, weight) VALUES ('E1217', 'Nối góc 90 độ', 1, '1.453');
+INSERT INTO materials (id, name, type, weight) VALUES ('E1218', 'Nắp đậy che rãnh', 1, '0.110');
+INSERT INTO materials (id, name, type, weight) VALUES ('B2831', 'Khung bao ngang trên', 1, '1.402');
+INSERT INTO materials (id, name, type, weight) VALUES ('B2832', 'Nắp đậy che rãnh', 1, '0.177');
+INSERT INTO materials (id, name, type, weight) VALUES ('B2846', 'Khung đứng', 1, '1.081');
+INSERT INTO materials (id, name, type, weight) VALUES ('B2833', 'Đố Lan Can', 1, '1.404');
+INSERT INTO materials (id, name, type, weight) VALUES ('B2834', 'Nối góc 90 độ', 1, '1.617');
+INSERT INTO materials (id, name, type, weight) VALUES ('B2835', 'Nắp đậy rãnh khung đứng', 1, '0.109');
+INSERT INTO materials (id, name, type, weight) VALUES ('B4425', 'Khung bao ngang trên', 1, '1.453');
+INSERT INTO materials (id, name, type, weight) VALUES ('B4426', 'Nẹp kính', 1, '0.155');
+INSERT INTO materials (id, name, type, weight) VALUES ('B4429', 'Khung bao đứng', 1, '0.765');
+INSERT INTO materials (id, name, type, weight) VALUES ('B4428', 'Đố lan can', 1, '0.932');
+INSERT INTO materials (id, name, type, weight) VALUES ('B4430', 'Nẹp kính', 1, '0.153');
+INSERT INTO materials (id, name, type, weight) VALUES ('B4427', 'Nối góc 90 độ', 1, '1.197');
+INSERT INTO materials (id, name, type, weight) VALUES ('B3730', 'Khung bao ngang trên', 1, '1.128');
+INSERT INTO materials (id, name, type, weight) VALUES ('B3731', 'Đố đứng', 1, '0.920');
+INSERT INTO materials (id, name, type, weight) VALUES ('B3732', 'Khung đứng', 1, '0.689');
+INSERT INTO materials (id, name, type, weight) VALUES ('B3733', 'Nẹp kính', 1, '0.136');
+INSERT INTO materials (id, name, type, weight) VALUES ('G-KHUNG', 'Gioang KHUNG', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('KI-EP027E', 'Gioang KINH', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('NE-EP008E', 'Gioang NEP', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Kinhdon6', 'Kinh Trang 6.36mm', 2, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ACC-220-(PMA)', 'Chot canh phu - 22mm', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ACC-500-(PMA)', 'Chot canh phu - 50mm', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AKDD-(PMA)', 'Bo khoa da diem', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ALK2C', 'O khoa 2 mat', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ATCD19-(PMA)', 'TTD cua chinh, (L1800)', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AKBC-(PMA)', 'Dau Khoa bien Cao', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABL2D-(PMA)', 'Ban le 2D tieu chuan', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('10*100', 'Vit+No lap dat', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ST4*40', 'Vit lap ghep', 5, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ST4*60', 'Vit ghep khung', 5, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('G-Long', 'Gioang long', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('A-1800-(PMA)', 'TTD so truot 1800', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AVCT-(PMA)', 'Vau chot truot', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ACST-(PMA)', 'Chot canh SAP', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('CTC-(KINLONG)', 'Chong thao canh truot', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('9.08.0064', 'Dem chong rung canh truot', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('9.01.0048', 'Bo t/nam 2 mat khong o khoa (+01 truc)', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('9.05.0041', 'Banh xe cua di truot', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('F50300', 'Ke goc 2600/4400', 5, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('F50510', 'Gioang canh', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AVCD1C-(PMA)', 'Vau chot cua di', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('F54', 'Gioang san', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Ke.TC', 'Ke tang cung', 5, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('TIBON', 'Keo lien ket chong nuoc', 5, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ATN-(PMA)', 'Tay nam so ngoai (TC)', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AQN-400-(PMA)', 'TTD so ngoai 400', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AVC-1C-(PMA)', 'Vau chot cua so', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABLA-10-(KINLONG)', 'Ban le  A 18*10" -', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('LS152', 'Chong gio tu hoi 6"', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AQN-1200-(PMA)', 'TTD so ngoai 1200', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABLA-16-(PMA)', 'Ban le A  22*16"', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('9.08.0061-(PMA)', 'Bo nap day Do dong', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AQN-600-(PMA)', 'TTD so ngoai 600', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ACG-8-(PMA)', 'Chong gio tu hoi 8" - SUS 304', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('A-1400-(PMA)', 'TTD so truot 1400', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABXK-(PMA)', 'Banh xe don so truot', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ADCN-(PMA)', 'Chong thao canh truot', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Kenhay', 'Ke goc Canh + Khung', 5, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AD30', 'Gioang khung/canh', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ST4.2*19', 'Vit phu kien', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Ketangcung', 'Ke tang cung', 5, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Ni5*6', 'Gioang ni', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('GDE35', 'Gioang kinh', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AQN-1000-(PMA)', 'TTD so ngoai 1000', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABLA-14-(PMA)', 'Ban le A  22*14"', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AQN-1400-(PMA)', 'TTD so ngoai 1400', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABLA-12-(PMA)', 'Ban le A  22*12"', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Kinhtoi10', 'Kinh Temper 10mm', 2, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ACG-10-(PMA)', 'Chong gio tu hoi 10" - SUS 304', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('F50501', 'Gioang ong', 4, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Kinhdon5+6+5', 'Kinh hop 5+6+5', 2, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('NapDo(KINLONG)', 'Bo nap day Do dong', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AQN-800-(PMA)', 'TTD so ngoai 800', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABXD-(PMA)', 'Banh xe doi so truot', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Banle-(KINLONG)', 'Ban le trung gian 4 canh', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABLA-18-(PMA)', 'Ban le A 22*18"', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('Kinhdan6', 'Kinh Dan 6.38mm MO', 2, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('A-1600-(PMA)', 'TTD so truot 1600', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('AQN-1600-(PMA)', 'TTD so ngoai 1600', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ACG-12-(PMA)', 'Chong gio tu hoi 12" - SUS 304', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('ABLA-10-(PMA)', 'Ban le A  22*10"', 3, NULL);
+INSERT INTO materials (id, name, type, weight) VALUES ('C3204', 'DO chia di+so - C3204', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('VN04', 'Pa-no - XingFa', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('LS01', 'La Sach', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('C102', 'Khung bao La Sach', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1541', 'Khung TREN truot  -He 2001', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('C101A', 'Nep kinh vach HE -93', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1578A', 'Noi khung lien ket', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1549', 'Thanh Op - Khung DUNG -D 1549', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4410', 'Canh cua he 4400', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4482', 'HEM CANH QUAY 4400', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4587', 'Op day canh', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F2656', 'Do chia canh cua so', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F100*9', 'Pa-no S.HAL', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4420', 'Khung bao he 4400', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4405', 'Do chia vach he 4400', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F5016', 'Nep kinh 5mm', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('D1548', 'Hem truot 4 canh', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA-55101B', 'Khung bao di quay', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55201B', 'Canh di mo trong Khong NEP', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55503', 'Op chan Canh', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55402', 'Do tinh trong, ngoai', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55505', 'Nep kinh FIX 5mm >>10 mm', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55301B', 'Canh so mo ngoai Ko Nep', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55601', 'Khung truot', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55602', 'Canh truot', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55603', 'Hem truot', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F450', 'Khung bao he 450', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4451', 'Canh cua he 450', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55403', 'DO DONG 2 Canh', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F4504', 'Hem dong he 450', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55202', 'Canh di mo trong', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55302', 'Do tinh', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55501', 'Nep kinh 5mm >>10 mm', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PP-95', 'Pa-no 95*20', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55302B', 'Do tinh', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('C3208', 'Khung tren VACH - C3208', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55301', 'Canh so mo ngoai Co Nep', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55604', 'Hem truot doi dau', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('F5026', 'Nep kinh 10mm', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('PMA55201', 'Canh di mo ngoai', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('SFD05', 'Khung cua DAY Duoi', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('SFD02', 'Khung cua Dung', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('SFD01', 'Khung cua DAY Tren', 1, '1.000');
+INSERT INTO materials (id, name, type, weight) VALUES ('SFD03', 'Canh cua Di', 1, '1.000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (1, 'C3328', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (3, 'C3303', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (4, 'C18772', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (5, 'C3332', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (6, 'C18782', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (7, 'C3322', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (8, 'C22912', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (9, 'C38032', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (10, 'C3304', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (11, 'C6614', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (12, 'C3323', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (13, 'C22903', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (14, 'C22900', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (15, 'C3329', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (16, 'C3319', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (17, 'C3291', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (18, 'C3225', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (19, 'C3296', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (20, 'F347', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (21, 'C3246', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (22, 'C3286', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (23, 'C3236', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (24, 'C3206', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (25, 'C3295', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (26, 'C3318', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (27, 'C8092', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (28, 'C3202', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (29, 'C18762', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (30, 'C3312', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (31, 'C22922', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (32, 'C3033', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (33, 'C3313', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (34, 'C3209', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (35, 'C3203', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (36, 'F077', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (37, 'E1283', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (38, 'E192', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (39, 'B507', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (40, 'C3300', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (41, 'C3310', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (42, 'C3210', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (43, 'C920', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (44, 'C910', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (45, 'C459', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (46, 'C3317', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (47, 'C3207', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (48, 'C1687', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (49, 'C4137', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (50, 'C1697', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (51, 'C38019', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (52, 'C38038', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (53, 'C38039', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (54, 'C48949', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (55, 'C48954', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (56, 'C48953', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (57, 'C38010', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (58, 'C48980', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (59, 'C48945', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (60, 'CX283', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (61, 'CX281', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (62, 'CX282', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (63, 'CX568', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (64, 'CX309', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (65, 'CX267', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (66, 'CX264', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (67, 'CX750', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (68, 'CX266', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (69, 'CX265', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (70, 'C25899', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (71, 'CX311', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (72, 'CX310', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (73, 'C1757', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (74, 'C40988', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (75, 'C48952', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (76, 'C40912', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (77, 'C48942', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (78, 'C40902', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (79, 'C40983', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (80, 'C40984', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (81, 'C44249', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (82, 'C44234', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (83, 'C40869', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (84, 'C40973', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (85, 'C40978', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (86, 'E17523', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (87, 'C44226', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (88, 'C40979', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (89, 'F605', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (90, 'F606', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (91, 'F4116', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (92, 'F607', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (93, 'F2435', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (94, 'F523', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (95, 'F4117', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (96, 'F5017', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (97, 'F522', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (98, 'F560', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (99, 'F520', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (100, 'F519', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (101, 'F6029', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (102, 'F521', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (103, 'F608', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (104, 'F609', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (105, 'F417', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (106, 'D23151', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (107, 'D45482', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (108, 'D23156', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (109, 'D23157', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (110, 'D23158', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (111, 'D23159', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (112, 'D44329', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (113, 'D44035', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (114, 'D44327', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (115, 'D44328', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (116, 'D47713', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (117, 'D45316', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (118, 'D44564', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (119, 'D47688', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (120, 'D46070', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (121, 'D47679', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (122, 'D47678', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (123, 'D45478', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (124, 'D44569', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (125, 'D1541A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (126, 'D1551A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (127, 'D17182', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (128, 'D1942', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (129, 'D1542A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (130, 'D1543A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (131, 'D3213', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (132, 'D3211', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (133, 'D3212', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (134, 'D1544A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (135, 'D1545A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (136, 'D1546A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (137, 'D1547A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (138, 'D28144', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (139, 'D1555A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (140, 'D26146', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (141, 'D28127', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (142, 'D1559A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (143, 'D2618', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (144, 'D1354', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (145, 'D1548A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (146, 'D1549A', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (147, 'D1578', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (148, 'D2420', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (149, 'D2490', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (150, 'D34608', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (151, 'D1779', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (152, 'D1298', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (153, 'D1168', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (154, 'C101', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (155, 'F631', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (156, 'F632', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (157, 'F633', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (158, 'F2084', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (159, 'F630', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (160, 'F949', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (161, 'D47680', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (162, 'A1079', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (163, 'A1080', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (164, 'D47590', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (165, 'GK461', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (166, 'GK471', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (167, 'GK481', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (168, 'GK491', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (169, 'GK501', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (170, 'E21451', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (171, 'GK581', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (172, 'GK993', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (173, 'GK2053', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (174, 'GK2467', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (175, 'GK858', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (176, 'GK1073', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (177, 'GK015', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (178, 'GK066', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (179, 'GK780', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (180, 'GK1495', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (181, 'GK806', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (182, 'GK1035', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (183, 'GK606', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (184, 'GK294', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (185, 'GK2464', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (186, 'GK1255', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (187, 'GK1325', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (188, 'GK1295', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (189, 'GK1365', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (190, 'GK505', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (191, 'GK1215', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (192, 'GK001', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (193, 'GK011', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (194, 'GK021', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (195, 'GK251', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (196, 'GK261', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (197, 'GK813', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (198, 'GK853', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (199, 'GK413', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (200, 'GK1745', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (201, 'GK228', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (202, 'GK238', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (203, 'GK218', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (204, 'GK208', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (205, 'GK255', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (206, 'GK275', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (207, 'GK1064', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (208, 'GK534', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (209, 'GK454', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (210, 'E1214', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (211, 'E1215', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (212, 'E1216', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (213, 'B1735', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (214, 'E1217', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (215, 'E1218', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (216, 'B2831', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (217, 'B2832', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (218, 'B2846', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (219, 'B2833', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (220, 'B2834', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (221, 'B2835', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (222, 'B4425', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (223, 'B4426', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (224, 'B4429', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (225, 'B4428', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (226, 'B4430', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (227, 'B4427', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (228, 'B3730', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (229, 'B3731', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (230, 'B3732', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (231, 'B3733', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (2, 'C3328', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (232, 'PMA-55101B', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (233, 'PMA-55101B', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (234, 'PMA55201B', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (235, 'PMA55201B', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (236, 'PMA55402', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (237, 'PMA55402', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (238, 'PMA55403', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (239, 'PMA55403', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (240, 'PMA55503', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (241, 'PMA55503', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (242, 'PMA55505', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (243, 'PMA55505', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (244, 'VN04', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (245, 'VN04', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (246, 'C3204', '6000.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (247, 'C3204', '5800.000', '0.000', 0, '88000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (248, 'Kinhdon6', '745.000', '940.000', 0, '300000');
+INSERT INTO material_stock (id, material_id, length, width, stock, base_price) VALUES (249, 'Kinhdon6', '745.000', '1250.000', 0, '300000');
 
 
 INSERT INTO stock_import ("stock_id", "voucher_code","quantity_change", "quantity_after", "price", "date")
@@ -1036,7 +1056,7 @@ values
 ('Dự án Vinhome', 'Hà Nội', 1, 'Design Firm X', '2025-12-31', '2025-10-01 09:00:00', 'path/A.pdf', 'Production', 'doc/A.docx'),
 ('Dự án Ecopark', 'Hưng Yên', 2, 'Design Firm Y', '2024-10-20', '2025-10-05 10:00:00', 'path/B.pdf', 'Completed', 'doc/B.docx'),
 ('Dự án Biệt thự FLC', 'Quy Nhơn', 1, 'Design Firm X', '2026-06-15', '2025-10-10 11:00:00', 'path/C.pdf', 'Planning', 'doc/C.docx'),
-('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Deploying', 'rfq/imperial_docs.docx'),
+('Khách sạn Imperial Huế', 'Huế', 4, 'Kiến trúc Sông Hương', '2026-03-01', '2025-10-15 14:00:00', 'designs/hue_imperial.pdf', 'Production', 'rfq/imperial_docs.docx'),
 ('Homestay Phố Cổ', 'Hà Nội', 5, null, '2025-11-30', '2025-10-20 16:30:00', null, 'Planning', 'rfq/homestay_hanoi.docx');
 
 -- Cavities dummy data

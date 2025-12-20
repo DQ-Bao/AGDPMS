@@ -10,3 +10,10 @@ public class StockReceipt
     public decimal Price { get; set; }
     public DateTime Date { get; set; }
 }
+
+public class StockImportRequest
+{
+    public string VoucherCode { get; set; } = "";
+    public DateTime Date { get; set; }
+    public decimal Price { get; set; }
+}

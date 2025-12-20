@@ -1,0 +1,175 @@
+﻿@page "/inventory/plannings/{PlanningId:int}"
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "InventoryManager")]
+@inject IInventoryService InventoryService
+@inject NavigationManager Nav
+
+<div class="mb-3">
+    <button class="btn btn-danger me-2"
+            disabled="@(!IsPending)"
+            @onclick="Reject">
+        Reject
+    </button>
+
+    <button class="btn btn-success me-2"
+            disabled="@(!IsPending)"
+            @onclick="Complete">
+        Complete
+    </button>
+
+    <button class="btn btn-primary"
+            disabled="@(!IsPending || selectedDetailIds.Count == 0)"
+            @onclick="OpenImportModal">
+        Import Selected
+    </button>
+</div>
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th style="width:40px">
+                <input type="checkbox"
+                       checked="@IsAllSelected"
+                       @onchange="ToggleAll" />
+            </th>
+            <th>Material</th>
+            <th>Type</th>
+            <th>Length</th>
+            <th>Width</th>
+            <th>Quantity</th>
+            <th>Unit</th>
+            <th>Note</th>
+        </tr>
+    </thead>
+    <tbody>
+        @if (planning is not null)
+        {
+            @foreach (var d in planning.Details)
+            {
+                <tr>
+                    <td>
+                        <input type="checkbox"
+                               checked="@selectedDetailIds.Contains(d.Id)"
+                               @onchange="e => ToggleDetail(d.Id, (bool)e.Value!)" />
+                    </td>
+                    <td>@d.Material.Name</td>
+                    <td>@d.Material.Type?.Name</td>
+                    <td>@d.Length</td>
+                    <td>@d.Width</td>
+                    <td>@d.Quantity</td>
+                    <td>@d.Unit</td>
+                    <td>@d.Note</td>
+                </tr>
+            }
+        }
+    </tbody>
+</table>
+@if (showImportModal)
+{
+    <div class="modal show d-block" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Import Materials</h5>
+                    <button type="button" class="btn-close" @onclick="CloseImportModal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-2">
+                        <label>Voucher Code</label>
+                        <input class="form-control" readonly value="@Request.VoucherCode" />
+                    </div>
+                    <div class="mb-2">
+                        <label>Date</label>
+                        <InputDate class="form-control" @bind-Value="Request.Date" />
+                    </div>
+                    <div class="mb-2">
+                        <label>Price</label>
+                        <InputNumber class="form-control" @bind-Value="Request.Price" />
+                    </div>
+
+                    <p class="mt-2">
+                        <b>Items:</b> @SelectedDetails.Count
+                    </p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseImportModal">Cancel</button>
+                    <button class="btn btn-primary" @onclick="() => ConfirmImport(Request)">Confirm Import</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int PlanningId { get; set; }
+    private bool showImportModal = false;
+    private StatusMessage? StatusMessage { get; set; }
+    private MaterialPlanning? planning;
+    private HashSet<int> selectedDetailIds = new();
+    private bool IsPending => planning?.Status == MaterialPlanningStatus.Pending;
+    private bool IsAllSelected =>
+        planning != null &&
+        planning.Details.Count > 0 &&
+        selectedDetailIds.Count == planning.Details.Count;
+    private List<MaterialPlanningDetails> SelectedDetails =>
+        planning?.Details.Where(d => selectedDetailIds.Contains(d.Id)).ToList() ?? [];
+    private StockImportRequest Request = new()
+    {
+        VoucherCode = DateTime.Now.ToString("yyyyMMddHHmmss"),
+        Date = DateTime.Today
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await InventoryService.GetMaterialPlanningsAsync();
+        if (result.Success)
+        {
+            var plannings = result.MaterialPlannings;
+            planning = plannings.FirstOrDefault(p => p.Id == PlanningId);
+        }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private void ToggleDetail(int detailId, bool selected)
+    {
+        if (selected) selectedDetailIds.Add(detailId);
+        else selectedDetailIds.Remove(detailId);
+    }
+
+    private void ToggleAll(ChangeEventArgs e)
+    {
+        bool value = (bool)e.Value!;
+        selectedDetailIds.Clear();
+        if (value && planning != null)
+            foreach (var d in planning.Details) selectedDetailIds.Add(d.Id);
+    }
+
+    private async Task Reject()
+    {
+        var result = await InventoryService.UpdateMaterialPlanningStatusAsync(PlanningId, MaterialPlanningStatus.Cancelled);
+        if (result.Success) Nav.NavigateTo("/inventory/plannings");
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private async Task Complete()
+    {
+        var result = await InventoryService.UpdateMaterialPlanningStatusAsync(PlanningId, MaterialPlanningStatus.Completed);
+        if (result.Success) Nav.NavigateTo("/inventory/plannings");
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private void OpenImportModal() => showImportModal = true;
+    private void CloseImportModal() => showImportModal = false;
+
+    private async Task ConfirmImport(StockImportRequest request)
+    {
+        var result = await InventoryService.ImportFromMaterialPlanningAsync(PlanningId, SelectedDetails, request);
+        if (result.Success)
+        {
+            showImportModal = false;
+            Nav.NavigateTo("/inventory/plannings");
+        }
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+}

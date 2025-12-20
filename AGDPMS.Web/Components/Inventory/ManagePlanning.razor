@@ -1,0 +1,61 @@
+﻿@page "/inventory/plannings"
+@using AGDPMS.Shared.Components
+@using AGDPMS.Shared.Models
+@using AGDPMS.Shared.Services
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "InventoryManager")]
+@inject IInventoryService InventoryService
+
+<PageTitle>Quản lý yêu cầu</PageTitle>
+
+<h3>Quản lý yêu cầu</h3>
+<StatusMessageAlert Message="@StatusMessage" AdditionalClasses="mb-2" />
+<table class="table">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>Dự án</th>
+            <th>Tạo bởi</th>
+            <th>Trạng thái</th>
+            <th>Tạo ngày</th>
+            <th>Thao tác</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var p in Plannings)
+        {
+            <tr>
+                <td>@p.Id</td>
+                <td>@p.ProjectName</td>
+                <td>@p.UserName</td>
+                <td>@StatusText(p.Status)</td>
+                <td>@p.CreatedAt?.ToString("dd/MM/yyyy HH:mm")</td>
+                <td>
+                    <a href="@($"/inventory/plannings/{p.Id}")" class="btn btn-outline-primary">
+                        Chi tiết
+                    </a>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private List<MaterialPlanning> Plannings { get; set; } = [];
+    private StatusMessage? StatusMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await InventoryService.GetMaterialPlanningsAsync();
+        if (result.Success) Plannings = result.MaterialPlannings;
+        else StatusMessage = StatusMessage.Error(result.ErrorMessage);
+    }
+
+    private string StatusText(MaterialPlanningStatus status) => status switch
+    {
+        MaterialPlanningStatus.Pending => "Chưa xử lý",
+        MaterialPlanningStatus.Cancelled => "Đã hủy",
+        MaterialPlanningStatus.Completed => "Hoàn thành",
+        _ => ""
+    };
+}
