@@ -135,12 +135,12 @@ internal class WebProductService(
                     ))
                     .OrderBy(cut => cut.CutLength)
                     .ToList();
-                double[] stockLengths = g.Key.Stocks.Count != 0
-                    ? [.. g.Key.Stocks.Select(s => s.Length)]
-                    : [6000d, 5800d];
-                int[] stockLengthQuantities = g.Key.Stocks.Count != 0
-                    ? [.. g.Key.Stocks.Select(s => s.Stock <= 0 ? int.MaxValue : s.Stock)]
-                    : [int.MaxValue, int.MaxValue];
+                if (g.Key.Stocks.Count == 0)
+                    g.Key.Stocks.AddRange(
+                        new MaterialStock { MaterialId = g.Key.Id, Stock = 0, Length = 6000 },
+                        new MaterialStock { MaterialId = g.Key.Id, Stock = 0, Length = 5800 });
+                double[] stockLengths = [.. g.Key.Stocks.Select(s => s.Length)];
+                int[] stockLengthQuantities = [.. g.Key.Stocks.Select(s => s.Stock <= 0 ? int.MaxValue : s.Stock)];
                 double[] cutLengths = [.. cuts.Select(c => c.CutLength)];
                 double[] cutLengthDemands = [.. cuts.Select(c => (double)c.Quantity)];
                 var opt = ICutOptimizationService.SolveMultipleStockSize(
@@ -204,8 +204,14 @@ internal class WebProductService(
                 {
                     var stock = grp.First().BOM.Material.Stocks
                                    .FirstOrDefault(s => s.Width == grp.Key.Width && s.Length == grp.Key.Length);
-                    var cavityCodeArrays = await Task.WhenAll(grp.Select(b => cavityDataAccess.GetCodeByIdAsync(b.BOM.CavityId)));
-                    var cavityCodes = cavityCodeArrays.SelectMany(c => c).ToList();
+                    HashSet<string> cavityCodeArrays = [];
+                    foreach (var codeTask in grp.Select(b => cavityDataAccess.GetCodeByIdAsync(b.BOM.CavityId)))
+                    {
+                        var codes = await codeTask;
+                        cavityCodeArrays.Add(string.Join(",", codes));
+                    }
+                    var cavityCodes = cavityCodeArrays
+                        .SelectMany(c => c.Split(",", StringSplitOptions.RemoveEmptyEntries)).ToList();
 
                     cuts.Add(new CavityGlassSummary.GlassCut
                     {
@@ -341,7 +347,42 @@ internal class WebProductService(
             {
                 return new CalculateQuotationResult { Success = false, ErrorMessage = "Các tham số không hợp lệ" };
             }
-            var quotation = await cavityDataAccess.GetQuotationAsync(projectId, settings);
+            var quotation = new Quotation();
+            var cavities = await cavityDataAccess.GetAllFromProjectAsync(projectId);
+            foreach (var cavity in cavities)
+            {
+                var cav = await cavityDataAccess.GetByIdWithBOMsAsync(cavity.Id);
+                if (cav is null) continue;
+                var weight = cav.BOMs.Sum(b => b.Material.Weight * b.Length * 0.001);
+                var price = cav.BOMs.Sum(b =>
+                {
+                    var stock = b.Material.Stocks.FirstOrDefault();
+                    var unitPrice = stock?.BasePrice ?? 0m;
+                    if (b.Material.Type == MaterialType.Aluminum)
+                    {
+                        return unitPrice * (decimal)(b.Length * 0.001) * b.Quantity;
+                    }
+                    else if (b.Material.Type == MaterialType.Glass)
+                    {
+                        return unitPrice * b.Quantity;
+                    }
+                    else
+                    {
+                        return unitPrice * b.Quantity;
+                    }
+                });
+                quotation.Details.Add(new Quotation.QuotationDetails
+                {
+                    Code = cav.Code,
+                    Description = cav.Description ?? string.Empty,
+                    Width = cav.Width,
+                    Height = cav.Height,
+                    Quantity = cav.Quantity,
+                    Weight = weight,
+                    MaterialPrice = price,
+                    Settings = settings
+                });
+            }
             return new CalculateQuotationResult { Success = true, Quotation = quotation };
         }
         catch (Exception e)

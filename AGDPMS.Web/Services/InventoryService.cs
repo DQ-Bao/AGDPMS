@@ -1,7 +1,6 @@
 ﻿using AGDPMS.Shared.Models;
 using AGDPMS.Shared.Services;
 using AGDPMS.Web.Data;
-using Google.OrTools.ConstraintSolver;
 
 namespace AGDPMS.Web.Services;
 
@@ -171,5 +170,36 @@ public class InventoryService(InventoryDataAccess inventoryDataAccess) : IInvent
         {
             return new BaseResult { Success = false, ErrorMessage = e.Message };
         }
+    }
+
+    public async Task<GetMaterialPlanningResult> GetMaterialPlanningsAsync()
+    {
+        try
+        {
+            var plannings = await inventoryDataAccess.GetAllMaterialPlanningsAsync();
+            return new GetMaterialPlanningResult { Success = true, MaterialPlannings = [..plannings] };
+        }
+        catch (Exception e)
+        {
+            return new GetMaterialPlanningResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public async Task<UpdateMaterialPlanningStatusResult> UpdateMaterialPlanningStatusAsync(int planningId, MaterialPlanningStatus status)
+    {
+        try
+        {
+            await inventoryDataAccess.UpdateMaterialPlanningStatus(planningId, status);
+            return new UpdateMaterialPlanningStatusResult { Success = true };
+        }
+        catch (Exception e)
+        {
+            return new UpdateMaterialPlanningStatusResult { Success = false, ErrorMessage = e.Message };
+        }
+    }
+
+    public Task<ImportFromMaterialPlanningResult> ImportFromMaterialPlanningAsync(int planningId, List<MaterialPlanningDetails> items, StockImportRequest request)
+    {
+        throw new NotImplementedException();
     }
 }

@@ -6,8 +6,11 @@ public class MaterialPlanning
     public int Id { get; set; }
     public required int UserId { get; set; }
     public required int ProjectId { get; set; }
+    public string? ProjectName { get; set; }
+    public string? UserName { get; set; }
     public MaterialPlanningStatus Status { get; set; } = MaterialPlanningStatus.Pending;
     public List<MaterialPlanningDetails> Details { get; set; } = [];
+    public DateTime? CreatedAt { get; set; }
 }
 
 public enum MaterialPlanningStatus { Pending, Cancelled, Completed }

@@ -1,9 +1,4 @@
 ﻿using AGDPMS.Shared.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AGDPMS.Shared.Services;
 
@@ -19,6 +14,9 @@ public interface IInventoryService
     Task<BaseResult> AddStockReceipt(StockReceipt stockReceipt);
     Task<GetStockIssueResult> GetStockIssue();
     Task<BaseResult> AddStockIssue(StockIssue stockReceipt);
+    Task<GetMaterialPlanningResult> GetMaterialPlanningsAsync();
+    Task<UpdateMaterialPlanningStatusResult> UpdateMaterialPlanningStatusAsync(int planningId, MaterialPlanningStatus status);
+    Task<ImportFromMaterialPlanningResult> ImportFromMaterialPlanningAsync(int planningId, List<MaterialPlanningDetails> items, StockImportRequest request);
 }
 
 public class GetMaterialTypeResult : BaseResult
@@ -42,5 +40,13 @@ public class GetMaterialResult : BaseResult
 
 public class GetMaterialPlanningResult : BaseResult
 {
-    public IEnumerable<MaterialPlanning> MaterialPlannings { get; set; } = [];
+    public List<MaterialPlanning> MaterialPlannings { get; set; } = [];
+}
+
+public class UpdateMaterialPlanningStatusResult : BaseResult
+{
+}
+
+public class ImportFromMaterialPlanningResult : BaseResult
+{
 }

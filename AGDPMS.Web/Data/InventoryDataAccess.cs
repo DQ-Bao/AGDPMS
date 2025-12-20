@@ -1,6 +1,7 @@
 ﻿using AGDPMS.Shared.Models;
 using Dapper;
 using DocumentFormat.OpenXml.Office2010.Excel;
+using DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing;
 using DocumentFormat.OpenXml.Spreadsheet;
 using DocumentFormat.OpenXml.Wordprocessing;
 using System.Data;
@@ -446,5 +447,65 @@ public class InventoryDataAccess(IDbConnection conn)
         return stock;
     }
 
+    public async Task<IEnumerable<MaterialPlanning>> GetAllMaterialPlanningsAsync(IDbTransaction? tran = null)
+    {
+        var lookup = new Dictionary<int, MaterialPlanning>();
+        await conn.QueryAsync<MaterialPlanning, MaterialPlanningDetails, Material, MaterialType, MaterialPlanning>(@"
+            select
+                mp.id as Id,
+                mp.made_by as UserId,
+                mp.project_id as ProjectId,
+                p.name as ProjectName,
+                u.fullname as UserName,
+                mp.status as Status,
+                mp.created_at as CreatedAt,
 
+                mpd.id as Id,
+                mpd.planning_id as PlanningId,
+                mpd.length as Length,
+                mpd.width as Width,
+                mpd.quantity as Quantity,
+                mpd.unit as Unit,
+                mpd.note as Note,
+
+                m.id as Id,
+                m.name as Name,
+                m.weight as Weight,
+
+                mt.id as Id,
+                mt.Name as Name
+            from material_plannings mp
+            join projects p on mp.project_id = p.id
+            join users u on mp.made_by = u.id
+            left join material_planning_details mpd on mpd.planning_id = mp.id
+            left join materials m on m.id = mpd.material_id
+            left join material_type mt on m.type = mt.id
+            order by mp.id;",
+            (planning, detail, material, matType) =>
+            {
+                if (!lookup.TryGetValue(planning.Id, out var planningEntry))
+                {
+                    planningEntry = planning;
+                    planningEntry.Details = [];
+                    lookup.Add(planning.Id, planningEntry);
+                }
+                if (detail is not null && detail.Id != 0)
+                {
+                    material.Type = matType;
+                    detail.Material = material;
+                    planningEntry.Details.Add(detail);
+                }
+                return planningEntry;
+            }, splitOn: "Id,Id,Id", transaction: tran);
+        return [.. lookup.Values];
+    }
+
+    public async Task UpdateMaterialPlanningStatus(int planningId, MaterialPlanningStatus status, IDbTransaction? tran = null)
+    {
+        await conn.ExecuteAsync(@"
+            update material_plannings
+            set status = @Status
+            where id = @PlanningId;
+        ", new { PlanningId = planningId, Status = status.ToString() }, tran);
+    }
 }
